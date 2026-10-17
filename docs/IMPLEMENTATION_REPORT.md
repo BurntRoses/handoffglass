@@ -23,11 +23,11 @@
 - `npm run demo`: **HTTP 200**（模拟产品演示服务）
 - `npm run test:integration`: **未执行**（当前环境没有成功安装 MCP Client/Server SDK 依赖）
 - `npm run desktop:demo`: **未执行**（当前运行容器不是目标 Windows/macOS 图形桌面）
-- GitHub Actions: 已编写 workflow；**尚未实际触发**。
+- GitHub Actions（仓库端）：**Ubuntu、macOS、Windows 均已通过** `npm run verify` 和 `npm run test:integration`，验证运行：https://github.com/BurntRoses/handoffglass/actions/runs/38996793059。
 
 ## GitHub 状态
 
-2026-10-17 用户已新建 `BurntRoses/handoffglass` 私有仓库，已确认账号具备推送权限。此前“仓库不存在”的记录属于上一轮历史状态。GitHub Actions 是否实际执行成功须以仓库 Actions 页面为准。
+2026-10-17 用户已新建 `BurntRoses/handoffglass` 私有仓库，已确认账号具备推送权限。此前“仓库不存在”的记录属于上一轮历史状态。已通过 GitHub 工具将完整 35 文件工程提交到 `main`，并在发现 MCP SDK v2 的 `serveStdio()` 使用错误后修复，跨平台 CI 全部通过。源代码：https://github.com/BurntRoses/handoffglass。
 
 ## 必须避免的夸大
 
@@ -35,12 +35,12 @@
 - 不能保证在 UAC secure desktop / OS 受保护对话框上绘制。
 - 没有 Windows/macOS 实机 UI 运行证明，也没有完成签名安装包。
 - MCP 状态上的 `completed` 不是目标应用已成功的证据。
-- 使用 GitHub 工具审阅官方开源项目，不等于已经将此项目代码推送至 GitHub。
+- 自动化测试通过不等于通过真实桌面遮罩与系统受保护窗口的实机验收。
 
 ## 推荐的下一轮工作（按优先级）
 
-1. 安装依赖后执行 `npm run test:integration` 和 Windows/macOS `npm run desktop:demo`，记录真实窗口边界、DPI 及全屏行为。
-2. 将源代码提交至私有仓库并使用 GitHub Actions 验证 3 个平台的测试。
+1. 在 Windows/macOS 实机执行 `npm run desktop:demo`，记录真实窗口边界、DPI、焦点与全屏行为。
+2. 完成发布打包与确定性依赖锁定，并使 CI 验证安装产物。
 3. 开发单实例本机 Broker，避免多个 MCP Host 启动重叠标注进程。
 4. 增加 macOS Accessibility 与 Windows UI Automation 的目标定位，实现可信的元素坐标与窗口移动后自动更新。
 5. 建立可量化用户测试：定位错误率、人工任务完成率、恢复成功率、额外 tokens 与延时、拒绝路径安全性。

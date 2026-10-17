@@ -8,6 +8,7 @@
 - Multi-display coordinate utilities and safer Electron IPC decisions.
 - 16 unit tests, SDK smoke script, optional manual desktop smoke and CI workflow.
 - Expanded README, security document, product and engineering roadmap.
+- Post-import fix: treat MCP SDK v2 `serveStdio` as a synchronous handle; GitHub Actions subsequently passed on Linux/macOS/Windows.
 
 ## 0.1.0 — 2026-10-16
 

@@ -9,7 +9,7 @@
 - [x] Transparent Electron overlay per display and clickable user decision panel.
 - [x] Cross-display DIP coordinate transformation + geometry tests.
 - [x] Unit/bridge tests; real MCP stdio smoke test script, desktop manual smoke script and CI configuration.
-- [ ] CI run results from a pushed GitHub repository.
+- [x] GitHub Actions verifies syntax, 16 unit tests and real MCP SDK stdio handshake on Linux/macOS/Windows.
 - [ ] Desktop GUI acceptance on native macOS and Windows.
 
 ## v0.3 — make installation effortless
