@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "handoffglass": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/TO/HandoffGlass/src/mcp.mjs"]
+    }
+  }
+}
