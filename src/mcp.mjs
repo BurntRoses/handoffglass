@@ -121,5 +121,5 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   process.once(signal, () => { void cleanup().finally(() => process.exit(0)); });
 }
 process.once('exit', () => { if (desktop && desktop.exitCode === null) desktop.kill(); });
-void serveStdio(makeServer).catch(err => { console.error('[handoffglass] MCP transport failed:', err); void cleanup().finally(() => { process.exitCode = 1; }); });
+serveStdio(makeServer, { onerror: err => console.error('[handoffglass] MCP transport error:', err) });
 console.error(`[handoffglass] MCP ready (loopback bridge :${bridge.port}; no external listener)`);
