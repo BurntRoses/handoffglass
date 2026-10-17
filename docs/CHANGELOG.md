@@ -24,3 +24,9 @@
 ## 0.1.0 — 2026-10-16
 
 - Initial MCP tool definitions, one-target desktop overlay, local bridge and prototype UI.
+
+## Unreleased — independent Agent readiness
+
+- Enforce HTTP route methods and bound concurrent long-poll listeners in the local bridge.
+- Add regression tests for method confusion and polling resource exhaustion.
+- Add autonomous developer instructions (`AGENTS.md`) and independent development handoff (`docs/AGENT_HANDOFF.md`).

@@ -95,6 +95,13 @@ export class LocalBridge {
     }
     const parsed = new URL(req.url, `http://${host}`);
     const pathname = parsed.pathname;
+    // Reject method confusion before touching state or allocating listeners.
+    const routes = { '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
+      '/agent/displays': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
+      '/agent/wait': 'GET', '/agent/cancel': 'POST' };
+    if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
+      return sendJson(res, 405, { error: 'Method not allowed' });
+    }
     const isAgentRoute = pathname.startsWith('/agent/') || pathname === '/health';
     const expected = Buffer.from(`Bearer ${isAgentRoute ? this.agentToken : this.token}`);
     const provided = Buffer.from(req.headers.authorization || '');
@@ -181,6 +188,7 @@ export class LocalBridge {
         this.waiters.delete(respond);
         sendJson(res, 200, data);
       };
+      if (this.waiters.size >= 128) return sendJson(res, 503, { error: 'Too many pending polls' });
       this.waiters.add(respond);
       timer = setTimeout(() => respond(this.snapshot()), 10000);
       res.on('close', () => { clearTimeout(timer); this.waiters.delete(respond); });

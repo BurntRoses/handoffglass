@@ -59,3 +59,29 @@ test('rejects malformed screens, decisions, and overlarge bodies', async () => f
   assert.equal(manager.get(s.id).status, 'declined');
   assert.equal((await request('/hello', { method: 'POST', body: { displays: [], noisy: 'x'.repeat(20000) } })).status, 413);
 }));
+
+test('rejects route method confusion without touching session state', async () => fixture(async ({ manager, request }) => {
+  const s = manager.show(basic);
+  assert.equal((await request('/decision?id=' + s.id)).status, 405);
+  assert.equal((await request('/state', { method: 'POST', body: {} })).status, 405);
+  assert.equal((await request('/agent/show')).status, 405);
+  assert.equal(manager.get(s.id).status, 'awaiting_user');
+}));
+
+test('bounds concurrent long polls to protect the loopback broker', async () => fixture(async ({ request, bridge }) => {
+  const hello = await (await request('/hello', { method: 'POST', body: { displays: [] } })).json();
+  const ctl = new AbortController();
+  const url = `http://127.0.0.1:${bridge.port}/poll?after=${hello.revision}`;
+  const pending = Array.from({ length: 128 }, () => fetch(url, {
+    headers: { authorization: `Bearer ${bridge.token}` }, signal: ctl.signal
+  }).catch(() => null));
+  try {
+    const until = Date.now() + 4000;
+    while (bridge.waiters.size < 128 && Date.now() < until) await new Promise(r => setTimeout(r, 15));
+    assert.equal(bridge.waiters.size, 128);
+    assert.equal((await request(`/poll?after=${hello.revision}`)).status, 503);
+  } finally {
+    ctl.abort();
+    await Promise.all(pending);
+  }
+}));
