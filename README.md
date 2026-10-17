@@ -23,7 +23,7 @@ Prior art: [big-arrow-on-the-screen](https://github.com/franzenzenhofer/big-arro
 Requirements: **Node.js 22+**, a local Windows or macOS interactive desktop, and an MCP-capable host. Clone or extract this repository:
 
 ```bash
-npm install
+npm ci
 npm run verify
 npm run doctor
 npm run configure        # generate your machine-specific MCP settings
@@ -34,7 +34,7 @@ npm run broker:stop      # stop the shared background broker
 npm run desktop:demo
 ```
 
-**In your MCP client**, point at the `src/mcp.mjs` entry using an **absolute path** (Node executes the server; Electron is launched automatically when the first UI tool is called):
+**In your MCP client**, point at the `src/mcp.mjs` entry using an **absolute path** (Node executes the server; Electron is launched automatically by the shared Broker when the first UI tool is called):
 
 ```json
 {

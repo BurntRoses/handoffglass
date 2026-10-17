@@ -8,6 +8,7 @@
 - [x] Broker CLI status/stop, state recovery tests, dual-host MCP SDK integration script.
 - [x] Electron display-change debounce and fresh desktop handshake on renderer restart.
 - [ ] Cross-platform GUI desktop acceptance on macOS and Windows real interactive sessions.
+- [x] npm lockfile with cross-platform deterministic CI install.
 - [ ] Signed installer, hardened macOS app, verified Windows installer and notarization.
 - [ ] Stable public multi-runtime protocol (currently private v0.3 design, subject to change).
 

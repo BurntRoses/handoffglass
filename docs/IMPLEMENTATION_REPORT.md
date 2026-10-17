@@ -23,7 +23,7 @@
 
 ## 尚未证明
 
-- `npm run test:integration`：当前 Linux 容器缺少在线安装的 MCP SDK 和 Electron，需由 GitHub Actions 安装依赖后执行。
+- `npm run test:integration`：当前 Linux 容器缺少在线安装的 MCP SDK 和 Electron，已在上一轮 GitHub Actions 跨平台成功执行；本次锁定依赖版本后应重新执行。
 - Electron 实际悬浮、跨显示器、点击穿透以及 Mac/Windows 安装包：需交互式桌面验收；GitHub CI 无法替代真实桌面。
 - UI 语义定位、动态按钮跟随、完整实时语音/视频：未实现。
 - 成功提交 GitHub 与后续 CI 状态需以对应 commit 和 GitHub Actions 实际结果为准，不以此预先断言。
