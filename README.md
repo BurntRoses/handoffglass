@@ -134,7 +134,7 @@ Key invariants: no screenshot or password capture; UI agent annotations do not c
 
 - `npm run verify` runs JavaScript syntax and 22 Node tests for lifecycle, bridge, security, multi-monitor geometry and concurrency. Does **not** need installed dependencies.
 - `npm run desktop:demo` opens a real overlay without requiring an Agent host; requires a graphical OS and Electron.
-- `npm run test:integration` runs the **real official MCP SDK** client in headless mode and checks initialization, discovery, request, status, cancel and wait. Requires `npm install`; does not show OS overlay.
+- `npm run test:integration` runs the **real official MCP SDK** client in headless mode and checks initialization, discovery, request, status, cancel and wait. Requires `npm ci`; does not show OS overlay.
 - CI is configured for Node 22 on Windows, macOS and Linux. Only native macOS/Windows interactive desktop testing can validate click-through, fullscreen, secure dialogs and DPI.
 - Do not assume a headless passing test means an operating-system permission dialog can be annotated. Windows UAC secure desktop and other protected desktops are out of scope.
 

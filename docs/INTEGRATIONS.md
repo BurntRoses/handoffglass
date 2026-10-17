@@ -7,7 +7,7 @@ HandoffGlass exposes a **local MCP server**. Skills provide prompt guidance but 
 From the repository root:
 
 ```bash
-npm install
+npm ci
 node scripts/configure.mjs all
 # or use `claude` or `codex` instead of `all`
 ```
@@ -40,7 +40,7 @@ Multiple MCP hosts may run simultaneously. Their sessions share one local Broker
 ## Troubleshooting
 
 - **MCP connects, UI missing:** the host may be on a remote/cloud machine, but Electron needs the **user's actual interactive desktop**. HandoffGlass v0.3 is a local-only renderer, not a cloud remote-browser plugin.
-- **No Electron:** run `npm install` and ensure GUI display server/desktop session is available.
+- **No Electron:** run `npm ci` and ensure GUI display server/desktop session is available.
 - **Control target outside screens:** query `screen_displays` and use global DIP coordinates, not screenshot pixels.
 - **Permission dialog not visible:** ordinary windows cannot guarantee overlay coverage of UAC secure desktop or other protected surfaces. Use a coordinate-free handoff panel where possible.
 - **Busy:** ask the original Agent to end its handoff or let it expire; no other Agent should dismiss it silently.
