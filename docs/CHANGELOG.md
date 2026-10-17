@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 — 2026-10-17
+
+- Split MCP stdio adapters from one lazy-started local Broker; state and Electron are no longer duplicated across hosts.
+- Owner isolation: one host cannot supersede, inspect or cancel a session owned by another; busy conflicts are explicit.
+- Atomic single-instance startup coordination, private runtime manifest, credential separation and stale-broker recovery.
+- Broker status/stop commands, cross-host protocol regression testing, runtime crash/restart coverage.
+- Desktop reconnect now requires a fresh renderer heartbeat, and display layout refreshes are debounced.
+- Desktop acceptance checklist and rewritten trust/architecture documents.
+
 ## 0.2.0 — 2026-10-17
 
 - Coordinate-free human handoff and up to eight confirmed target annotations.

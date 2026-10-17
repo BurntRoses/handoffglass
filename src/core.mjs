@@ -77,12 +77,17 @@ export class HandoffManager extends EventEmitter {
     this.clock = clock;
     this.maxHistory = Math.max(2, Math.trunc(maxHistory));
     this.sessions = new Map();
+    this.owners = new Map();
     this.timers = new Map();
     this.activeId = null;
   }
-  show(input) {
+  show(input, owner = 'local') {
     const normalized = normalizeRequest(input);
+    if (typeof owner !== 'string' || !owner || owner.length > 128) throw new TypeError('Invalid owner');
     const previous = this.activeId && this.sessions.get(this.activeId);
+    if (previous && this.owners.get(previous.id) !== owner) {
+      return { error: 'busy', activeMode: previous.mode };
+    }
     if (previous && !TERMINAL.has(previous.status)) this.#finish(previous, 'superseded');
     const now = this.clock();
     const session = {
@@ -93,6 +98,7 @@ export class HandoffManager extends EventEmitter {
       completionSource: null, verified: false
     };
     this.sessions.set(session.id, session);
+    this.owners.set(session.id, owner);
     this.activeId = session.id;
     const timer = setTimeout(() => this.get(session.id), normalized.timeoutSeconds * 1000 + 5);
     timer.unref?.();
@@ -108,10 +114,15 @@ export class HandoffManager extends EventEmitter {
     return copySession(session);
   }
   active() { return this.activeId ? this.get(this.activeId) : null; }
-  resolve(id, status) {
+  getOwned(id, owner) { return this.owners.get(id) === owner ? this.get(id) : null; }
+  async waitOwned(id, owner, timeoutMs = 15000) {
+    if (this.owners.get(id) !== owner) return { error: 'not_found' };
+    return this.wait(id, timeoutMs);
+  }
+  resolve(id, status, owner = null) {
     if (!['completed', 'declined', 'cancelled'].includes(status)) throw new TypeError('Invalid decision');
     const session = this.sessions.get(id);
-    if (!session) return { error: 'not_found' };
+    if (!session || (owner !== null && this.owners.get(id) !== owner)) return { error: 'not_found' };
     this.get(id); // expiry always wins over a late response
     if (TERMINAL.has(session.status)) return { error: 'already_final', session: copySession(session) };
     if (this.activeId !== id) return { error: 'not_active' };
@@ -156,7 +167,7 @@ export class HandoffManager extends EventEmitter {
     if (this.sessions.size <= this.maxHistory) return;
     for (const [id, session] of this.sessions) {
       if (this.sessions.size <= this.maxHistory) break;
-      if (TERMINAL.has(session.status)) this.sessions.delete(id);
+      if (TERMINAL.has(session.status)) { this.sessions.delete(id); this.owners.delete(id); }
     }
   }
   close() {

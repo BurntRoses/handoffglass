@@ -2,7 +2,7 @@
 
 **Give an AI agent a way to point — and a safe way to hand control to a human.**
 
-> **0.2.0 engineering preview · local-first · Node.js + Electron · MCP v2 + Agent Skill**  
+> **0.3.0 engineering preview · local-first · Node.js + Electron · MCP v2 + Agent Skill**  
 > Supports Windows/macOS design targets. GUI behavior must be validated on an actual graphical desktop. This is not a general screen-understanding, CAPTCHA-solving or auto-clicking system.
 
 HandoffGlass is a developer-focused interaction layer that extends **existing** computer-use agents. The agent can show visual annotations on the user's desktop, request a manual decision, receive an explicit outcome and resume its original workflow **after separately verifying the real result**.
@@ -27,6 +27,8 @@ npm install
 npm run verify
 npm run doctor
 npm run test:integration
+npm run broker:status    # check the shared background broker
+npm run broker:stop      # stop the shared background broker
 # Optional, on a real Windows/macOS desktop:
 npm run desktop:demo
 ```
@@ -98,25 +100,30 @@ Use with `visual_show` for guidance or with `handoff_request` if a human decisio
 
 `session.status`: `awaiting_user | completed | declined | cancelled | expired | superseded`.
 
-When `completed`, `completionSource = "user_report"` and `verified = false` intentionally. The agent must verify the actual changed permission, file, account, etc. with its **own** tools. `handoff_wait` may return `pending: true` and the same `awaiting_user` session. A new request supersedes the previous one; the previous decision cannot complete the new request.
+When `completed`, `completionSource = "user_report"` and `verified = false` intentionally. The agent must verify the actual changed permission, file, account, etc. with its **own** tools. `handoff_wait` may return `pending: true` and the same `awaiting_user` session. A new request from **the same Agent** supersedes its previous request. A request from another Agent receives `busy` until the current session ends; agents cannot read or cancel sessions owned by other clients.
 
-Sessions are in memory and **not persistent** across MCP server restarts. A separate MCP process in each client has its own bridge/session; multi-agent orchestration is not yet coordinated.
+Sessions are kept in the single local Broker (not written to disk), so they **survive an individual MCP process exit**, but are lost when the Broker restarts. Multiple MCP hosts connect to the same Broker; each host receives a distinct ownership ID. The Broker stays running after a host exits; use `npm run broker:stop` to shut it down. An unresponsive or abandoned handoff remains active until its timeout, unless the owner or user cancels it.
 
 ## Architecture
 
 ```text
-Agent host (Claude Code / Codex / compatible MCP client)
-      |   MCP over stdio (only protocol JSON-RPC on stdout)
-      v
-MCP v2 SDK adapter -------- HandoffManager (single active session, TTL, bounded history)
-                                  |
-                   LocalBridge, random bearer + ephemeral 127.0.0.1 port
-                                  |
-                    Electron desktop main process
-                       /                   \\
-             per-display overlay       consent / guidance panel
-              click-through SVG        user-controlled decisions
+MCP host A ─┐
+MCP host B ─┼─ stdio MCP v2 adapters (each with its own owner ID)
+MCP host C ─┘                      │
+                    private per-user runtime manifest (0600 on POSIX)
+                                  │ agent-only bearer token
+                                  ▼
+                  SINGLE background Broker (127.0.0.1)
+                       │               │
+                 Owned sessions     Desktop-only bearer token
+                      (TTL)             │
+                            Electron desktop main
+                             │             │
+                       per-display     consent/guide panel
+                       overlays        (human decisions)
 ```
+
+`src/runtime.mjs` atomically coordinates first startup so simultaneous MCP clients launch one Broker. The runtime directory is private on POSIX (`~/.handoffglass`, mode 0700). `HANDOFFGLASS_RUNTIME_DIR` can override this for isolated integration tests; supply an absolute path. The Broker owns Electron, and separate bearer tokens distinguish Agent API calls from desktop UI calls. Loopback is **not** a boundary against malicious software running as the same user.
 
 Key invariants: no screenshot or password capture; UI agent annotations do not click, type or approve; localhost bridge requires a random secret; Electron renderer is sandboxed; rendering uses text nodes, not user-provided HTML; stale / replayed events are eliminated via revisioned snapshots; display data is in DIP and local display geometry is used for overlays.
 
@@ -124,7 +131,7 @@ Key invariants: no screenshot or password capture; UI agent annotations do not c
 
 ## Testing
 
-- `npm run verify` runs JavaScript syntax and 16 Node tests for lifecycle, bridge, security, multi-monitor geometry and concurrency. Does **not** need installed dependencies.
+- `npm run verify` runs JavaScript syntax and 20 Node tests for lifecycle, bridge, security, multi-monitor geometry and concurrency. Does **not** need installed dependencies.
 - `npm run desktop:demo` opens a real overlay without requiring an Agent host; requires a graphical OS and Electron.
 - `npm run test:integration` runs the **real official MCP SDK** client in headless mode and checks initialization, discovery, request, status, cancel and wait. Requires `npm install`; does not show OS overlay.
 - CI is configured for Node 22 on Windows, macOS and Linux. Only native macOS/Windows interactive desktop testing can validate click-through, fullscreen, secure dialogs and DPI.

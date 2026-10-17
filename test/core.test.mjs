@@ -91,3 +91,15 @@ test('terminal history is bounded', () => {
   assert.equal(m.get(ids[0]), null);
   m.close();
 });
+
+test('a different agent cannot supersede or cancel another active session', () => {
+  const m = new HandoffManager();
+  const owned = m.show({ ...base }, 'first');
+  assert.equal(m.show({ ...base }, 'second').error, 'busy');
+  assert.equal(m.getOwned(owned.id, 'second'), null);
+  assert.equal(m.resolve(owned.id, 'cancelled', 'second').error, 'not_found');
+  const next = m.show({ ...base }, 'first');
+  assert.equal(m.get(owned.id).status, 'superseded');
+  assert.equal(m.get(next.id).status, 'awaiting_user');
+  m.close();
+});

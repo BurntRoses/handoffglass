@@ -1,46 +1,35 @@
-# HandoffGlass v0.2 — 实施与验收报告
+# HandoffGlass v0.3 — 实施与测试报告
 
-日期：2026-10-17
+2026-10-17 · 私有仓库 `BurntRoses/handoffglass`
 
-## 产品定位
+## 定位
 
-通过 MCP/Agent Skill 为已有 Agent 增加“桌面标注 → 请求人类操作 → 明确反馈 → Agent 独立验证后恢复”的可复用工具能力。不替代 Computer Use，不自动批准权限，不绕过人机验证。
+以 MCP 工具 + Agent Skill 的形式，让已有计算机操作 Agent 通过本地屏幕标注向用户移交指定步骤，再读取用户结果并由原 Agent 独立验证。项目不截取密码、验证码或界面内容；本身不提供 Computer Use 和 UI 语义识别。
 
-## 本轮实质改造
+## 本轮代码变更
 
-1. 重写会话状态机：输入验证、不可变终态、TTL 到期、拒绝/取消/超时/覆盖、结果复制隔离；`completed` 明确标记 `completionSource=user_report`、`verified=false`。
-2. 扩展工具参数：最多 8 个独立屏幕标注，四种形状，尺寸/标签/颜色；支持**无坐标人工接管**，避免模型凭空猜坐标。
-3. 重写本地 Bridge：随机 Bearer、仅监听 127.0.0.1、Host/Origin/Content-Type 校验、请求大小限制、版本号快照、长轮询多订阅、断线重连不重放旧事件。
-4. 更新 Electron：多显示器 DIP 坐标变换、点击穿透、结构化 SVG 绘制、交接面板、按会话 ID 提交人工决定、WebContents 导航拦截和权限拒绝。
-5. 新增官方 MCP v2 SDK 的客户端握手冒烟测试脚本和不依赖 Agent 的实际桌面烟雾测试脚本。
-6. 更新 Skill、配置示例、CI、多语言开发文档、隐私/威胁模型与路线图。
-7. 改进浏览器演示：把原应用动作、用户自报完成、Agent 独立核实拆为三个状态。
+1. **多宿主 Broker**：`src/mcp.mjs` 改为无状态 MCP 入口；`src/broker.mjs` 实现后台单实例进程；`src/runtime.mjs` 提供私有运行目录、启动锁、清单校验与自动恢复。
+2. **授权和仲裁**：Agent 请求与桌面渲染使用不同 Bearer Token。每个 MCP Host 有唯一 owner ID；独立 Agent 不能读取、取消、覆盖其他 Host 的会话。
+3. **失败处理**：Broker 重启后会话数据不持久化，旧会话不会被误认为完成；支持 status/stop CLI；桌面重启要求重新握手。
+4. **稳定性**：防止窗口显示结构更新事件重复触发，补充双宿主 MCP 集成测试和 Broker 崩溃恢复测试。
+5. **工程文档**：完善架构、隐私威胁模型、变更记录、跨平台桌面手工验收清单和路线图。
 
-## 当前环境验收结果
+## 已在本地实测
 
-- `npm run check`: **通过**（核心、Bridge、MCP、Electron 主进程与渲染脚本语法检查）
-- `npm test`: **16/16 通过**（Node 核心/Bridge/几何与安全边界）
-- `npm run demo`: **HTTP 200**（模拟产品演示服务）
-- `npm run test:integration`: **未执行**（当前环境没有成功安装 MCP Client/Server SDK 依赖）
-- `npm run desktop:demo`: **未执行**（当前运行容器不是目标 Windows/macOS 图形桌面）
-- GitHub Actions（仓库端）：**Ubuntu、macOS、Windows 均已通过** `npm run verify` 和 `npm run test:integration`，验证运行：https://github.com/BurntRoses/handoffglass/actions/runs/38996793059。
+- Node.js 22.16.0（Linux 无图形环境）下 `npm run verify`：**20 项单元、Bridge、Broker 集成测试通过**。
+- `node --check`：全部目标 JavaScript 文件语法检查通过。
+- `HANDOFFGLASS_HEADLESS=1` Broker 生命周期、并发启动、身份隔离和恢复：通过。
 
-## GitHub 状态
+## 尚未证明
 
-2026-10-17 用户已新建 `BurntRoses/handoffglass` 私有仓库，已确认账号具备推送权限。此前“仓库不存在”的记录属于上一轮历史状态。已通过 GitHub 工具将完整 35 文件工程提交到 `main`，并在发现 MCP SDK v2 的 `serveStdio()` 使用错误后修复，跨平台 CI 全部通过。源代码：https://github.com/BurntRoses/handoffglass。
+- `npm run test:integration`：当前 Linux 容器缺少在线安装的 MCP SDK 和 Electron，需由 GitHub Actions 安装依赖后执行。
+- Electron 实际悬浮、跨显示器、点击穿透以及 Mac/Windows 安装包：需交互式桌面验收；GitHub CI 无法替代真实桌面。
+- UI 语义定位、动态按钮跟随、完整实时语音/视频：未实现。
+- 成功提交 GitHub 与后续 CI 状态需以对应 commit 和 GitHub Actions 实际结果为准，不以此预先断言。
 
-## 必须避免的夸大
+## 推荐顺序
 
-- 还没有视觉大模型理解屏幕、自动寻找按钮或基于 Accessibility API 进行元素定位。
-- 不能保证在 UAC secure desktop / OS 受保护对话框上绘制。
-- 没有 Windows/macOS 实机 UI 运行证明，也没有完成签名安装包。
-- MCP 状态上的 `completed` 不是目标应用已成功的证据。
-- 自动化测试通过不等于通过真实桌面遮罩与系统受保护窗口的实机验收。
-
-## 推荐的下一轮工作（按优先级）
-
-1. 在 Windows/macOS 实机执行 `npm run desktop:demo`，记录真实窗口边界、DPI、焦点与全屏行为。
-2. 完成发布打包与确定性依赖锁定，并使 CI 验证安装产物。
-3. 开发单实例本机 Broker，避免多个 MCP Host 启动重叠标注进程。
-4. 增加 macOS Accessibility 与 Windows UI Automation 的目标定位，实现可信的元素坐标与窗口移动后自动更新。
-5. 建立可量化用户测试：定位错误率、人工任务完成率、恢复成功率、额外 tokens 与延时、拒绝路径安全性。
+1. 等待 GitHub Actions 跨平台 SDK 集成通过；必要时修复失败日志。
+2. 在真实 macOS/Windows 设备执行 `docs/DESKTOP_QA.md`，解决窗口层级、输入焦点和多屏显示差异。
+3. 生成版本锁文件和经过检验的免配置桌面安装包。
+4. 分别实现 macOS Accessibility、Windows UI Automation 和浏览器 DOM 适配器；优先把按钮定位从模糊截图猜测提升为可验证的 UI 元素身份。

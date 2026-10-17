@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { validDisplay } from './geometry.mjs';
+import { validDisplay, canLocateAll } from './geometry.mjs';
 
 function sendJson(res, code, data) {
   if (res.destroyed || res.writableEnded) return;
@@ -39,9 +39,12 @@ function readJson(req, byteLimit = 16384) {
  * No queued stale events: reconnecting UIs always receive the current state.
  */
 export class LocalBridge {
-  constructor(manager) {
+  constructor(manager, { prepare = async () => {}, headless = false } = {}) {
     this.manager = manager;
-    this.token = randomBytes(32).toString('hex');
+    this.prepare = prepare;
+    this.headless = headless;
+    this.token = randomBytes(32).toString('hex'); // Desktop-only capability.
+    this.agentToken = randomBytes(32).toString('hex'); // MCP client capability.
     this.server = null;
     this.port = null;
     this.lastPoll = 0;
@@ -90,12 +93,14 @@ export class LocalBridge {
     if (host !== `127.0.0.1:${this.port}` || req.headers.origin) {
       return sendJson(res, 403, { error: 'Forbidden host or browser origin' });
     }
-    const expected = Buffer.from(`Bearer ${this.token}`);
+    const parsed = new URL(req.url, `http://${host}`);
+    const pathname = parsed.pathname;
+    const isAgentRoute = pathname.startsWith('/agent/') || pathname === '/health';
+    const expected = Buffer.from(`Bearer ${isAgentRoute ? this.agentToken : this.token}`);
     const provided = Buffer.from(req.headers.authorization || '');
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
       return sendJson(res, 401, { error: 'Unauthorized' });
     }
-    const pathname = new URL(req.url, `http://${host}`).pathname;
     if (req.method === 'POST' && !/^application\/json(?:;|$)/i.test(req.headers['content-type'] || '')) {
       return sendJson(res, 415, { error: 'application/json is required' });
     }
@@ -111,9 +116,58 @@ export class LocalBridge {
       this.lastPoll = Date.now();
       return sendJson(res, 200, { ok: true, ...this.snapshot() });
     }
+    if (req.method === 'GET' && pathname === '/health') {
+      return sendJson(res, 200, { ok: true, pid: process.pid, protocol: 1 });
+    }
     if (req.method === 'GET' && pathname === '/state') {
-      this.lastPoll = Date.now();
       return sendJson(res, 200, this.snapshot());
+    }
+    if (pathname.startsWith('/agent/')) {
+      const owner = req.headers['x-handoffglass-owner'];
+      if (typeof owner !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(owner)) {
+        return sendJson(res, 403, { error: 'Agent identity is required', code: 'invalid_owner' });
+      }
+      if (req.method === 'GET' && pathname === '/agent/displays') {
+        await this.prepare();
+        return sendJson(res, 200, { displays: this.displays, connected: this.connected, headless: this.headless });
+      }
+      if (req.method === 'POST' && pathname === '/agent/show') {
+        const body = await readJson(req);
+        // Validate BEFORE starting Electron, to avoid spawning a desktop for bad requests.
+        const { normalizeRequest } = await import('./core.mjs');
+        const normalized = normalizeRequest(body);
+        await this.prepare();
+        if (!this.headless && !this.connected) {
+          return sendJson(res, 503, { error: 'Desktop overlay unavailable', code: 'no_desktop' });
+        }
+        if (!this.headless && !canLocateAll(this.displays, normalized.annotations)) {
+          return sendJson(res, 422, { error: 'Target outside current display bounds; call screen_displays', code: 'outside_display' });
+        }
+        const session = this.manager.show(normalized, owner);
+        if (session.error) return sendJson(res, 409, { error: 'A different Agent already owns the active handoff', code: 'busy' });
+        return sendJson(res, 200, { session, visible: !this.headless,
+          coordinateSystem: 'global_DIP',
+          instruction: 'User-reported completion is not verification. Recheck the target application.' });
+      }
+      if (req.method === 'GET' && pathname === '/agent/status') {
+        const id = parsed.searchParams.get('sessionId');
+        return sendJson(res, 200, { session: this.manager.getOwned(id, owner), connected: this.connected });
+      }
+      if (req.method === 'GET' && pathname === '/agent/wait') {
+        const id = parsed.searchParams.get('sessionId');
+        const ms = Number(parsed.searchParams.get('maxWaitMs') ?? 15000);
+        if (!Number.isFinite(ms) || ms < 0 || ms > 30000) {
+          return sendJson(res, 400, { error: 'Invalid wait timeout' });
+        }
+        return sendJson(res, 200, await this.manager.waitOwned(id, owner, ms));
+      }
+      if (req.method === 'POST' && pathname === '/agent/cancel') {
+        const body = await readJson(req);
+        if (typeof body.sessionId !== 'string') return sendJson(res, 400, { error: 'Invalid session ID' });
+        const outcome = this.manager.resolve(body.sessionId, 'cancelled', owner);
+        return sendJson(res, 200, outcome);
+      }
+      return sendJson(res, 404, { error: 'Unknown agent endpoint' });
     }
     if (req.method === 'GET' && pathname === '/poll') {
       this.lastPoll = Date.now();

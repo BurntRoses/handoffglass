@@ -1,38 +1,60 @@
 #!/usr/bin/env node
-/** Real MCP SDK client/server smoke test. Requires npm install. No GUI required. */
+/** Full MCP v2 client/server smoke, with TWO distinct hosts and one broker. */
 import assert from 'node:assert/strict';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { readManifest } from '../src/runtime.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const client = new Client({ name: 'handoffglass-smoke', version: '0.2.0' });
-const transport = new StdioClientTransport({
-  command: process.execPath,
-  args: [resolve(root, 'src/mcp.mjs')],
-  env: { ...process.env, HANDOFFGLASS_HEADLESS: '1' },
-  stderr: 'pipe'
-});
-function parse(result) {
-  if (result.isError) throw new Error(JSON.stringify(result.content));
-  return JSON.parse(result.content.find(x => x.type === 'text').text);
+const dir = await mkdtemp(join(tmpdir(), 'handoffglass-mcp-'));
+const env = { ...process.env, HANDOFFGLASS_HEADLESS: '1', HANDOFFGLASS_RUNTIME_DIR: dir };
+const clients = [];
+function decode(result) {
+  if (result.isError) throw new Error(result.content.map(c => c.text || '').join('; '));
+  return JSON.parse(result.content.find(c => c.type === 'text').text);
 }
+async function client(name) {
+  const instance = new Client({ name, version: '0.3.0' });
+  const transport = new StdioClientTransport({
+    command: process.execPath, args: [resolve(root, 'src/mcp.mjs')], env, stderr: 'pipe'
+  });
+  clients.push(instance);
+  await instance.connect(transport);
+  return instance;
+}
+const invoke = async (c, name, args) => decode(await c.callTool({ name, arguments: args }));
 try {
-  await client.connect(transport);
-  const { tools } = await client.listTools();
-  const expected = ['screen_displays', 'visual_show', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'];
-  assert.deepEqual(tools.map(tool => tool.name).sort(), expected.sort());
-  const created = parse(await client.callTool({ name: 'handoff_request', arguments: {
-    title: 'Review requested permissions', message: 'Manual step, no guessed target coordinates', timeoutSeconds: 30
-  } }));
-  assert.equal(created.visible, false);
-  assert.equal(created.session.annotations.length, 0);
-  const id = created.session.id;
-  assert.equal(parse(await client.callTool({ name: 'handoff_status', arguments: { sessionId: id } })).session.status, 'awaiting_user');
-  assert.equal(parse(await client.callTool({ name: 'handoff_cancel', arguments: { sessionId: id } })).session.status, 'cancelled');
-  assert.equal(parse(await client.callTool({ name: 'handoff_wait', arguments: { sessionId: id } })).session.status, 'cancelled');
-  console.log('PASS: MCP v2 initialization, tools/list, handoff_request, status, cancel, wait');
+  const [a, b] = await Promise.all([client('host-A'), client('host-B')]);
+  const { tools } = await a.listTools();
+  assert.deepEqual(tools.map(tool => tool.name).sort(), [
+    'screen_displays', 'visual_show', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
+  ].sort());
+  const params = { title: 'Permission review', message: 'Human decision needed; no guessed coordinates', timeoutSeconds: 30 };
+  assert.equal((await invoke(a, 'screen_displays', {})).headless, true);
+  const first = await invoke(a, 'handoff_request', params);
+  assert.equal(first.visible, false);
+  const id = first.session.id;
+  const denied = await b.callTool({ name: 'handoff_request', arguments: params });
+  assert.equal(denied.isError, true);
+  assert.equal(JSON.parse(denied.content[0].text).code, 'busy');
+  assert.equal((await invoke(b, 'handoff_status', { sessionId: id })).session, null);
+  assert.equal((await invoke(b, 'handoff_cancel', { sessionId: id })).error, 'not_found');
+  assert.equal((await invoke(a, 'handoff_status', { sessionId: id })).session.status, 'awaiting_user');
+  assert.equal((await invoke(a, 'handoff_cancel', { sessionId: id })).session.status, 'cancelled');
+  assert.equal((await invoke(a, 'handoff_wait', { sessionId: id })).session.status, 'cancelled');
+  const second = await invoke(b, 'handoff_request', params);
+  assert.notEqual(id, second.session.id);
+  assert.equal((await invoke(b, 'handoff_cancel', { sessionId: second.session.id })).session.status, 'cancelled');
+  console.log('PASS: MCP v2 stdio handshake, six tools, two hosts, broker sharing, ownership, cancellation');
 } finally {
-  await client.close();
+  for (const c of clients) await c.close().catch(() => {});
+  const info = await readManifest(dir);
+  if (info) { try { process.kill(info.pid, 'SIGTERM'); } catch {} }
+  await new Promise(r => setTimeout(r, 150));
+  await rm(dir, { recursive: true, force: true });
 }

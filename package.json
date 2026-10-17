@@ -1,8 +1,8 @@
 {
   "name": "handoffglass",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Agent-native visual instructions and explicit human handoff, as local MCP + Agent Skill",
+  "description": "Single-instance visual handoff broker for MCP agents with owned human decisions and safe desktop overlays",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -14,11 +14,13 @@
     "start": "node src/mcp.mjs",
     "test": "node --test test/*.test.mjs",
     "demo": "node demo/server.mjs",
-    "check": "node --check src/core.mjs && node --check src/geometry.mjs && node --check src/bridge.mjs && node --check src/mcp.mjs && node --check src/desktop/main.mjs && node --check src/desktop/overlay.js && node --check src/desktop/panel.js",
+    "check": "node --check src/core.mjs && node --check src/geometry.mjs && node --check src/bridge.mjs && node --check src/runtime.mjs && node --check src/broker.mjs && node --check src/mcp.mjs && node --check src/desktop/main.mjs && node --check src/desktop/overlay.js && node --check src/desktop/panel.js && node --check scripts/mcp-smoke.mjs && node --check scripts/broker-control.mjs",
     "verify": "npm run check && npm test",
     "doctor": "node scripts/doctor.mjs",
     "test:integration": "node scripts/mcp-smoke.mjs",
-    "desktop:demo": "node scripts/desktop-demo.mjs"
+    "desktop:demo": "node scripts/desktop-demo.mjs",
+    "broker:status": "node scripts/broker-control.mjs status",
+    "broker:stop": "node scripts/broker-control.mjs stop"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

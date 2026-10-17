@@ -13,7 +13,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535 || !/^[a-f0-9]{64}$/.tes
 const endpoint = `http://127.0.0.1:${port}`;
 const headers = { authorization: `Bearer ${secret}`, 'content-type': 'application/json' };
 const nap = ms => new Promise(resolve => setTimeout(resolve, ms));
-let overlays = [], panel = null, current = null, closing = false, revision = -1;
+let overlays = [], panel = null, current = null, closing = false, revision = -1, displayDebounce = null;
 
 async function call(method, path, body) {
   const res = await fetch(endpoint + path, {
@@ -137,9 +137,13 @@ app.on('window-all-closed', () => {});
 app.on('before-quit', () => { closing = true; });
 panel = createPanel();
 syncDisplays();
-screen.on('display-added', syncDisplays);
-screen.on('display-removed', syncDisplays);
-screen.on('display-metrics-changed', syncDisplays);
+function requestDisplaySync() {
+  clearTimeout(displayDebounce);
+  displayDebounce = setTimeout(syncDisplays, 140);
+}
+screen.on('display-added', requestDisplaySync);
+screen.on('display-removed', requestDisplaySync);
+screen.on('display-metrics-changed', requestDisplaySync);
 ipcMain.on('hg:decision', async (event, data) => {
   if (!panel || event.sender !== panel.webContents || !current) return;
   if (data?.id !== current.id || !['completed', 'declined', 'cancelled'].includes(data.status)) return;

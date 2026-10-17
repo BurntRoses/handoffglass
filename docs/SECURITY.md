@@ -1,33 +1,29 @@
-# Security boundaries and practical threat model
+# Security model and boundaries — v0.3
 
-## Design goals
+## User consent is nondelegable
 
-1. Never auto-click, type credentials, intercept a CAPTCHA, override a permission dialog, or execute privileged actions.
-2. Screen annotations should **not** be misrepresented as verified instructions from the operating system.
-3. Protect the loopback control endpoint from ordinary third-party web pages and unauthorized remote access.
-4. Avoid collecting or transmitting screenshots, passwords, 2FA codes or unnecessary personal information.
-5. Preserve a refusal path for each human handoff.
+HandoffGlass never clicks, types credentials, extracts OTPs, bypasses CAPTCHA, approves permissions or confirms payment. The human always sees the original application's native UI and chooses to proceed or refuse. Annotation text is an Agent suggestion, **not** an authenticated claim from the OS.
 
-## Current controls
+## Implemented controls
 
-- Binds only `127.0.0.1` on an ephemeral port. Not exposed to the LAN by default.
-- Uses a cryptographically random 32-byte bearer token, compared with a timing-safe primitive.
-- Denies requests with an unexpected Host header or browser Origin and does not enable CORS. Requires JSON Content-Type and limits request sizes.
-- Electron renderer is sandboxed, context-isolated, with Node integration disabled, navigation and popup blocked, and permission requests denied. Only two narrow preload methods are exposed.
-- Labels and messages are rendered using `textContent` and constrained SVG primitives, never injected as HTML.
-- Decision IPC accepts only specific states **and requires the current session ID**, which prevents stale panel events from resolving a newer session.
-- Bridge uses versioned state snapshots, not a backlog of actions that could replay after reconnection.
-- Session completion is user-reported, never silently treated as target application verification.
+- Broker binds only to `127.0.0.1`, using a randomized port and bearer tokens with constant-time comparison.
+- **Separate bearer tokens** for Agent endpoints and desktop events. The desktop secret is passed through a child-process environment variable and is never written to the runtime manifest.
+- The per-user runtime directory is restricted to mode 0700 on POSIX; manifest files are mode 0600. A symlink or insecure runtime directory is refused. Windows relies on its user-profile ACLs, which require review during native QA.
+- Atomic startup locking reduces multi-process races; the manifest's live process is checked through a token-authenticated `/health` probe.
+- Agent ownership is a random ID assigned per MCP host. Status, wait and cancellation are owner-scoped; another Agent cannot replace or resolve an active request. Replaying stale session IDs fails.
+- Rejects unexpected Host or browser Origin, does not set CORS headers, requires JSON POSTs, caps payload sizes, and validates on-screen coordinates.
+- Electron renderers have context isolation, sandboxing, no Node integration, denied permissions, disabled webview attach and blocked external navigation. All user-supplied strings use `textContent`/SVG attributes; no untrusted HTML injection.
+- Completion is explicitly `completionSource=user_report` and `verified=false` so the Agent must independently verify the target application's final state.
 
-## Residual risks / limitations
+## Residual risks
 
-- Malware or another same-user process with access to this process's environment or process memory can potentially impersonate the local desktop. This is **not** a security boundary against local compromise.
-- An Agent may provide a plausible but wrong or misleading target location, or write deceptive guidance. Users should read the original application dialog and judge for themselves. Future releases should bind annotations to accessible element identities and revalidate them.
-- Global overlay windows cannot be guaranteed on Windows secure desktop/UAC, macOS protected surfaces or some managed Wayland sessions.
-- Multi-process coordination is not implemented; simultaneous MCP clients may each launch overlays and conflict.
-- Sensitive user-entered values in the **original application** are not read by this system; do not put them into tool parameters.
-- No release signing, auto-update supply chain or packaged desktop distribution is provided in this prototype.
+- **Same-user malicious processes are outside this security boundary.** Files private to the same OS account and process memory may be accessible to other code running with that account. This is not a substitute for OS account isolation or privilege separation.
+- A malicious or mistaken Agent can draw deceptive arrows. Users should examine native warnings and permission scopes. Future builds need robust grounding and trust labeling, not automatic consent.
+- The broker retains no data across shutdown but can stay running after Agent disconnection; an orphaned handoff expires only by its configured TTL or a human response. An abandoned client cannot be forcibly cancelled by a different client through the normal API.
+- Electron desktop overlays may not appear over privileged Windows UAC security desktops, managed Wayland sessions or protected macOS UI surfaces.
+- There is no screenshot, password, token, or user data collection by design, but tool arguments (including typed descriptions) pass through the connecting Agent host, whose own logging/privacy policy is independent of HandoffGlass.
+- There is no code signing, automatic updater, binary sandbox isolation or production software supply-chain guarantee.
 
 ## Reporting
 
-For a private repository, open a private issue or send the owner a private report. Do not publish exploitable sensitive details or tokens.
+Report problems privately through the GitHub repository's Issues. Do not include real bearer tokens, OTPs, account identifiers or sensitive screenshots.
