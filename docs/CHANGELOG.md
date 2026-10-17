@@ -8,6 +8,7 @@
 - Broker status/stop commands, cross-host protocol regression testing, runtime crash/restart coverage.
 - Desktop reconnect now requires a fresh renderer heartbeat, and display layout refreshes are debounced.
 - Desktop acceptance checklist and rewritten trust/architecture documents.
+- Safe zero-write config generator for MCP JSON and Codex TOML, with Windows path quoting tests.
 
 ## 0.2.0 — 2026-10-17
 

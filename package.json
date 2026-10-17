@@ -14,13 +14,16 @@
     "start": "node src/mcp.mjs",
     "test": "node --test test/*.test.mjs",
     "demo": "node demo/server.mjs",
-    "check": "node --check src/core.mjs && node --check src/geometry.mjs && node --check src/bridge.mjs && node --check src/runtime.mjs && node --check src/broker.mjs && node --check src/mcp.mjs && node --check src/desktop/main.mjs && node --check src/desktop/overlay.js && node --check src/desktop/panel.js && node --check scripts/mcp-smoke.mjs && node --check scripts/broker-control.mjs",
+    "check": "node --check src/core.mjs && node --check src/geometry.mjs && node --check src/bridge.mjs && node --check src/runtime.mjs && node --check src/broker.mjs && node --check src/mcp.mjs && node --check src/desktop/main.mjs && node --check src/desktop/overlay.js && node --check src/desktop/panel.js && node --check scripts/mcp-smoke.mjs && node --check scripts/broker-control.mjs && node --check src/config.mjs && node --check scripts/configure.mjs",
     "verify": "npm run check && npm test",
     "doctor": "node scripts/doctor.mjs",
     "test:integration": "node scripts/mcp-smoke.mjs",
     "desktop:demo": "node scripts/desktop-demo.mjs",
     "broker:status": "node scripts/broker-control.mjs status",
-    "broker:stop": "node scripts/broker-control.mjs stop"
+    "broker:stop": "node scripts/broker-control.mjs stop",
+    "configure": "node scripts/configure.mjs all",
+    "configure:claude": "node scripts/configure.mjs claude",
+    "configure:codex": "node scripts/configure.mjs codex"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

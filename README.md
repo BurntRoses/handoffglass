@@ -26,6 +26,7 @@ Requirements: **Node.js 22+**, a local Windows or macOS interactive desktop, and
 npm install
 npm run verify
 npm run doctor
+npm run configure        # generate your machine-specific MCP settings
 npm run test:integration
 npm run broker:status    # check the shared background broker
 npm run broker:stop      # stop the shared background broker
@@ -46,7 +47,7 @@ npm run desktop:demo
 }
 ```
 
-Client config examples: [`examples/mcp.json`](examples/mcp.json), [`examples/codex.toml`](examples/codex.toml). Copy [`skills/visual-handoff/SKILL.md`](skills/visual-handoff/SKILL.md) into a host-specific Skills folder if supported. The Skill supplies usage instructions; **the MCP connection is what enables tools**.
+See [integration quick start](docs/INTEGRATIONS.md). Client config examples: [`examples/mcp.json`](examples/mcp.json), [`examples/codex.toml`](examples/codex.toml). Copy [`skills/visual-handoff/SKILL.md`](skills/visual-handoff/SKILL.md) into a host-specific Skills folder if supported. The Skill supplies usage instructions; **the MCP connection is what enables tools**.
 
 Example on Windows: `C:\\Users\\yourname\\Projects\\HandoffGlass\\src\\mcp.mjs`; on macOS: `/Users/yourname/Projects/HandoffGlass/src/mcp.mjs`.
 
@@ -131,7 +132,7 @@ Key invariants: no screenshot or password capture; UI agent annotations do not c
 
 ## Testing
 
-- `npm run verify` runs JavaScript syntax and 20 Node tests for lifecycle, bridge, security, multi-monitor geometry and concurrency. Does **not** need installed dependencies.
+- `npm run verify` runs JavaScript syntax and 22 Node tests for lifecycle, bridge, security, multi-monitor geometry and concurrency. Does **not** need installed dependencies.
 - `npm run desktop:demo` opens a real overlay without requiring an Agent host; requires a graphical OS and Electron.
 - `npm run test:integration` runs the **real official MCP SDK** client in headless mode and checks initialization, discovery, request, status, cancel and wait. Requires `npm install`; does not show OS overlay.
 - CI is configured for Node 22 on Windows, macOS and Linux. Only native macOS/Windows interactive desktop testing can validate click-through, fullscreen, secure dialogs and DPI.

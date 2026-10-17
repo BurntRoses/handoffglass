@@ -12,11 +12,12 @@
 2. **授权和仲裁**：Agent 请求与桌面渲染使用不同 Bearer Token。每个 MCP Host 有唯一 owner ID；独立 Agent 不能读取、取消、覆盖其他 Host 的会话。
 3. **失败处理**：Broker 重启后会话数据不持久化，旧会话不会被误认为完成；支持 status/stop CLI；桌面重启要求重新握手。
 4. **稳定性**：防止窗口显示结构更新事件重复触发，补充双宿主 MCP 集成测试和 Broker 崩溃恢复测试。
-5. **工程文档**：完善架构、隐私威胁模型、变更记录、跨平台桌面手工验收清单和路线图。
+5. **接入工具**：增加可移植的配置生成器（Claude JSON / Codex TOML），只输出配置不覆盖已有 Agent 设置。
+6. **工程文档**：完善架构、隐私威胁模型、变更记录、跨平台桌面手工验收清单和路线图。
 
 ## 已在本地实测
 
-- Node.js 22.16.0（Linux 无图形环境）下 `npm run verify`：**20 项单元、Bridge、Broker 集成测试通过**。
+- Node.js 22.16.0（Linux 无图形环境）下 `npm run verify`：**22 项单元、Bridge、Broker 集成测试通过**。
 - `node --check`：全部目标 JavaScript 文件语法检查通过。
 - `HANDOFFGLASS_HEADLESS=1` Broker 生命周期、并发启动、身份隔离和恢复：通过。
 
