@@ -17,6 +17,8 @@ test('WorkBuddy local MCP connector includes one stdio server and bilingual meta
   assert.equal(mc.mcpServers.handoffglass.runtime.version,'22');
   const meta=JSON.parse(await readFile(join(dir,'connector-meta.json'),'utf8'));
   assert.equal(meta.type,'mcp');assert.ok(meta.description_zh);
+  const pkg=JSON.parse(await readFile(join(root,'package.json'),'utf8'));
+  assert.equal(meta.version,pkg.version,'Generated connector must match package release version');
   assert.match(await readFile(join(dir,'skills/visual-handoff/SKILL.md'),'utf8'),/handoff/i);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
