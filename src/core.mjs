@@ -36,6 +36,10 @@ export function normalizeAnnotation(input) {
 export function normalizeRequest(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Request must be an object');
   const mode = input.mode ?? 'handoff';
+  const requestId = input.requestId === undefined ? null : input.requestId;
+  if (requestId !== null && (typeof requestId !== 'string' || !/^[A-Za-z0-9_.:-]{8,96}$/.test(requestId))) {
+    throw new TypeError('requestId must be 8–96 characters [A-Za-z0-9_.:-]');
+  }
   if (mode !== 'guide' && mode !== 'handoff') throw new TypeError('Invalid presentation mode');
   const title = text(input.title, 100);
   const message = text(input.message, 1000);
@@ -59,7 +63,7 @@ export function normalizeRequest(input) {
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { mode, title, message, timeoutSeconds, annotations };
+  return { mode, title, message, timeoutSeconds, annotations, requestId };
 }
 function copySession(session) {
   if (!session) return null;
@@ -79,11 +83,21 @@ export class HandoffManager extends EventEmitter {
     this.sessions = new Map();
     this.owners = new Map();
     this.timers = new Map();
+    this.requestKeys = new Map(); // owner + requestId -> { id, normalized payload }
+    this.pendingWaits = 0;
+    this.setMaxListeners(96);
     this.activeId = null;
   }
   show(input, owner = 'local') {
     const normalized = normalizeRequest(input);
     if (typeof owner !== 'string' || !owner || owner.length > 128) throw new TypeError('Invalid owner');
+    // Network/model retries with the same key must NOT replace an in-progress handoff.
+    const key = normalized.requestId === null ? null : JSON.stringify([owner, normalized.requestId]);
+    if (key && this.requestKeys.has(key)) {
+      const record = this.requestKeys.get(key);
+      if (record.payload !== JSON.stringify(normalized)) throw new TypeError('requestId was reused with different content');
+      return this.get(record.id) ?? { error: 'request_expired' };
+    }
     const previous = this.activeId && this.sessions.get(this.activeId);
     if (previous && this.owners.get(previous.id) !== owner) {
       return { error: 'busy', activeMode: previous.mode };
@@ -99,6 +113,7 @@ export class HandoffManager extends EventEmitter {
     };
     this.sessions.set(session.id, session);
     this.owners.set(session.id, owner);
+    if (key) this.requestKeys.set(key, { id: session.id, payload: JSON.stringify(normalized) });
     this.activeId = session.id;
     const timer = setTimeout(() => this.get(session.id), normalized.timeoutSeconds * 1000 + 5);
     timer.unref?.();
@@ -145,11 +160,14 @@ export class HandoffManager extends EventEmitter {
     if (!initial) return { error: 'not_found' };
     if (TERMINAL.has(initial.status)) return { session: initial };
     const ms = Math.max(0, Math.min(30000, Number.isFinite(timeoutMs) ? timeoutMs : 15000));
+    if (this.pendingWaits >= 64) return { error: 'too_many_waits' };
+    this.pendingWaits++;
     return new Promise(resolve => {
       let settled = false;
       const finish = result => {
         if (settled) return;
         settled = true;
+        this.pendingWaits--;
         clearTimeout(timer);
         this.off('change', onChange);
         resolve(result);
@@ -167,7 +185,10 @@ export class HandoffManager extends EventEmitter {
     if (this.sessions.size <= this.maxHistory) return;
     for (const [id, session] of this.sessions) {
       if (this.sessions.size <= this.maxHistory) break;
-      if (TERMINAL.has(session.status)) { this.sessions.delete(id); this.owners.delete(id); }
+      if (TERMINAL.has(session.status)) {
+        this.sessions.delete(id); this.owners.delete(id);
+        for (const [key, entry] of this.requestKeys) if (entry.id === id) this.requestKeys.delete(key);
+      }
     }
   }
   close() {

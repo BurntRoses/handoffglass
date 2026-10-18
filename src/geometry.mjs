@@ -8,8 +8,15 @@ export function contains(display, annotation) {
   return annotation.x >= display.x && annotation.x < display.x + display.width &&
     annotation.y >= display.y && annotation.y < display.y + display.height;
 }
+/** A large annotation may cross display boundaries even if its center is on one display. */
+export function intersectsDisplay(display, annotation) {
+  const rw = (annotation.width ?? 116) / 2 + 16;
+  const rh = (annotation.height ?? 60) / 2 + 16;
+  return annotation.x + rw >= display.x && annotation.x - rw < display.x + display.width &&
+    annotation.y + rh >= display.y && annotation.y - rh < display.y + display.height;
+}
 export function localAnnotations(display, annotations) {
-  return annotations.filter(a => contains(display, a)).map(a => ({
+  return annotations.filter(a => intersectsDisplay(display, a)).map(a => ({
     ...a, x: a.x - display.x, y: a.y - display.y
   }));
 }

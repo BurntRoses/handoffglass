@@ -29,3 +29,13 @@
 ## Deferred or unsupported
 
 No automatic CAPTCHA solving, bypassing OS secure surfaces, guaranteed control of permission dialogs, automatic privileged approval or blanket claim of “production ready”.
+
+## v0.4 completed (2026-10-18)
+
+- Single core is now independent of optional desktop Electron installation; GitHub CI tests MCP-only.
+- Host configs: Claude, Codex, Cursor, VS Code, Copilot, Gemini, Zed (generator + JSON/TOML tests).
+- Idempotency and overload protection; ambiguous POST replay is not automatic; compact results for token-sensitive agents.
+- Panel decision acknowledgements and non-blocking guide overlay; annotated shapes can span displays.
+- Explicit compatibility tiers and model invocation playbook added.
+
+Remaining critical path: **Issue #1** real GUI acceptance, **Issue #4** installer build and smoke testing, **Issue #3** opt-in grounded accessibility. Synthetic tests are not physical device acceptance.

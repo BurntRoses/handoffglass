@@ -94,6 +94,13 @@ export async function ensureBroker({ env = process.env, spawnBroker = null, time
     throw new Error('The local broker failed to start; check Node.js and the runtime directory');
   } finally { await rm(lock, { recursive: true, force: true }); }
 }
+/** A mutating request may have succeeded before the socket dropped.
+ * Only retry a handoff POST when an idempotency key makes replay safe. */
+export function safeBrokerRetry(path, method, body) {
+  return method === 'GET' ||
+    (path === '/agent/show' && method === 'POST' && typeof body?.requestId === 'string' && body.requestId.length >= 8) ||
+    (path === '/agent/cancel' && method === 'POST' && typeof body?.sessionId === 'string');
+}
 export class BrokerClient {
   constructor(options = {}) { this.options = options; this.ownerId = randomUUID(); }
   async request(path, { method = 'GET', body, timeoutMs = 34000 } = {}) {
@@ -111,7 +118,7 @@ export class BrokerClient {
         if (!response.ok) throw Object.assign(new Error(result.error || 'Broker request failed'), { code: result.code, httpCode: response.status });
         return result;
       } catch (error) {
-        if (error.httpCode || attempt) throw error;
+        if (error.httpCode || attempt || !safeBrokerRetry(path, method, body)) throw error;
         info = await ensureBroker(this.options);
       }
     }

@@ -1,3 +1,14 @@
+## 0.4.0 — lightweight multi-harness integration (2026-10-18)
+
+- Add stable `requestId` for idempotent human handoff retries (without resetting user timer).
+- Add a bounded async wait pool and explicit overload response.
+- Add compact model tool results opt-in (`HANDOFFGLASS_OUTPUT=compact`), preserving the default JSON contract.
+- Generate compatible MCP stanzas for Claude, Codex, Cursor, VS Code, Copilot, Gemini and Zed using one shared host adapter.
+- Move Electron to optional dependency; CI runs MCP-only to avoid downloading the desktop binary.
+- Add asynchronous panel decision acknowledgement with retryable failure state, nonblocking visual guide mode, multi-spotlight compositing and boundary-spanning screen annotations.
+- Add host, compact-output and retry regression tests, benchmark harness and Code Agent handoff instructions.
+- MCP/broker tests are not a substitute for GUI acceptance on a physical Windows/macOS machine.
+
 # Changelog
 
 ## 0.3.0 — 2026-10-17
@@ -27,6 +38,6 @@
 
 ## Unreleased — independent Agent readiness
 
-- Enforce HTTP route methods and bound concurrent long-poll listeners in the local bridge.
-- Add regression tests for method confusion and polling resource exhaustion.
-- Add autonomous developer instructions (`AGENTS.md`) and independent development handoff (`docs/AGENT_HANDOFF.md`).
+- Harden loopback routing with explicit HTTP method enforcement and cap simultaneous long-poll responders.
+- Add regression tests for method confusion and resource exhaustion.
+- Add `AGENTS.md` and `docs/AGENT_HANDOFF.md` with operational boundaries, priorities, commands and per-platform acceptance criteria.

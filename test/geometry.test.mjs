@@ -17,3 +17,13 @@ test('rejects unreasonable display metadata', () => {
   assert.equal(validDisplay({ ...left, id: 1 }), false);
   assert.equal(validDisplay({ ...left, height: Infinity }), false);
 });
+
+
+test('cross-screen ring draws on both adjoining displays without assuming the center is local', () => {
+  const left = { x:-1200,y:0,width:1200,height:800 };
+  const right = { x:0,y:0,width:1600,height:900 };
+  const a = { x:-8,y:200,shape:'ring',width:120,height:80 };
+  assert.equal(localAnnotations(left, [a]).length, 1);
+  assert.equal(localAnnotations(right, [a])[0].x, -8);
+  assert.equal(canLocateAll([left,right],[a]), true);
+});

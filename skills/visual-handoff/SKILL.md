@@ -15,11 +15,11 @@ The tool never operates the mouse/keyboard or captures the screen.
 ## Workflow
 1. Explain **why** human action is needed, and what permission/data/action is involved. The user can refuse.
 2. If a target was observed via an *independent* verified computer-use/accessibility source, call `screen_displays` and convert observed pixels to Electron global DIP before using x/y. A screenshot alone with unknown scaling is **not** sufficient grounding.
-3. Use `handoff_request` with `title` and `message`. For **unknown target coordinates omit x/y and annotations entirely**. This is preferable to guessing. For multi-target teaching, supply up to 8 grounded annotations with x/y, label, shape, color, optional width and height.
+3. Use `handoff_request` with `title` and `message`. For retries supply a stable `requestId` (8–96 alphanumeric/dot/colon/dash/underscore characters) to avoid duplicate overlays. For **unknown target coordinates omit x/y and annotations entirely**. This is preferable to guessing. For multi-target teaching, supply up to 8 grounded annotations with x/y, label, shape, color, optional width and height.
 4. Store `session.id`. Call `handoff_wait` (up to 30s) or `handoff_status`; check `status`. Pending is not completion. A second request **from this same Agent** supersedes its previous one; a different Agent receives `busy` rather than overwriting another handoff.
 5. `completed` means only **user reported completion**, with `verified: false`. Use your original Computer Use, API or application state checker to verify before continuing.
 6. On `busy` do not repeatedly take over; inform the user another Agent has the active screen. On `declined`, `cancelled`, `expired`, `superseded`: do not claim success; provide a safe alternative or stop.
-7. For nonblocking illustration use `visual_show` with verified target coordinates. When finished, call `handoff_cancel` on that session ID.
+7. For nonblocking illustration use `visual_show` with verified target coordinates. `visual_show` only shows the click-through overlay and does not open the action panel; cancel it or let it expire. When finished, call `handoff_cancel` on that session ID.
 
 ## Examples
 

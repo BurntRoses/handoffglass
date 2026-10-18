@@ -23,6 +23,18 @@ function render(input) {
   if (!input || !Array.isArray(input.annotations)) return;
   const w = window.innerWidth, h = window.innerHeight;
   svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const spotlights = input.annotations.filter(item => item.shape === 'spotlight' && Number.isFinite(item.x) && Number.isFinite(item.y));
+  if (spotlights.length) {
+    // One shared mask avoids stacking N dark rectangles and accidentally dimming other holes.
+    const mask = el('mask', { id: 'hg-spotlights' });
+    mask.append(el('rect', { width: w, height: h, fill: 'white' }));
+    for (const item of spotlights) mask.append(el('ellipse', {
+      cx: item.x, cy: item.y, rx: (item.width ?? 116) / 2 + 12,
+      ry: (item.height ?? 60) / 2 + 12, fill: 'black'
+    }));
+    const defs = el('defs'); defs.append(mask); svg.append(defs);
+    svg.append(el('rect', { width: w, height: h, fill: 'rgba(0,0,0,.22)', mask: 'url(#hg-spotlights)' }));
+  }
   for (const [index, item] of input.annotations.entries()) {
     const { x, y } = item;
     if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
@@ -35,12 +47,6 @@ function render(input) {
     defs.append(marker);
     svg.append(defs);
     if (item.shape === 'spotlight') {
-      const maskId = `mask-${index}`;
-      const mask = el('mask', { id: maskId });
-      mask.append(el('rect', { width: w, height: h, fill: 'white' }));
-      mask.append(el('ellipse', { cx: x, cy: y, rx: rw / 2 + 12, ry: rh / 2 + 12, fill: 'black' }));
-      const maskDefs = el('defs'); maskDefs.append(mask); svg.append(maskDefs);
-      svg.append(el('rect', { width: w, height: h, fill: 'rgba(0,0,0,.22)', mask: `url(#${maskId})` }));
       svg.append(el('ellipse', { cx: x, cy: y, rx: rw / 2 + 12, ry: rh / 2 + 12, stroke: color, class: 'halo' }));
     } else if (item.shape === 'box') {
       svg.append(el('rect', { x: x - rw / 2, y: y - rh / 2, width: rw, height: rh, rx: 12, stroke: color, class: 'halo' }));

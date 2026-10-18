@@ -34,11 +34,12 @@ try {
   assert.deepEqual(tools.map(tool => tool.name).sort(), [
     'screen_displays', 'visual_show', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
   ].sort());
-  const params = { title: 'Permission review', message: 'Human decision needed; no guessed coordinates', timeoutSeconds: 30 };
+  const params = { title: 'Permission review', message: 'Human decision needed; no guessed coordinates', timeoutSeconds: 30, requestId: 'smoke-case-unique-123' };
   assert.equal((await invoke(a, 'screen_displays', {})).headless, true);
   const first = await invoke(a, 'handoff_request', params);
   assert.equal(first.visible, false);
   const id = first.session.id;
+  assert.equal((await invoke(a, 'handoff_request', params)).session.id, id, 'same requestId must not open duplicate prompt');
   const denied = await b.callTool({ name: 'handoff_request', arguments: params });
   assert.equal(denied.isError, true);
   assert.equal(JSON.parse(denied.content[0].text).code, 'busy');
@@ -50,7 +51,7 @@ try {
   const second = await invoke(b, 'handoff_request', params);
   assert.notEqual(id, second.session.id);
   assert.equal((await invoke(b, 'handoff_cancel', { sessionId: second.session.id })).session.status, 'cancelled');
-  console.log('PASS: MCP v2 stdio handshake, six tools, two hosts, broker sharing, ownership, cancellation');
+  console.log('PASS: MCP v2 stdio, six tools, dual hosts, deduplicated handoff, ownership, cancellation');
 } finally {
   for (const c of clients) await c.close().catch(() => {});
   const info = await readManifest(dir);

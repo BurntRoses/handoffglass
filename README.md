@@ -2,7 +2,7 @@
 
 **Give an AI agent a way to point — and a safe way to hand control to a human.**
 
-> **0.3.0 engineering preview · local-first · Node.js + Electron · MCP v2 + Agent Skill**  
+> **0.4.0 engineering preview · local-first · Node.js + Electron · MCP v2 + Agent Skill**  
 > Supports Windows/macOS design targets. GUI behavior must be validated on an actual graphical desktop. This is not a general screen-understanding, CAPTCHA-solving or auto-clicking system.
 
 HandoffGlass is a developer-focused interaction layer that extends **existing** computer-use agents. The agent can show visual annotations on the user's desktop, request a manual decision, receive an explicit outcome and resume its original workflow **after separately verifying the real result**.
@@ -149,3 +149,19 @@ For contributors, work on a feature branch and submit PRs. Do not add credential
 ## License & attribution
 
 **UNLICENSED** for the private prototype. No source code was copied from the cited prior-art repositories. Review copyright notices and select a project license before any public open-source release.
+
+## Lightweight v0.4 and host compatibility
+
+Install only the MCP service in an automated CI/headless environment with `npm ci --omit=optional` (no Electron download). Install normal desktop support using `npm ci` in an interactive GUI session. The broker is lazily spawned on first use, not launched on every MCP process.
+
+Generate merge-ready configs for Claude Desktop/Code, Codex, Cursor, VS Code, GitHub Copilot, Gemini CLI or Zed:
+
+```bash
+node scripts/configure.mjs all
+node scripts/configure.mjs cursor --compact
+node scripts/configure.mjs vscode gemini --compact
+```
+
+`--compact` reduces response size for smaller models; it **does not** change who may approve operations. Use stable `requestId` on retried `handoff_request` calls to avoid accidentally presenting the same sensitive prompt twice. Tool calls from remotely hosted/cloud Agent instances cannot reach a local desktop without an explicitly deployed companion and secure channel; such a remote bridge is not implemented.
+
+Read [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md), [`docs/MODEL_PLAYBOOK.md`](docs/MODEL_PLAYBOOK.md) and [`docs/AGENT_HANDOFF.md`](docs/AGENT_HANDOFF.md) before integrating a new harness.

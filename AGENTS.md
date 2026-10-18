@@ -1,19 +1,31 @@
 # Instructions for autonomous coding agents
 
-Work on HandoffGlass as an **MCP desktop handoff infrastructure** project—not as an autonomous GUI-clicker. Read `docs/AGENT_HANDOFF.md` first.
+Work on this repo as an MCP desktop handoff infrastructure project, **not** a GUI-clicking automation bot. Read `docs/AGENT_HANDOFF.md` before modifying source.
 
 ## Non-negotiable invariants
-1. Never invent UI coordinates, approve a payment, grant a permission, or bypass authentication; the human decides.
-2. `completed` means **user-reported completion**, not independently verified downstream success. Preserve `verified=false`.
-3. Broker must stay loopback-only, bearer authenticated and client-owner scoped. No browser CORS, public listener, or cross-client cancellation.
-4. Never silently add screen capture, OCR, accessibility enumeration, cloud calls, or telemetry. Explicit opt-in, privacy and retention design are prerequisites.
-5. If the GUI is unavailable, return a real failure instead of pretending an overlay was drawn.
-6. Preserve existing six public MCP tools unless introducing a documented, versioned change.
-7. Tests must not manipulate a real user's login, security, or payment dialogs.
+1. Never invent UI coordinates, grant a permission, solve a challenge, or approve a payment on the user's behalf. The human makes sensitive decisions.
+2. A human pressing *completed* reports an action; it does not prove downstream success (`verified` remains false).
+3. Keep the local broker bound to loopback, require scoped bearer credentials, forbid browser origins, and preserve owner-scoped status/cancel.
+4. Do not introduce screen capture, OCR, accessibility enumeration, telemetry or cloud calls silently; obtain explicit consent and define retention/redaction before implementation.
+5. On GUI loss, return a clear error rather than claiming the visual overlay appeared.
+6. Preserve MCP tool names and response fields or document and version any breaking changes.
+7. No modifying real user settings, login/payment/security prompts in test automation.
 
-## Working agreement
-- Inspect `src/core.mjs`, `src/bridge.mjs`, `src/runtime.mjs`, `src/mcp.mjs` and `src/desktop/` first.
-- Node.js >=22. Run `npm ci && npm run verify && npm run test:integration`.
-- Nontrivial work goes through a branch and PR with regression tests. Check Ubuntu/macOS/Windows CI.
-- Never mark desktop UI acceptance done based solely on headless CI. Record OS versions and real interaction evidence.
-- Do not commit credentials, private screenshots, local runtime manifests or personal paths.
+## Before changing code
+- Inspect `src/core.mjs` (authoritative state machine), `src/bridge.mjs` (loopback transport), `src/runtime.mjs` (broker discovery/ownership), `src/mcp.mjs` (public tools), and `src/desktop/` (Electron UI).
+- Run `npm ci`, `npm run verify`, `npm run test:integration` (Node 22+). CI matrix must pass on Ubuntu, macOS, Windows.
+- Prefer an isolated branch/PR for nontrivial changes; include regression tests and state what was not tested.
+- Do not close desktop acceptance issues using only headless CI results.
+
+## Definition of done
+- New behavior has success, refusal, timeout, cancellation and stale-state tests where applicable.
+- Platform limitations, privacy/security implications and manual steps are documented.
+- No secrets, screenshot captures or user-specific file paths are committed.
+- All passing claims cite exact commands and CI runs; failed tests are not hidden.
+
+## v0.4 cross-platform rules
+- Use `src/config.mjs` and `scripts/configure.mjs` for all MCP host configuration variants. Do not add a new runtime just for another AI model.
+- Maintain `requestId` and the default MCP output structure. Compact mode is opt-in and must retain status and `verified`.
+- Electron is optional. Core/headless CI must run under `npm ci --omit=optional`.
+- Panel acknowledgements must come from the broker, not from timeouts or arbitrary renderer state.
+- See `docs/COMPATIBILITY.md` and `docs/MODEL_PLAYBOOK.md` for tested vs documented host integrations.

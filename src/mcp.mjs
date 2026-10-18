@@ -4,6 +4,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { BrokerClient } from './runtime.mjs';
+import { formatToolResult } from './output.mjs';
 
 const broker = new BrokerClient();
 const annotation = z.object({
@@ -23,15 +24,17 @@ const presentation = z.object({
   shape: z.enum(['arrow', 'ring', 'box', 'spotlight']).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   annotations: z.array(annotation).max(8).optional(),
-  timeoutSeconds: z.number().int().min(10).max(3600).optional()
+  timeoutSeconds: z.number().int().min(10).max(3600).optional(),
+  requestId: z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()
 });
-const json = object => ({ content: [{ type: 'text', text: JSON.stringify(object) }] });
+const compact = process.env.HANDOFFGLASS_OUTPUT === 'compact';
+const json = object => ({ content: [{ type: 'text', text: JSON.stringify(formatToolResult(object, { compact })) }] });
 const safe = fn => async args => {
   try { return json(await fn(args)); }
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.3.0' });
+  const server = new McpServer({ name: 'handoffglass', version: '0.4.0' });
   server.registerTool('screen_displays', {
     title: 'Inspect display geometry',
     description: 'Return connected screen bounds in device-independent pixels (DIP). No screenshots or UI element location.',
@@ -44,7 +47,7 @@ function makeServer() {
   }, safe(args => broker.present('guide', args)));
   server.registerTool('handoff_request', {
     title: 'Request human intervention',
-    description: 'Ask the human to finish a step and decide whether to proceed. Coordinates optional. If a different Agent already owns the screen, returns busy; do not retry blindly.',
+    description: 'Ask the human to finish a step and decide whether to proceed. Set requestId to prevent duplicate requests on retry. Coordinates optional. If a different Agent already owns the screen, returns busy; do not retry blindly.',
     inputSchema: presentation, annotations: { readOnlyHint: false }
   }, safe(args => broker.present('handoff', args)));
   server.registerTool('handoff_status', {

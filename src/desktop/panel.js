@@ -22,13 +22,22 @@ function render(session) {
 }
 window.handoffglass.onRender(render);
 for (const [id, decision] of Object.entries({ done: 'completed', decline: 'declined', cancel: 'cancelled' })) {
-  $(id).addEventListener('click', () => {
+  $(id).addEventListener('click', async () => {
     if (!active || busy) return;
+    const requestedId = active.id;
     busy = true;
     for (const key of ['done', 'decline', 'cancel']) $(key).disabled = true;
-    window.handoffglass.decide(active.id, decision);
-    // A failed request is recoverable on the next snapshot, but avoid immediate double submit.
-    setTimeout(() => { busy = false; for (const key of ['done', 'decline', 'cancel']) $(key).disabled = false; }, 2000);
+    $('status').textContent = '正在提交…';
+    let reply;
+    try { reply = await window.handoffglass.decide(requestedId, decision); }
+    catch { reply = { ok: false, error: '本地通信失败，请重试' }; }
+    if (active?.id !== requestedId) return; // A newer handoff owns the panel.
+    if (!reply?.ok) {
+      $('status').textContent = reply?.error || '提交失败';
+      busy = false;
+      for (const key of ['done', 'decline', 'cancel']) $(key).disabled = false;
+    }
+    // Success is followed by a state-driven hide; never fake completed locally.
   });
 }
 setInterval(updateTimer, 1000);

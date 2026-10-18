@@ -1,6 +1,6 @@
 {
   "name": "handoffglass",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Single-instance visual handoff broker for MCP agents with owned human decisions and safe desktop overlays",
   "type": "module",
@@ -14,7 +14,7 @@
     "start": "node src/mcp.mjs",
     "test": "node --test test/*.test.mjs",
     "demo": "node demo/server.mjs",
-    "check": "node --check src/core.mjs && node --check src/geometry.mjs && node --check src/bridge.mjs && node --check src/runtime.mjs && node --check src/broker.mjs && node --check src/mcp.mjs && node --check src/desktop/main.mjs && node --check src/desktop/overlay.js && node --check src/desktop/panel.js && node --check scripts/mcp-smoke.mjs && node --check scripts/broker-control.mjs && node --check src/config.mjs && node --check scripts/configure.mjs",
+    "check": "node --check src/core.mjs && node --check src/geometry.mjs && node --check src/bridge.mjs && node --check src/runtime.mjs && node --check src/broker.mjs && node --check src/mcp.mjs && node --check src/desktop/main.mjs && node --check src/desktop/overlay.js && node --check src/desktop/panel.js && node --check scripts/mcp-smoke.mjs && node --check scripts/broker-control.mjs && node --check src/config.mjs && node --check scripts/configure.mjs && node --check src/output.mjs && node --check scripts/benchmark.mjs",
     "verify": "npm run check && npm test",
     "doctor": "node scripts/doctor.mjs",
     "test:integration": "node scripts/mcp-smoke.mjs",
@@ -23,15 +23,23 @@
     "broker:stop": "node scripts/broker-control.mjs stop",
     "configure": "node scripts/configure.mjs all",
     "configure:claude": "node scripts/configure.mjs claude",
-    "configure:codex": "node scripts/configure.mjs codex"
+    "configure:codex": "node scripts/configure.mjs codex",
+    "configure:cursor": "node scripts/configure.mjs cursor",
+    "configure:vscode": "node scripts/configure.mjs vscode",
+    "configure:gemini": "node scripts/configure.mjs gemini",
+    "configure:zed": "node scripts/configure.mjs zed",
+    "install:desktop": "npm install --include=optional",
+    "bench:broker": "node scripts/benchmark.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",
-    "zod": "^4.0.0",
-    "electron": "^44.8.0"
+    "zod": "^4.0.0"
   },
   "license": "UNLICENSED",
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.3.1"
+  },
+  "optionalDependencies": {
+    "electron": "^44.8.0"
   }
 }

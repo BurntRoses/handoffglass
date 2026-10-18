@@ -95,7 +95,8 @@ function updateUI(next) {
   current = next?.status === 'awaiting_user' ? next : null;
   for (const { win, display } of overlays) draw(win, display);
   if (!panel) return;
-  if (!current) { panel.hide(); return; }
+  // Plain visual_show is non-blocking: no panel to dismiss or steal focus.
+  if (!current || current.mode === 'guide') { panel.hide(); return; }
   const area = findTargetDisplay(current).workArea;
   panel.setPosition(Math.round(area.x + Math.max(8, area.width - 456)), Math.round(area.y + Math.max(8, area.height - 350)));
   if (!panel.webContents.isLoading()) panel.webContents.send('hg:render', current);
@@ -144,12 +145,21 @@ function requestDisplaySync() {
 screen.on('display-added', requestDisplaySync);
 screen.on('display-removed', requestDisplaySync);
 screen.on('display-metrics-changed', requestDisplaySync);
-ipcMain.on('hg:decision', async (event, data) => {
-  if (!panel || event.sender !== panel.webContents || !current) return;
-  if (data?.id !== current.id || !['completed', 'declined', 'cancelled'].includes(data.status)) return;
+ipcMain.handle('hg:decision', async (event, data) => {
+  if (!panel || event.sender !== panel.webContents || !current) return { ok: false, error: 'Session unavailable' };
+  if (data?.id !== current.id || !['completed', 'declined', 'cancelled'].includes(data.status)) {
+    return { ok: false, error: 'Stale or invalid decision' };
+  }
   try {
-    await call('POST', '/decision', { id: current.id, status: data.status });
+    const result = await call('POST', '/decision', { id: current.id, status: data.status });
+    if (result.session?.id !== data.id || result.session.status !== data.status) {
+      return { ok: false, error: 'Session state changed; review before retrying' };
+    }
     if (current?.id === data.id) updateUI(null);
-  } catch (error) { console.error('[handoffglass] decision failed:', error.message); }
+    return { ok: true, sessionId: data.id, status: data.status };
+  } catch (error) {
+    console.error('[handoffglass] decision failed:', error.message);
+    return { ok: false, error: 'Could not deliver decision; please retry after checking the panel' };
+  }
 });
 void runLoop();

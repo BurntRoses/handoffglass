@@ -103,3 +103,34 @@ test('a different agent cannot supersede or cancel another active session', () =
   assert.equal(m.get(next.id).status, 'awaiting_user');
   m.close();
 });
+
+
+test('idempotent retry returns same session without resetting expiration or sending another show', () => {
+  const manager = new HandoffManager();
+  let showCount = 0;
+  manager.on('show', () => showCount++);
+  const args = { mode: 'handoff', title: 'Check', message: 'Review authorization', requestId: 'retry-operation-0001' };
+  const first = manager.show(args, 'agent-a');
+  const retried = manager.show(args, 'agent-a');
+  assert.equal(retried.id, first.id);
+  assert.equal(retried.createdAt, first.createdAt);
+  assert.equal(showCount, 1);
+  assert.equal(manager.show(args, 'agent-b').error, 'busy');
+  assert.throws(() => manager.show({ ...args, message: 'Different operation' }, 'agent-a'), /reused with different content/);
+  manager.resolve(first.id, 'completed', 'agent-a');
+  assert.equal(manager.show(args, 'agent-a').status, 'completed');
+  manager.close();
+});
+
+test('bounded asynchronous waiters return overload instead of unlimited listeners', async () => {
+  const manager = new HandoffManager();
+  const session = manager.show({ mode: 'handoff', title: 'Check', message: 'Human action' }, 'agent-a');
+  const waiting = Array.from({ length: 64 }, () => manager.waitOwned(session.id, 'agent-a', 30000));
+  assert.equal(manager.pendingWaits, 64);
+  assert.deepEqual(await manager.waitOwned(session.id, 'agent-a', 30000), { error: 'too_many_waits' });
+  manager.resolve(session.id, 'declined', 'agent-a');
+  const results = await Promise.all(waiting);
+  assert.equal(results.every(x => x.session.status === 'declined'), true);
+  assert.equal(manager.pendingWaits, 0);
+  manager.close();
+});
