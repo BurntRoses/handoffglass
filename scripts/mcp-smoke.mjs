@@ -35,7 +35,7 @@ try {
   const names = [
     'screen_displays', 'ui_locate', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
   ];
-  if (extras) names.push('handoff_context', 'handoff_blueprint');
+  if (extras) names.push('handoff_context', 'handoff_blueprint', 'handoff_assess');
   assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());
   if (extras) {
     const context = await invoke(a, 'handoff_context', {});
@@ -45,6 +45,10 @@ try {
     assert.equal(blueprint.estimatedTokenCost, 0);
     assert.equal(blueprint.steps.length, 3);
     assert.equal(blueprint.verification, 'independent_check_required');
+    const assessment = await invoke(a,'handoff_assess',{blueprint:'authorization', evidence:'ambiguous'});
+    assert.equal(assessment.nextTool,'handoff_request');
+    assert.equal(assessment.coordinateFree,true);
+    assert.equal(assessment.neverAutoApprove,true);
   }
   const { prompts } = await a.listPrompts();
   assert.ok(prompts.some(p => p.name === 'assist-with-ui-step'));
@@ -77,11 +81,11 @@ try {
   assert.equal((await invoke(a,'visual_scene_update',mutating)).session.sceneRevision,2);
   assert.equal((await invoke(a,'handoff_status',{sessionId:painted.session.id})).session.annotations.length,0);
   assert.equal((await invoke(a,'handoff_cancel',{sessionId:painted.session.id})).session.status,'cancelled');
-  console.log(`PASS: MCP v2 stdio, ${extras ? 'ten' : 'eight'} tools, dual hosts, scene updates, local context/blueprints, ownership, cancellation`);
+  console.log(`PASS: MCP v2 stdio, ${extras ? 'eleven' : 'eight'} tools, dual hosts, scene updates, local context/blueprints, ownership, cancellation`);
 } finally {
   for (const c of clients) await c.close().catch(() => {});
   const info = await readManifest(dir);
   if (info) { try { process.kill(info.pid, 'SIGTERM'); } catch {} }
   await new Promise(r => setTimeout(r, 150));
-  await rm(dir, { recursive: true, force: true });
+  await rm(dir, { recursive: true, force: true, maxRetries: 12, retryDelay: 250 });
 }

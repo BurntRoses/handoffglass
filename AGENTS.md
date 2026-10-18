@@ -52,3 +52,9 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - The user manages preferences. An Agent cannot write to long-term memory, capture history, grant permissions, or override OS reduced-motion requirements.
 - Do not add MCP tools by default that expand the model schema. Optional local context/blueprints are behind `HANDOFFGLASS_EXTRAS=1`.
 - Strong visual design is subject to accessibility: never hide a risk/decline action behind animation, blur or spotlights.
+
+## Autonomous policy & readiness (next)
+- Read `docs/AGENT_AUTONOMY.md` before integrating or advertising automatic handoff tool use. Avoid overlay spam; trigger only when ordinary action fails or a human decision is needed.
+- The optional `handoff_assess` tool is pure and read-only; never silently enable all extras on small-context hosts.
+- Run `npm run readiness -- --json` to collect an environment readiness report, not a GUI acceptance certificate.
+- The Windows packaged MCP smoke may need bounded cleanup retries after the Electron child exits. Do not bypass smoke failure assertions.

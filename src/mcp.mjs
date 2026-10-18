@@ -7,6 +7,7 @@ import { BrokerClient } from './runtime.mjs';
 import { formatToolResult } from './output.mjs';
 import { VISUAL_STYLES, MOTION_MODES } from './local/preferences.mjs';
 import { BLUEPRINT_NAMES } from './local/blueprints.mjs';
+import { assessHandoff, GROUNDING_EVIDENCE } from './local/policy.mjs';
 import { SHAPES, TONES, TEMPLATE_NAMES } from './visual/scene.mjs';
 
 const broker = new BrokerClient();
@@ -61,7 +62,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.7.0' });
+  const server = new McpServer({ name: 'handoffglass', version: '0.8.0' });
   server.registerPrompt('assist-with-ui-step', {
     title: 'Help with a desktop step',
     description: 'Plan a safe human-guided step in an existing task; use the HandoffGlass tools when appropriate.',
@@ -77,6 +78,13 @@ function makeServer() {
       description: 'Read user-managed local display preferences. Never contains passwords, screen content or a history of approvals.',
       inputSchema: z.object({}), annotations: { readOnlyHint: true }
     }, safe(() => broker.context()));
+    server.registerTool('handoff_assess', {
+      title: 'Local-first handoff preflight',
+      description: 'No model inference or desktop access. Deterministically choose visual_show versus human-controlled handoff_request from scenario and grounding evidence; never invent coordinates or approve.',
+      inputSchema: z.object({ blueprint: z.enum(BLUEPRINT_NAMES),
+        evidence: z.enum(GROUNDING_EVIDENCE).default('none'), locale: z.enum(['zh-CN','en-US']).default('zh-CN') }),
+      annotations: { readOnlyHint: true }
+    }, safe(args => assessHandoff(args)));
     server.registerTool('handoff_blueprint', {
       title: 'Local human handoff blueprint',
       description: 'Deterministically plan a common human-controlled step without spending model tokens. No action is executed.',

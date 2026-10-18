@@ -25,6 +25,8 @@ test('DeepSeek Cordis source exports a real tool registration and requires expli
  assert.match(code,/ctx\.tools\.register\(defineTool/);
  assert.match(code,/handoffglass_guide/);
  assert.match(code,/handoffglass_check/);
+ assert.match(code,/handoffglass_wait/);
+ assert.match(code,/bridge\.wait\(args\.sessionId, seconds\)/);
  assert.match(code,/verified:false/);
 });
 test('DeepSeek installer generates valid source-root patch with no magic user path',async()=>{
@@ -38,5 +40,6 @@ test('DeepSeek installer generates valid source-root patch with no magic user pa
     assert.match(patch,/insert:/);assert.match(plugin,/file:\/\//);
     assert.doesNotMatch(plugin,/__HANDOFFGLASS_RUNTIME__/);
     assert.match(plugin,/ctx\.tools\.register/);
+    assert.match(plugin,/handoffglass_wait/);
   } finally {await rm(folder,{recursive:true,force:true});}
 });

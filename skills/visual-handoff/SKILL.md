@@ -45,3 +45,12 @@ Two guided targets:
 To minimize model tokens, prefer existing `visual_show` or `handoff_request` with `template:"focus"|"point"|"inspect"|"caution"|"sequence"|"verify"` plus measured global DIP targets. Never invent target locations. If no grounded coordinate exists, use handoff without any visual marks.
 
 For multi-step guidance, construct Scene v1 with layers and stable annotation IDs, then call `visual_scene_update({sessionId, expectedRevision, operations:[...]})` to modify a live scene. Always read/use the returned `sceneRevision` for the next patch; a stale revision conflict requires fetching status before rebuilding the desired patch. Updating visuals never reports task completion or extends a permission prompt deadline. See `docs/SCENE_PROTOCOL.md`.
+
+
+## Autonomous invocation preflight (v0.8)
+
+Prefer ordinary verified automation over interruptions. In sensitive or blocked cases call `handoff_request` and let the human act in the **original application**. When grounding is ambiguous, stale, absent or offscreen, always use coordinate-free handoff instead of hallucinating a marker.
+
+With `HANDOFFGLASS_EXTRAS=1` an optional pure `handoff_assess({blueprint,evidence,locale})` tool provides a deterministic recommended action and safety flags with **zero additional model inference calls**; its serialized tool response still counts towards model context, so do not call it reflexively. Supported evidence: `none`, `global_dip`, `accessibility`, `ambiguous`, `stale`, `offscreen`.
+
+The DeepSeek Harness native Cordis plugin also has `handoffglass_wait`: a single bounded wait that returns a report, not proof of success. Check the original app after any `completed` reply. Full policy: `docs/AGENT_AUTONOMY.md`.
