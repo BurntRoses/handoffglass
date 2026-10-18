@@ -12,7 +12,8 @@ import { readManifest } from '../src/runtime.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = await mkdtemp(join(tmpdir(), 'handoffglass-mcp-'));
-const env = { ...process.env, HANDOFFGLASS_HEADLESS: '1', HANDOFFGLASS_RUNTIME_DIR: dir };
+const extras = process.argv.includes('--extras');
+const env = { ...process.env, HANDOFFGLASS_HEADLESS: '1', HANDOFFGLASS_RUNTIME_DIR: dir, HANDOFFGLASS_EXTRAS: extras ? '1' : '0' };
 const clients = [];
 function decode(result) {
   if (result.isError) throw new Error(result.content.map(c => c.text || '').join('; '));
@@ -31,9 +32,20 @@ const invoke = async (c, name, args) => decode(await c.callTool({ name, argument
 try {
   const [a, b] = await Promise.all([client('host-A'), client('host-B')]);
   const { tools } = await a.listTools();
-  assert.deepEqual(tools.map(tool => tool.name).sort(), [
+  const names = [
     'screen_displays', 'ui_locate', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
-  ].sort());
+  ];
+  if (extras) names.push('handoff_context', 'handoff_blueprint');
+  assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());
+  if (extras) {
+    const context = await invoke(a, 'handoff_context', {});
+    assert.equal(context.storage, 'local');
+    assert.equal(context.historyStored, false);
+    const blueprint = await invoke(a, 'handoff_blueprint', {blueprint:'authorization',locale:'zh-CN'});
+    assert.equal(blueprint.estimatedTokenCost, 0);
+    assert.equal(blueprint.steps.length, 3);
+    assert.equal(blueprint.verification, 'independent_check_required');
+  }
   const { prompts } = await a.listPrompts();
   assert.ok(prompts.some(p => p.name === 'assist-with-ui-step'));
   const guide = await a.getPrompt({ name: 'assist-with-ui-step', arguments: { task: 'Review account access' } });
@@ -65,7 +77,7 @@ try {
   assert.equal((await invoke(a,'visual_scene_update',mutating)).session.sceneRevision,2);
   assert.equal((await invoke(a,'handoff_status',{sessionId:painted.session.id})).session.annotations.length,0);
   assert.equal((await invoke(a,'handoff_cancel',{sessionId:painted.session.id})).session.status,'cancelled');
-  console.log('PASS: MCP v2 stdio, seven tools, dual hosts, templates/scenes, ownership, updates, cancellation');
+  console.log(`PASS: MCP v2 stdio, ${extras ? 'ten' : 'eight'} tools, dual hosts, scene updates, local context/blueprints, ownership, cancellation`);
 } finally {
   for (const c of clients) await c.close().catch(() => {});
   const info = await readManifest(dir);

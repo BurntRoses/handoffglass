@@ -37,3 +37,5 @@ Default MCP keeps the eight existing tools. Optional `HANDOFFGLASS_EXTRAS=1` add
 ## Non-local harness
 
 Cloud hosted WorkBuddy/TraeWork or remote VS Code/Codex requires the agent to execute locally beside the user's GUI, or an explicitly approved authenticated relay. This release does not implement such a relay. Failing closed is better than painting on the wrong machine.
+
+The optional model-visible toolset is covered by `npm run test:extras` in the Windows/macOS/Ubuntu CI matrix. The default toolset remains unchanged.

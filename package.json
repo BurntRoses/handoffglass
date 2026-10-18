@@ -49,7 +49,8 @@
     "test:local": "node --test test/local-*.test.mjs",
     "host:matrix": "node scripts/host-matrix.mjs",
     "harness:deepseek": "node scripts/prepare-deepseek.mjs",
-    "connector:workbuddy": "node scripts/build-workbuddy.mjs"
+    "connector:workbuddy": "node scripts/build-workbuddy.mjs",
+    "test:extras": "node scripts/mcp-smoke.mjs --extras"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",
