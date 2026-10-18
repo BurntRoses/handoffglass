@@ -30,3 +30,5 @@ OS `prefers-reduced-motion:reduce` disables effects even if an Agent requests `e
 ## Renderer verification
 
 No screenshot is generated/stored. Unit tests use a fake DOM to assert valid SVG shapes and textContent-only text, and inspect CSS for reduced-motion. Actual blur/glow/performance must be profiled on Windows/macOS hardware (Issue #1). Avoid per-frame model calls: frame interpolation is CSS/SVG local.
+
+The `npm run gallery` preview serves the **same overlay.css and production SVG renderer** as Electron, with `minimal`/`luminous`/`handdrawn` and three motion controls. No duplicated visual implementation or external assets.

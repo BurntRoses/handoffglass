@@ -4,7 +4,8 @@ import {readFile, writeFile, mkdtemp,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {spawnSync} from 'node:child_process';
-const root=new URL('../',import.meta.url).pathname;
+import {fileURLToPath} from 'node:url';
+const root=fileURLToPath(new URL('../',import.meta.url));
 test('WorkBuddy local MCP connector includes one stdio server and bilingual metadata',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'hg-wb-'));
  try{

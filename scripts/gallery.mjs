@@ -9,7 +9,8 @@ const files = new Map([
   ['/', ['examples/scene-gallery.html', 'text/html']],
   ['/examples/scene-gallery.js', ['examples/scene-gallery.js', 'text/javascript']],
   ['/src/visual/scene.mjs', ['src/visual/scene.mjs', 'text/javascript']],
-  ['/src/desktop/overlay-renderer.mjs', ['src/desktop/overlay-renderer.mjs', 'text/javascript']]
+  ['/src/desktop/overlay-renderer.mjs', ['src/desktop/overlay-renderer.mjs', 'text/javascript']],
+  ['/src/desktop/overlay.css', ['src/desktop/overlay.css', 'text/css']]
 ]);
 const srv=http.createServer(async(req,res)=>{
   const item=files.get(req.url);

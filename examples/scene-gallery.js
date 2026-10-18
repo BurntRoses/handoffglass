@@ -28,11 +28,13 @@ function paint() {
     label.append(check,title,order);$('layers').append(label);
   }
   const flattened=flattenScene(scene);
-  renderOverlay($('canvas'),{annotations:flattened},{width:area.width,height:area.height});
+  renderOverlay($('canvas'),{annotations:flattened,visualStyle:$('visualStyle').value,motion:$('motion').value},{width:area.width,height:area.height});
   $('counts').textContent=`${scene.layers.length} layers · ${flattened.length} visible marks`;
   $('json').textContent=JSON.stringify(scene,null,2);
 }
 $('template').addEventListener('change',create);
+$('visualStyle').addEventListener('change',paint);
+$('motion').addEventListener('change',paint);
 $('opacity').addEventListener('input',event=>{
   scene=patchScene(scene,[{op:'set_layer',layerId:'targets',opacity:Number(event.target.value)/100}]);paint();
 });
