@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validDisplay, canLocateAll } from './geometry.mjs';
-import { loadPreferences } from './local/preferences.mjs';
+import { loadPreferences, hasUserPreferences } from './local/preferences.mjs';
 import { compileBlueprint, BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { locateNative, validateTarget } from './native/locator.mjs';
 
@@ -189,8 +189,14 @@ export class LocalBridge {
         }
         // Apply user-owned visual preferences; Agents cannot persist them.
         const preference = await loadPreferences();
-        if (body.visualStyle === undefined) body.visualStyle = preference.visualStyle;
-        if (body.motion === undefined) body.motion = preference.motion;
+        if (await hasUserPreferences()) {
+          // Persistent, explicitly user-chosen preferences outrank the Agent's cosmetic hints.
+          body.visualStyle = preference.visualStyle;
+          body.motion = preference.motion;
+        } else {
+          if (body.visualStyle === undefined) body.visualStyle = preference.visualStyle;
+          if (body.motion === undefined) body.motion = preference.motion;
+        }
         // Validate BEFORE starting Electron, to avoid spawning a desktop for bad requests.
         const { normalizeRequest } = await import('./core.mjs');
         const normalized = normalizeRequest(body);

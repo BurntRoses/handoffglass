@@ -22,6 +22,17 @@ export function validatePreferences(value) {
   if (value.version !== undefined && value.version !== 1) throw new TypeError('Unsupported preference version');
   return result;
 }
+/** Distinguish defaults from deliberate human preferences. Agents never override a saved choice. */
+export async function hasUserPreferences(dir = runtimeDir()) {
+  try {
+    const entry = await lstat(join(dir, 'preferences.json'));
+    if (!entry.isFile() || entry.isSymbolicLink()) throw new Error('Invalid preferences file');
+    return true;
+  } catch(error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
+}
 export async function loadPreferences(dir = runtimeDir()) {
   const file = join(dir, 'preferences.json');
   try {
