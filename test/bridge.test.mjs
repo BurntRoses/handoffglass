@@ -186,3 +186,22 @@ test('native exact-match target feeds the existing owned handoff without permitt
     assert.equal(locate.target.x,60);
   } finally { await bridge.stop(); manager.close(); }
 });
+
+test('target requestId retries do not re-inspect UI or reset human handoff', async()=>{
+  const manager=new HandoffManager();let lookups=0;
+  const bridge=new LocalBridge(manager,{locator:async()=>({x:++lookups*40,y:20,width:30,height:20})});
+  await bridge.start();bridge.displays=[{id:'screen',x:0,y:0,width:300,height:300}];bridge.lastPoll=Date.now();
+  const headers={ authorization:`Bearer ${bridge.agentToken}`,'x-handoffglass-owner':'11111111-1111-4111-8111-111111111111', 'content-type':'application/json' };
+  const url=`http://127.0.0.1:${bridge.port}/agent/show`;
+  const request={title:'Decide',message:'Please review',mode:'handoff',requestId:'native-target-retry-1',target:{app:'chrome',role:'button',name:'OK'}};
+  try {
+    const post=body=>fetch(url,{method:'POST',headers,body:JSON.stringify(body)});
+    const first=(await (await post(request)).json()).session;
+    const second=(await (await post(request)).json()).session;
+    assert.equal(first.id,second.id);
+    assert.equal(first.timeoutAt,second.timeoutAt);
+    assert.equal(first.annotations[0].x,second.annotations[0].x);
+    assert.equal(lookups,1);
+    assert.equal((await post({...request,title:'Changed'})).status,400);
+  } finally { await bridge.stop();manager.close(); }
+});

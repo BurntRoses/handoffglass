@@ -51,6 +51,7 @@ export class LocalBridge {
     this.port = null;
     this.lastPoll = 0;
     this.displays = [];
+    this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
     this.waiters = new Set();
     this.onManagerChange = () => this.#publish();
@@ -152,8 +153,20 @@ export class LocalBridge {
       }
       if (req.method === 'POST' && pathname === '/agent/show') {
         const body = await readJson(req);
+        const original = JSON.stringify(body);
+        const hadTarget = body.target !== undefined;
+        const retryKey = typeof body.requestId === 'string' ? JSON.stringify([owner,body.requestId]) : null;
+        const previous = retryKey && this.resolvedTargets.get(retryKey);
+        if (previous) {
+          if (previous.original !== original) return sendJson(res, 400, {error:'requestId reused with different original target',code:'idempotency_conflict'});
+          Object.assign(body, structuredClone(previous.resolved));
+          delete body.target;
+        }
         if (body.target !== undefined) {
           const target = validateTarget(body.target);
+          const active = this.manager.active();
+          if (active && this.manager.owners.get(active.id) !== owner)
+            return sendJson(res,409,{error:'Another Agent owns the active handoff',code:'busy'});
           if (body.x !== undefined || body.y !== undefined || body.annotations !== undefined ||
               body.scene !== undefined) return sendJson(res, 400, { error: 'Choose target or coordinates/scene', code: 'invalid_target' });
           await this.prepare();
@@ -174,6 +187,10 @@ export class LocalBridge {
         }
         const session = this.manager.show(body, owner);
         if (session.error) return sendJson(res, 409, { error: 'A different Agent already owns the active handoff', code: 'busy' });
+        if (retryKey && !previous && hadTarget) {
+          this.resolvedTargets.set(retryKey,{original,resolved:structuredClone(body)});
+          if(this.resolvedTargets.size > 128) this.resolvedTargets.delete(this.resolvedTargets.keys().next().value);
+        }
         return sendJson(res, 200, { session, visible: !this.headless,
           coordinateSystem: 'global_DIP',
           instruction: 'User-reported completion is not verification. Recheck the target application.' });
