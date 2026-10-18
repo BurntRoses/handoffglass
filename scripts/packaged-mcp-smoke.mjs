@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { readManifest } from '../src/runtime.mjs';
 const dist=resolve('dist');
 let appBinary, entry;
 if(process.platform==='darwin'){
@@ -32,6 +33,25 @@ try{
   console.log('Packaged ELECTRON_RUN_AS_NODE MCP handshake complete:',tools.length,'tools');
 }finally{
   await client.close().catch(()=>{});
+  // The MCP client starts a detached, single-instance *headless Broker* in this
+  // isolated test runtime. Killing only the stdio child leaves HandoffGlass.exe
+  // owning broker.json on Windows (observed in GitHub Actions run 39146346211).
+  // Stop the Broker explicitly before deleting its directory. Only the unique
+  // test runtime PID is eligible; never stop another user's shared Broker.
+  const broker = await readManifest(dir);
+  if (broker && broker.pid !== process.pid) {
+    try { process.kill(broker.pid, 'SIGTERM'); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+    const stopDeadline = Date.now() + 10000;
+    while (Date.now() < stopDeadline) {
+      try { process.kill(broker.pid, 0); }
+      catch (error) {
+        if (error.code === 'ESRCH' || error.code === 'EPERM') break;
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+  }
   // On Windows a just-closed Electron child can briefly retain a handle to its
   // temporary runtime files. Retry transient OS locks, but fail after a bound.
   await rm(dir,{recursive:true,force:true,maxRetries:12,retryDelay:250});
