@@ -35,6 +35,14 @@ const safe = fn => async args => {
 };
 function makeServer() {
   const server = new McpServer({ name: 'handoffglass', version: '0.4.0' });
+  server.registerPrompt('assist-with-ui-step', {
+    title: 'Help with a desktop step',
+    description: 'Plan a safe human-guided step in an existing task; use the HandoffGlass tools when appropriate.',
+    argsSchema: z.object({ task: z.string().trim().min(1).max(300) })
+  }, ({ task }) => ({
+    messages: [{ role: 'user', content: { type: 'text', text:
+      `Assist with this task: ${task}\nWhen automated action is unreliable or requires my informed decision, use HandoffGlass. Do not invent screen coordinates. Explain the action, allow refusal, and independently verify the result after I report completion. Do not ask me to reveal secrets.` } }]
+  }));
   server.registerTool('screen_displays', {
     title: 'Inspect display geometry',
     description: 'Return connected screen bounds in device-independent pixels (DIP). No screenshots or UI element location.',

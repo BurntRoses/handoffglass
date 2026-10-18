@@ -85,3 +85,26 @@ test('bounds concurrent long polls to protect the loopback broker', async () => 
     await Promise.all(pending);
   }
 }));
+
+test('authenticated agent bridge deduplicates retries and separates owner access', async () => fixture(async ({ request, bridge }) => {
+  bridge.headless = true; // Protocol-only fixture: no physical screen is claimed.
+  const ownerA = { authorization: `Bearer ${bridge.agentToken}`, 'x-handoffglass-owner': '11111111-1111-4111-8111-111111111111' };
+  const ownerB = { authorization: `Bearer ${bridge.agentToken}`, 'x-handoffglass-owner': '22222222-2222-4222-8222-222222222222' };
+  const args = { ...basic, requestId: 'bridge-retry-00001' };
+  const send = headers => request('/agent/show', { method: 'POST', headers, body: args });
+  const first = await (await send(ownerA)).json();
+  assert.equal(first.session.verified, false);
+  assert.equal(first.visible, false);
+  const repeat = await (await send(ownerA)).json();
+  assert.equal(repeat.session.id, first.session.id);
+  assert.equal((await send(ownerB)).status, 409);
+  const privateStatus = await (await request(`/agent/status?sessionId=${first.session.id}`, { headers: ownerB })).json();
+  assert.equal(privateStatus.session, null);
+  const changed = await request('/agent/show', { method: 'POST', headers: ownerA, body: { ...args, title: 'Changed' } });
+  assert.equal(changed.status, 400);
+  const cancel = await (await request('/agent/cancel', { method: 'POST', headers: ownerA,
+    body: { sessionId: first.session.id } })).json();
+  assert.equal(cancel.session.status, 'cancelled');
+  const finalRetry = await (await send(ownerA)).json();
+  assert.equal(finalRetry.session.status, 'cancelled');
+}));

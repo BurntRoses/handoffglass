@@ -34,6 +34,10 @@ try {
   assert.deepEqual(tools.map(tool => tool.name).sort(), [
     'screen_displays', 'visual_show', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
   ].sort());
+  const { prompts } = await a.listPrompts();
+  assert.ok(prompts.some(p => p.name === 'assist-with-ui-step'));
+  const guide = await a.getPrompt({ name: 'assist-with-ui-step', arguments: { task: 'Review account access' } });
+  assert.match(guide.messages[0].content.text, /Do not invent screen coordinates/);
   const params = { title: 'Permission review', message: 'Human decision needed; no guessed coordinates', timeoutSeconds: 30, requestId: 'smoke-case-unique-123' };
   assert.equal((await invoke(a, 'screen_displays', {})).headless, true);
   const first = await invoke(a, 'handoff_request', params);

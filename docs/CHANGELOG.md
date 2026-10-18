@@ -7,6 +7,7 @@
 - Move Electron to optional dependency; CI runs MCP-only to avoid downloading the desktop binary.
 - Add asynchronous panel decision acknowledgement with retryable failure state, nonblocking visual guide mode, multi-spotlight compositing and boundary-spanning screen annotations.
 - Add host, compact-output and retry regression tests, benchmark harness and Code Agent handoff instructions.
+- Expose an optional MCP `assist-with-ui-step` prompt for hosts that support prompts, with full tool compatibility preserved.
 - MCP/broker tests are not a substitute for GUI acceptance on a physical Windows/macOS machine.
 
 # Changelog

@@ -165,3 +165,7 @@ node scripts/configure.mjs vscode gemini --compact
 `--compact` reduces response size for smaller models; it **does not** change who may approve operations. Use stable `requestId` on retried `handoff_request` calls to avoid accidentally presenting the same sensitive prompt twice. Tool calls from remotely hosted/cloud Agent instances cannot reach a local desktop without an explicitly deployed companion and secure channel; such a remote bridge is not implemented.
 
 Read [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md), [`docs/MODEL_PLAYBOOK.md`](docs/MODEL_PLAYBOOK.md) and [`docs/AGENT_HANDOFF.md`](docs/AGENT_HANDOFF.md) before integrating a new harness.
+
+### Optional MCP prompt
+
+Hosts that expose MCP Prompts can invoke `assist-with-ui-step` with a short `task` argument. This offers a discoverable, lightweight guided workflow **without installing a separate Skill file**. Hosts that do not expose Prompts can continue using the six MCP tools and the bundled `skills/visual-handoff/SKILL.md`.
