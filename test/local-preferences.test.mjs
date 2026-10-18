@@ -29,3 +29,8 @@ test('refuses symbolic-link preference file',async()=>withDir(async dir=>{
   await symlink(target,join(dir,'preferences.json'));
   await assert.rejects(()=>loadPreferences(dir),/Invalid preferences/);
 }));
+
+test('locale and density preferences are validated for bilingual desktop UI',()=>{
+ assert.deepEqual(validatePreferences({locale:'en-US',density:'compact'}).locale,'en-US');
+ assert.throws(()=>validatePreferences({density:'ultra'}));
+});

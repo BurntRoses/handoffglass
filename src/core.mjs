@@ -3,13 +3,16 @@ import { randomUUID } from 'node:crypto';
 
 export const TERMINAL_STATES = Object.freeze(['completed', 'declined', 'cancelled', 'expired', 'superseded']);
 const TERMINAL = new Set(TERMINAL_STATES);
-import { VISUAL_STYLES, MOTION_MODES } from './local/preferences.mjs';
+import { VISUAL_STYLES, MOTION_MODES, LOCALES } from './local/preferences.mjs';
 import { SHAPES, normalizeAnnotation, normalizeScene, flattenScene, patchScene, composeTemplate, MAX_MARKS } from './visual/scene.mjs';
 export { SHAPES, normalizeAnnotation } from './visual/scene.mjs';
 const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 export function normalizeRequest(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Request must be an object');
   const mode = input.mode ?? 'handoff';
+  const locale = input.locale ?? 'zh-CN';
+  const density = input.density ?? 'normal';
+  if (!LOCALES.includes(locale) || !['normal','compact'].includes(density)) throw new TypeError('Invalid display locale or density');
   const visualStyle = input.visualStyle ?? 'luminous';
   const motion = input.motion ?? 'gentle';
   if (!VISUAL_STYLES.includes(visualStyle) || !MOTION_MODES.includes(motion)) throw new TypeError('Invalid visual style or motion mode');
@@ -55,7 +58,7 @@ export function normalizeRequest(input) {
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, ...(scene ? { scene } : {}) };
+  return { mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, ...(scene ? { scene } : {}) };
 }
 function copySession(session) {
   if (!session) return null;
@@ -100,7 +103,7 @@ export class HandoffManager extends EventEmitter {
     const session = {
       id: randomUUID(), mode: normalized.mode, title: normalized.title,
       message: normalized.message, annotations: normalized.annotations,
-      visualStyle: normalized.visualStyle, motion: normalized.motion,
+      visualStyle: normalized.visualStyle, motion: normalized.motion, locale:normalized.locale, density:normalized.density,
       ...(normalized.scene ? {scene:normalized.scene, sceneRevision:1} : {}),
       status: 'awaiting_user', createdAt: now, updatedAt: now,
       timeoutAt: now + normalized.timeoutSeconds * 1000,

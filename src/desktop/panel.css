@@ -24,3 +24,5 @@ button:focus-visible{outline:2px solid #eafffc;outline-offset:2px}
 @keyframes hg-fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @keyframes hg-light{0%,30%{left:-55%}65%,100%{left:110%}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+.panel[data-density=compact]{padding:13px 17px 12px}.panel[data-density=compact] .rule{margin:8px 0}.panel[data-density=compact] h1{margin:6px 0 6px;font-size:18px}.panel[data-density=compact] .note{margin-top:7px}
