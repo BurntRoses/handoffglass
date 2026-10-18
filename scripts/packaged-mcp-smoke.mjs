@@ -32,5 +32,7 @@ try{
   console.log('Packaged ELECTRON_RUN_AS_NODE MCP handshake complete:',tools.length,'tools');
 }finally{
   await client.close().catch(()=>{});
-  await rm(dir,{recursive:true,force:true});
+  // On Windows a just-closed Electron child can briefly retain a handle to its
+  // temporary runtime files. Retry transient OS locks, but fail after a bound.
+  await rm(dir,{recursive:true,force:true,maxRetries:12,retryDelay:250});
 }

@@ -17,6 +17,8 @@ test('WorkBuddy local MCP connector includes one stdio server and bilingual meta
   assert.equal(mc.mcpServers.handoffglass.runtime.version,'22');
   const meta=JSON.parse(await readFile(join(dir,'connector-meta.json'),'utf8'));
   assert.equal(meta.type,'mcp');assert.ok(meta.description_zh);
+  const pkg=JSON.parse(await readFile(join(root,'package.json'),'utf8'));
+  assert.equal(meta.version,pkg.version,'Generated connector must match package release version');
   assert.match(await readFile(join(dir,'skills/visual-handoff/SKILL.md'),'utf8'),/handoff/i);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
@@ -25,6 +27,8 @@ test('DeepSeek Cordis source exports a real tool registration and requires expli
  assert.match(code,/ctx\.tools\.register\(defineTool/);
  assert.match(code,/handoffglass_guide/);
  assert.match(code,/handoffglass_check/);
+ assert.match(code,/handoffglass_wait/);
+ assert.match(code,/bridge\.wait\(args\.sessionId, seconds\)/);
  assert.match(code,/verified:false/);
 });
 test('DeepSeek installer generates valid source-root patch with no magic user path',async()=>{
@@ -38,5 +42,6 @@ test('DeepSeek installer generates valid source-root patch with no magic user pa
     assert.match(patch,/insert:/);assert.match(plugin,/file:\/\//);
     assert.doesNotMatch(plugin,/__HANDOFFGLASS_RUNTIME__/);
     assert.match(plugin,/ctx\.tools\.register/);
+    assert.match(plugin,/handoffglass_wait/);
   } finally {await rm(folder,{recursive:true,force:true});}
 });

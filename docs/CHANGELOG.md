@@ -80,3 +80,13 @@
 - New tests for preferences, connectors, host strategies, local decision plans and CSS contracts.
 
 - Desktop decision panel is bilingual (zh-CN/en-US) and density-aware; preferences appear in the tray and are applied by the broker without a model call.
+
+## Next — autonomous Agent preflight and release reliability
+
+- Add deterministic local-first `handoff_assess` optional tool and policy matrix for all six high-frequency scenarios, including ambiguous/stale/offscreen evidence and sensitive human decisions.
+- Add environment readiness CLI with machine-readable JSON and explicit desktop QA boundaries.
+- Harden packaged Windows Electron MCP smoke cleanup against short-lived file locks using bounded filesystem retries.
+- Extend MCP extras handshake smoke, local policy and readiness regression suites. Keep default eight model-facing tools unchanged.
+- Add `docs/AGENT_AUTONOMY.md`, an actionable Agent/Harness selection and verification contract without unrestricted memory access.
+
+- Add offline compact MCP response byte benchmark (avoids unsupported token-saving claims).

@@ -28,7 +28,7 @@ cd /absolute/path/to/deepseek-harness
 pnpm dsh web --patch ./scratch-handoffglass/cordis.yml
 ```
 
-Requires Node.js 22 for the local HandoffGlass core. `prepare-deepseek` generates a Cordis plugin **inside the DSH source tree**, using official `ctx.tools.register(defineTool(...))`, so package resolution follows the host. The generated plugin delegates to the same Broker. It registers only two model-facing tools to minimize prompt/schema size. It does not inspect DSH chat logs or modify DSH native session memory. Runtime acceptance against a real DSH checkout is still needed.
+Requires Node.js 22 for the local HandoffGlass core. `prepare-deepseek` generates a Cordis plugin **inside the DSH source tree**, using official `ctx.tools.register(defineTool(...))`, so package resolution follows the host. The generated plugin delegates to the same Broker. It registers only three model-facing tools (guide, check, bounded wait) to minimize prompt/schema size. It does not inspect DSH chat logs or modify DSH native session memory. Runtime acceptance against a real DSH checkout is still needed.
 
 ## Tool economy and local-first design
 
