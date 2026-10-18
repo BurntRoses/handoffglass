@@ -30,7 +30,7 @@ Inspection is **disabled by default**. Enable locally with the tray/menu checkbo
 
 ## Package engineering preview
 
-`npm run native:macos` then `npm run build:desktop` on macOS; `npm run build:desktop` on Windows. Uses pinned electron-builder 26.0.12 (downloaded as a build-time tool by npx). The unpacked package is checked by `scripts/verify-package.mjs`; CI builds are **unsigned** and are not proof of real GUI performance. For a distributable archive run `npm run dist:desktop` on the target OS.
+`npm run native:macos` then `npm run build:desktop` on macOS; `npm run build:desktop` on Windows. Uses pinned electron-builder 26.0.12 (downloaded as a build-time tool by npx). The unpacked package is checked by `scripts/verify-package.mjs`; CI builds are **unsigned** and are not proof of real GUI performance. For a distributable archive run `npm run dist:desktop` on the target OS; then `npm run verify:dist` produces `dist/SHA256SUMS.txt`. The CI uploads unsigned macOS ZIP and Windows Portable EXE engineering previews.
 
 Signed/notarized builds, installed-binary launch tests, macOS hardened runtime/entitlements, Windows trust prompts and UI positioning evidence are pending real-machine QA. See `docs/DESKTOP_QA.md` and GitHub Issues #1, #3 and #4.
 
