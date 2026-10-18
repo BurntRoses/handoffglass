@@ -53,3 +53,7 @@
 - Additional unit, bridge, renderer and live MCP integration regression tests. Physical desktop acceptance still outstanding.
 
 - Added fail-closed UI grounding candidate contract and tests (pure library, no active AX/UIA enumeration), and minimal scene template/validation CLI for future adapters.
+
+- Fix stale-manifest broker restart on Windows by clearing the failed manifest under the startup lock before spawning, and surface asynchronous process-launch errors.
+
+- Electron overlay now loads a deterministic classic-script bundle of the same canonical SVG renderer used in gallery; avoids file-URL ESM issues without adding a bundler dependency.

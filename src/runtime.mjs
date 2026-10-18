@@ -77,16 +77,22 @@ export async function ensureBroker({ env = process.env, spawnBroker = null, time
   if (!locked) throw new Error('Timed out acquiring the local broker startup lock');
   try {
     const current = await readManifest(dir);
-    if (current && await probe(current)) return current;
+    if (current && await probe(current, 1800)) return current;
+    // Windows cannot reliably atomically replace an existing broker.json via rename().
+    // Under the exclusive startup lock, discard the stale manifest before a fresh launch.
+    if (current) await rm(join(dir, 'broker.json'), { force: true });
+    let launchError = null;
     if (spawnBroker) await spawnBroker(dir);
     else {
       const child = spawn(process.execPath, [fileURLToPath(new URL('./broker.mjs', import.meta.url))], {
         cwd: dir, env: { ...env, HANDOFFGLASS_RUNTIME_DIR: dir },
         detached: true, windowsHide: true, stdio: 'ignore'
       });
+      child.once('error', error => { launchError = error; });
       child.unref();
     }
     while (Date.now() < deadline) {
+      if (launchError) throw new Error(`Broker process launch failed: ${launchError.message}`);
       const info = await readManifest(dir);
       if (info && await probe(info)) return info;
       await pause(120);

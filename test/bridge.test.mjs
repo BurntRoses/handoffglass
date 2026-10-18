@@ -142,8 +142,25 @@ test('rejects offscreen scene updates without modifying displayed targets', asyn
     scene:{version:1,layers:[{id:'one',annotations:[{id:'a',x:30,y:30,shape:'ring'}]}]}}})).json()).session;
   bridge.headless=false;
   bridge.displays=[{id:'main',x:0,y:0,width:100,height:100,scaleFactor:1}];
+  bridge.lastPoll=Date.now(); // Simulate a currently connected renderer for bounds-only test.
   const res=await request('/agent/scene',{method:'POST',headers:owner,body:{sessionId:session.id,expectedRevision:1,
     operations:[{op:'upsert_annotation',layerId:'one',annotation:{id:'b',x:999,y:50}}]}});
   assert.equal(res.status,422);
   assert.equal(manager.get(session.id).sceneRevision,1);
+}));
+
+
+test('scene mutations fail closed when the actual overlay is unavailable', async()=>fixture(async({request,bridge,manager})=>{
+  bridge.headless=true;
+  const owner={authorization:`Bearer ${bridge.agentToken}`,'x-handoffglass-owner':'11111111-1111-4111-8111-111111111111'};
+  const result=await (await request('/agent/show',{method:'POST',headers:owner,body:{...basic,
+    scene:{version:1,layers:[{id:'layer',annotations:[{id:'mark',x:30,y:30}]}]}}})).json();
+  const id=result.session.id;
+  bridge.headless=false;
+  bridge.lastPoll=0;
+  const updated=await request('/agent/scene',{method:'POST',headers:owner,body:{sessionId:id,expectedRevision:1,
+    operations:[{op:'set_layer',layerId:'layer',visible:false}]}});
+  assert.equal(updated.status,503);
+  assert.equal((await updated.json()).code,'no_desktop');
+  assert.equal(manager.get(id).sceneRevision,1);
 }));

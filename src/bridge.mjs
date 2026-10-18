@@ -178,6 +178,11 @@ export class LocalBridge {
         if (body.expectedRevision !== owned.sceneRevision) return sendJson(res, 409, { error: 'Scene revision conflict', code: 'revision_conflict', sceneRevision: owned.sceneRevision });
         const { patchScene, flattenScene } = await import('./visual/scene.mjs');
         const preview = patchScene(owned.scene, body.operations);
+        // An accepted edit must correspond to an available desktop, not just in-memory state.
+        await this.prepare();
+        if (!this.headless && !this.connected) {
+          return sendJson(res, 503, { error: 'Desktop overlay unavailable', code: 'no_desktop' });
+        }
         if (!this.headless && !canLocateAll(this.displays, flattenScene(preview))) {
           return sendJson(res, 422, { error: 'Scene target outside display', code: 'outside_display' });
         }

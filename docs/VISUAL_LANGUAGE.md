@@ -69,3 +69,7 @@ Templates are programs rather than SVG files: `composeTemplate(name, groundedTar
 ## Preview
 
 Run `npm run gallery`, open the printed loopback URL and test all six templates, two layers, visibility and opacity. This gallery intentionally uses the same renderer as Electron. It does **not** imply that real desktop click-through and multi-monitor behavior are already validated.
+
+### Native Electron packaging detail
+
+The gallery imports the canonical ES module `src/desktop/overlay-renderer.mjs`. To avoid `file://` ES-module CORS issues when Electron loads its native overlay, `npm run build:overlay` deterministically generates the classic, no-import `src/desktop/overlay.js` from that **same** renderer. `npm run verify` checks that the generated bundle has not drifted. No webpack/Vite/esbuild or extra runtime dependency is needed.
