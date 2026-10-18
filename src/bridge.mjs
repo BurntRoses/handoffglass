@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validDisplay, canLocateAll } from './geometry.mjs';
+import { locateNative, validateTarget } from './native/locator.mjs';
 
 function sendJson(res, code, data) {
   if (res.destroyed || res.writableEnded) return;
@@ -39,10 +40,11 @@ function readJson(req, byteLimit = 16384) {
  * No queued stale events: reconnecting UIs always receive the current state.
  */
 export class LocalBridge {
-  constructor(manager, { prepare = async () => {}, headless = false } = {}) {
+  constructor(manager, { prepare = async () => {}, headless = false, locator = locateNative } = {}) {
     this.manager = manager;
     this.prepare = prepare;
     this.headless = headless;
+    this.locator = locator;
     this.token = randomBytes(32).toString('hex'); // Desktop-only capability.
     this.agentToken = randomBytes(32).toString('hex'); // MCP client capability.
     this.server = null;
@@ -98,7 +100,7 @@ export class LocalBridge {
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
       '/agent/displays': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
-      '/agent/wait': 'GET', '/agent/cancel': 'POST', '/agent/scene': 'POST' };
+      '/agent/wait': 'GET', '/agent/cancel': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
     }
@@ -118,7 +120,8 @@ export class LocalBridge {
       }
       this.displays = body.displays.map(d => ({
         id: d.id, x: d.x, y: d.y, width: d.width,
-        height: d.height, scaleFactor: Number.isFinite(d.scaleFactor) ? d.scaleFactor : 1
+        height: d.height, scaleFactor: Number.isFinite(d.scaleFactor) ? d.scaleFactor : 1,
+        ...(d.physicalBounds ? { physicalBounds: d.physicalBounds } : {})
       }));
       this.lastPoll = Date.now();
       return sendJson(res, 200, { ok: true, ...this.snapshot() });
@@ -138,8 +141,27 @@ export class LocalBridge {
         await this.prepare();
         return sendJson(res, 200, { displays: this.displays, connected: this.connected, headless: this.headless });
       }
+      if (req.method === 'POST' && pathname === '/agent/locate') {
+        const body = await readJson(req);
+        const target = validateTarget(body.target);
+        await this.prepare();
+        if (!this.headless && !this.connected) return sendJson(res, 503, { error: 'Desktop unavailable', code: 'no_desktop' });
+        const located = await this.locator(target, this.displays);
+        return sendJson(res, 200, { target: located, coordinateSystem: 'global_DIP',
+          warning: 'This is an observation, not permission to click or approve. Revalidate after UI changes.' });
+      }
       if (req.method === 'POST' && pathname === '/agent/show') {
         const body = await readJson(req);
+        if (body.target !== undefined) {
+          const target = validateTarget(body.target);
+          if (body.x !== undefined || body.y !== undefined || body.annotations !== undefined ||
+              body.scene !== undefined) return sendJson(res, 400, { error: 'Choose target or coordinates/scene', code: 'invalid_target' });
+          await this.prepare();
+          if (!this.headless && !this.connected) return sendJson(res, 503, { error: 'Desktop unavailable', code: 'no_desktop' });
+          const hit = await this.locator(target, this.displays);
+          delete body.target;
+          body.x = hit.x; body.y = hit.y; body.width = hit.width; body.height = hit.height;
+        }
         // Validate BEFORE starting Electron, to avoid spawning a desktop for bad requests.
         const { normalizeRequest } = await import('./core.mjs');
         const normalized = normalizeRequest(body);

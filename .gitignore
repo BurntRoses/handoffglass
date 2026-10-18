@@ -7,3 +7,6 @@ coverage/
 dist/
 *.log
 .tmp/
+
+dist/
+native/macos/hg-locate

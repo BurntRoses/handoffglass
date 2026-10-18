@@ -59,3 +59,12 @@
 - Electron overlay now loads a deterministic classic-script bundle of the same canonical SVG renderer used in gallery; avoids file-URL ESM issues without adding a bundler dependency.
 
 - Normalize renderer source and generated bundle line endings; `.gitattributes` enforces LF across hosts so Windows CI performs the same deterministic integrity check.
+
+## 0.6.0 — Native integration engineering preview
+
+- Add explicitly opt-in, read-only macOS Accessibility and Windows UI Automation foreground-control adapters with fail-closed matching and Electron DPI evidence.
+- Add `ui_locate` MCP tool and `target:{app,role,name}` on guide/handoff requests.
+- Add standalone packaged Electron GUI bootstrapping its own shared loopback broker, per-user accessibility toggle and lightweight tray interface.
+- Add source/desktop dual-runtime documentation and unsigned Windows/macOS packaging workflow.
+- Add Cline, Windsurf and OpenCode MCP configuration generation.
+- Preserve no-click/no-credential/no-telemetry constraints. Real OS app startup, permissions and GUI tests are still mandatory.

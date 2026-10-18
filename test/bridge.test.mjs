@@ -164,3 +164,25 @@ test('scene mutations fail closed when the actual overlay is unavailable', async
   assert.equal((await updated.json()).code,'no_desktop');
   assert.equal(manager.get(id).sceneRevision,1);
 }));
+
+test('native exact-match target feeds the existing owned handoff without permitting guessed or mixed coordinates',async()=>{
+  const manager=new HandoffManager();
+  const spy=[];
+  const bridge=new LocalBridge(manager,{locator:async q=>{spy.push(q);return {x:60,y:55,width:30,height:20,source:'uia',coordinateSpace:'global_DIP'};}});
+  await bridge.start();
+  bridge.displays=[{id:'mock',x:0,y:0,width:200,height:100,scaleFactor:1}];
+  bridge.lastPoll=Date.now();
+  const url=`http://127.0.0.1:${bridge.port}`;
+  const headers={authorization:`Bearer ${bridge.agentToken}`,'x-handoffglass-owner':'11111111-1111-4111-8111-111111111111','content-type':'application/json'};
+  const req=(path,body)=>fetch(url+path,{method:'POST',headers,body:JSON.stringify(body)});
+  const target={app:'chrome',role:'button',name:'Allow'};
+  try {
+    assert.equal((await req('/agent/show',{title:'Test',message:'Please decide',mode:'handoff',target,x:50})).status,400);
+    const result=await (await req('/agent/show',{title:'Test',message:'Please decide',mode:'handoff',target})).json();
+    assert.equal(result.session.annotations[0].x,60);
+    assert.equal(result.session.verified,false);
+    assert.deepEqual(spy,[target]);
+    const locate=await (await req('/agent/locate',{target})).json();
+    assert.equal(locate.target.x,60);
+  } finally { await bridge.stop(); manager.close(); }
+});

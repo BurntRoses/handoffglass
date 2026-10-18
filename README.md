@@ -207,3 +207,21 @@ npm run scene:templates
 node scripts/scene.mjs template caution 500 320 "核对权限范围"
 npm run scene:lint
 ```
+
+## Native desktop and foreground UI grounding (v0.6 preview)
+
+**Status:** read-only native locators, opt-in local preferences, desktop self-hosted broker and unsigned package build scripts are implemented. Actual Windows/macOS GUI, Accessibility permission and installer acceptance remains **unverified**; headless CI is not a substitute.
+
+```sh
+npm ci
+npm run verify
+npm run desktop:demo          # interactive desktop required; source build
+npm run accessibility         # disabled by default
+node scripts/accessibility.mjs on   # explicitly opt in
+npm run native:macos          # macOS/Xcode tools only
+npm run build:desktop         # unsigned unpacked preview; Windows/macOS
+```
+
+The packaged GUI runs its own loopback broker without a system Node installation; MCP stdio agents require Node.js 22+ and the separately configured MCP entry. There is no cloud account, telemetry, screenshot capture, automatic approval or click control.
+
+The new `ui_locate` tool and `target:{app,role,name}` option on `visual_show` / `handoff_request` look up exactly one visible, unobstructed **foreground** control, or fail closed. See [`docs/NATIVE_RUNTIME.md`](docs/NATIVE_RUNTIME.md), [`docs/PLATFORM_MATRIX.md`](docs/PLATFORM_MATRIX.md) and [`docs/DESKTOP_QA.md`](docs/DESKTOP_QA.md).

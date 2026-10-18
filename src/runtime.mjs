@@ -138,5 +138,6 @@ export class BrokerClient {
   async updateScene(sessionId, expectedRevision, operations) {
     return this.request('/agent/scene', { method: 'POST', body: { sessionId, expectedRevision, operations } });
   }
+  async locate(target) { return this.request('/agent/locate', { method: 'POST', body: { target } }); }
   async cancel(sessionId) { return this.request('/agent/cancel', { method: 'POST', body: { sessionId } }); }
 }

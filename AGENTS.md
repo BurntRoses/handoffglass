@@ -37,3 +37,10 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - Gallery (`npm run gallery`) imports the **production** SVG renderer. Update both the protocol tests and gallery when adding marks or templates.
 - Preserve owner-scoped optimistic `visual_scene_update` with no TTL reset or user-decision spoofing. Legacy six tool names remain stable.
 - Every new scene shape needs renderer tests, schema changes, documentation and an actual screen-oriented QA scenario.
+
+## v0.6 platform rules
+- Desktop GUI packaged entry: `src/desktop/app.mjs`; source MCP client: `src/mcp.mjs`; native locator: `src/native/locator.mjs` and `native/{macos,windows}`.
+- Native targeting **requires explicit user opt-in**; never bypass accessibility permissions or fake a UI location.
+- macOS AX is global logical desktop coordinates; Windows UIA uses physical pixels and must use explicit monitor evidence for conversion to global DIP.
+- Do not claim packaged binaries work on a user desktop until `docs/DESKTOP_QA.md` has genuine evidence. CI-only structural packaging is not GUI acceptance.
+- Linux/Wayland and remote host/container sessions are not automatically supported. Prefer coordinate-free human handoff when no reliable locator is available.

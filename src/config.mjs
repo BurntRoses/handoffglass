@@ -11,6 +11,9 @@ export const HOSTS = Object.freeze({
   copilot: { label: 'GitHub Copilot CLI / agent harness', family: 'mcpServers' },
   gemini: { label: 'Gemini CLI', family: 'mcpServers' },
   zed: { label: 'Zed editor', family: 'context_servers' },
+  cline: { label: 'Cline extension and CLI', family: 'mcpServers' },
+  windsurf: { label: 'Windsurf / Cascade', family: 'mcpServers' },
+  opencode: { label: 'OpenCode CLI and desktop', family: 'opencode' },
 });
 export function configPayload({ command = process.execPath, entry = resolve(root, 'src/mcp.mjs'), compact = false } = {}) {
   if (typeof command !== 'string' || !command || typeof entry !== 'string' || !entry) {
@@ -29,6 +32,10 @@ export function hostConfig(host, options = {}) {
     // JSON-quoted UTF-8 strings are valid TOML basic strings, including Windows paths.
     const env = entry.env ? `\n[mcp_servers.handoffglass.env]\n${Object.entries(entry.env).map(([k,v]) => `${k} = ${JSON.stringify(v)}`).join('\n')}\n` : '';
     return `[mcp_servers.handoffglass]\ncommand = ${JSON.stringify(entry.command)}\nargs = [${entry.args.map(x => JSON.stringify(x)).join(', ')}]\n${env}`;
+  }
+  if (spec.family === 'opencode') {
+    return JSON.stringify({ mcp: { handoffglass: { type:'local', command:[entry.command,...entry.args],
+      enabled:true, ...(entry.env ? { environment:entry.env } : {}) } } }, null, 2);
   }
   const payload = spec.family === 'servers' ? { type: 'stdio', ...entry } : entry;
   if (host === 'gemini') payload.timeout = 60000; // handoff_wait can consume 30 sec

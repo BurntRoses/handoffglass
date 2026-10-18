@@ -17,6 +17,8 @@ function destination() {
   const home = homedir();
   switch (host) {
     case 'cursor': return join(home, '.cursor', 'mcp.json');
+    case 'cline': return join(home, '.cline','data','settings','cline_mcp_settings.json');
+    case 'windsurf': return join(home, '.codeium','windsurf','mcp_config.json');
     case 'gemini': return join(home, '.gemini', 'settings.json');
     case 'copilot': return join(home, '.copilot', 'mcp-config.json');
     case 'zed': return join(home, '.config', 'zed', 'settings.json');
@@ -25,12 +27,13 @@ function destination() {
       if (process.platform === 'darwin') return join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
       if (process.platform === 'win32' && process.env.APPDATA) return join(process.env.APPDATA, 'Claude', 'claude_desktop_config.json');
       throw new Error('Claude Desktop installer supports macOS and Windows; use configure for Claude Code');
+    case 'opencode': throw new Error('OpenCode JSONC may contain comments; use configure.mjs opencode and merge manually');
     default: throw new Error('Host not eligible for JSON installer; use npm run configure for Codex/other hosts');
   }
 }
 if (!host || args.some(x => x.startsWith('--') && !['--apply','--replace','--compact','--workspace'].includes(x)) ||
     (workAt !== -1 && (!args[workAt+1] || args[workAt+1].startsWith('--')))) {
-  console.error('Usage: node scripts/install-host.mjs <cursor|gemini|copilot|zed|vscode|claude> [--workspace PATH] [--compact] [--apply] [--replace]');
+  console.error('Usage: node scripts/install-host.mjs <cursor|cline|windsurf|gemini|copilot|zed|vscode|claude> [--workspace PATH] [--compact] [--apply] [--replace]');
   process.exit(2);
 }
 let tmp;

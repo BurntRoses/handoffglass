@@ -1,4 +1,5 @@
-import { app, BrowserWindow, screen, ipcMain, session } from 'electron';
+import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage, shell, dialog } from 'electron';
+import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { localAnnotations, contains } from '../geometry.mjs';
@@ -13,7 +14,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535 || !/^[a-f0-9]{64}$/.tes
 const endpoint = `http://127.0.0.1:${port}`;
 const headers = { authorization: `Bearer ${secret}`, 'content-type': 'application/json' };
 const nap = ms => new Promise(resolve => setTimeout(resolve, ms));
-let overlays = [], panel = null, current = null, closing = false, revision = -1, displayDebounce = null;
+let overlays = [], panel = null, current = null, closing = false, revision = -1, displayDebounce = null, tray = null;
 
 async function call(method, path, body) {
   const res = await fetch(endpoint + path, {
@@ -31,7 +32,8 @@ function lockDown(win) {
 function info() {
   return screen.getAllDisplays().map(d => ({
     id: String(d.id), x: d.bounds.x, y: d.bounds.y,
-    width: d.bounds.width, height: d.bounds.height, scaleFactor: d.scaleFactor
+    width: d.bounds.width, height: d.bounds.height, scaleFactor: d.scaleFactor,
+    ...(process.platform === 'win32' ? { physicalBounds: screen.dipToScreenRect(null, d.bounds) } : {})
   }));
 }
 function createOverlay(display) {
@@ -98,7 +100,10 @@ function updateUI(next) {
   // Plain visual_show is non-blocking: no panel to dismiss or steal focus.
   if (!current || current.mode === 'guide') { panel.hide(); return; }
   const area = findTargetDisplay(current).workArea;
-  panel.setPosition(Math.round(area.x + Math.max(8, area.width - 456)), Math.round(area.y + Math.max(8, area.height - 350)));
+  const target = current.annotations?.[0];
+  const placeLeft = target && target.x > area.x + area.width * 0.55;
+  const x = placeLeft ? area.x + 12 : area.x + Math.max(8, area.width - 456);
+  panel.setPosition(Math.round(x), Math.round(area.y + Math.max(8, area.height - 350)));
   if (!panel.webContents.isLoading()) panel.webContents.send('hg:render', current);
   panel.showInactive();
   panel.moveTop();
@@ -137,6 +142,29 @@ session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) 
 app.on('window-all-closed', () => {});
 app.on('before-quit', () => { closing = true; });
 panel = createPanel();
+async function setupTrayAndMenu() {
+  const item = { label: 'Enable read-only UI element inspection', type: 'checkbox',
+    checked: await getAccessibilityConsent(), click: async menuItem => {
+      try { await setAccessibilityConsent(menuItem.checked); }
+      catch (error) { dialog.showErrorBox('Accessibility setting failed', error.message); menuItem.checked = !menuItem.checked; }
+    }};
+  const context = Menu.buildFromTemplate([
+    { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
+    item,
+    { label: 'Accessibility permission settings', click: () => {
+      if (process.platform === 'darwin') void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
+      else if (process.platform === 'win32') void shell.openExternal('ms-settings:privacy');
+    } },
+    { type: 'separator' },
+    { label: 'Quit HandoffGlass', click: () => app.quit() }
+  ]);
+  Menu.setApplicationMenu(context);
+  try {
+    const icon = nativeImage.createFromPath(join(here,'assets','tray.png'));
+    if (!icon.isEmpty()) { tray = new Tray(icon); tray.setToolTip('HandoffGlass'); tray.setContextMenu(context); tray.on('double-click', () => { if (current?.mode === 'handoff') panel.showInactive(); }); }
+  } catch (error) { console.warn('Tray unavailable:',error.message); }
+}
+await setupTrayAndMenu();
 syncDisplays();
 function requestDisplaySync() {
   clearTimeout(displayDebounce);

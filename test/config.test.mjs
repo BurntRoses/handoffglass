@@ -23,6 +23,11 @@ test('all supported host profiles share a single stdio entry and do not rewrite 
     if (host === 'codex') {
       assert.match(config, /\[mcp_servers\.handoffglass\]/);
       assert.match(config, /HANDOFFGLASS_OUTPUT = "compact"/);
+    } else if (host === 'opencode') {
+      const object=JSON.parse(config).mcp.handoffglass;
+      assert.deepEqual(object.command, [options.command,options.entry]);
+      assert.equal(object.type,'local');
+      assert.equal(object.environment.HANDOFFGLASS_OUTPUT,'compact');
     } else {
       const object = JSON.parse(config);
       const key = host === 'vscode' ? 'servers' : host === 'zed' ? 'context_servers' : 'mcpServers';
