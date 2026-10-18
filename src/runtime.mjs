@@ -129,6 +129,8 @@ export class BrokerClient {
       }
     }
   }
+  async context() { return this.request('/agent/context'); }
+  async blueprint(blueprint, locale) { return this.request('/agent/blueprint', { method: 'POST', body: { blueprint, locale } }); }
   async present(mode, args) { return this.request('/agent/show', { method: 'POST', body: { ...args, mode } }); }
   async displays() { return this.request('/agent/displays'); }
   async status(sessionId) { return this.request(`/agent/status?sessionId=${encodeURIComponent(sessionId)}`); }

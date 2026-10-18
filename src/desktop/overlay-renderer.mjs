@@ -6,6 +6,10 @@ function node(tag, attrs = {}) {
   return n;
 }
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+// Repeatable ink wobble: never randomize grounded screen geometry.
+function inkEllipse(x, y, rx, ry) {
+  return `M ${x+rx+1} ${y} C ${x+rx+2} ${y+ry*.56} ${x+rx*.52} ${y+ry+1} ${x} ${y+ry} C ${x-rx*.55} ${y+ry-2} ${x-rx-1} ${y+ry*.45} ${x-rx} ${y} C ${x-rx+1} ${y-ry*.55} ${x-rx*.48} ${y-ry-1} ${x} ${y-ry} C ${x+rx*.52} ${y-ry+2} ${x+rx-2} ${y-ry*.5} ${x+rx+1} ${y} Z`;
+}
 function displayLabel(parent, label, x, y, width, height, accent) {
   if (!label || width < 150 || height < 85) return;
   const content = [...String(label)].slice(0, 48).join('');
@@ -23,10 +27,17 @@ export function renderOverlay(svg, input, viewport = {}) {
   const width = Math.max(1, viewport.width ?? window.innerWidth);
   const height = Math.max(1, viewport.height ?? window.innerHeight);
   svg.replaceChildren();
+  svg.setAttribute('data-style', ['minimal','luminous','handdrawn'].includes(input?.visualStyle) ? input.visualStyle : 'luminous');
+  svg.setAttribute('data-motion', ['off','gentle','expressive'].includes(input?.motion) ? input.motion : 'gentle');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  if (!Array.isArray(input?.annotations)) return;
+  if (!Array.isArray(input?.annotations) || input.annotations.length === 0) return;
   const marks = input.annotations.filter(a => Number.isFinite(a.x) && Number.isFinite(a.y) && (a.opacity ?? 1) > 0);
   const spotlights = marks.filter(a => a.shape === 'spotlight');
+  const defsRoot = node('defs');
+  const glow = node('filter', { id:'hg-soft-glow',x:'-80%',y:'-80%',width:'260%',height:'260%' });
+  glow.append(node('feGaussianBlur',{stdDeviation:5,result:'blur'}));
+  const merge=node('feMerge');merge.append(node('feMergeNode',{in:'blur'}));merge.append(node('feMergeNode',{in:'SourceGraphic'}));glow.append(merge);
+  defsRoot.append(glow); svg.append(defsRoot);
   if (spotlights.length) {
     const mask = node('mask', {id:'hg-spot-mask'});
     mask.append(node('rect', {x:0,y:0,width,height,fill:'white'}));
@@ -38,10 +49,19 @@ export function renderOverlay(svg, input, viewport = {}) {
   for (const [index, a] of marks.entries()) {
     const x=a.x, y=a.y, rw=a.width ?? 112, rh=a.height ?? 56;
     const accent = /^#[a-f0-9]{6}$/i.test(a.color) ? a.color : '#50dbb4';
-    const group = node('g', {opacity: clamp(a.opacity ?? 1, 0, 1), 'data-layer':String(a.layerId ?? 'legacy'), 'data-shape':String(a.shape)});
+    const group = node('g', {opacity: clamp(a.opacity ?? 1, 0, 1), 'data-layer':String(a.layerId ?? 'legacy'), 'data-shape':String(a.shape),class:'hg-mark hg-mark-'+a.shape});
     const stroke = {stroke:accent,fill:'none','stroke-width':3.5,'stroke-linejoin':'round','stroke-linecap':'round'};
-    if (a.shape === 'box') group.append(node('rect', {x:x-rw/2,y:y-rh/2,width:rw,height:rh,rx:11,...stroke}));
-    else if (a.shape === 'ring' || a.shape === 'spotlight') group.append(node('ellipse', {cx:x,cy:y,rx:rw/2 + (a.shape === 'spotlight' ? 13 : 0),ry:rh/2 + (a.shape === 'spotlight' ? 13 : 0),...stroke}));
+    if (a.shape === 'box') {
+      group.append(node('rect', {x:x-rw/2-4,y:y-rh/2-4,width:rw+8,height:rh+8,rx:15,fill:accent,'fill-opacity':0.06}));
+      group.append(node('rect', {x:x-rw/2,y:y-rh/2,width:rw,height:rh,rx:11,...stroke,class:'hg-trace'}));
+    }
+    else if (a.shape === 'ring' || a.shape === 'spotlight') {
+      group.append(node('ellipse',{cx:x,cy:y,rx:rw/2+18,ry:rh/2+18,fill:accent,'fill-opacity':0.055,class:'hg-aura'}));
+      const rx=rw/2 + (a.shape === 'spotlight' ? 13 : 0), ry=rh/2 + (a.shape === 'spotlight' ? 13 : 0);
+      if (svg.getAttribute?.('data-style') === 'handdrawn' || input?.visualStyle === 'handdrawn')
+        group.append(node('path',{d:inkEllipse(x,y,rx,ry),...stroke,class:'hg-trace'}));
+      else group.append(node('ellipse', {cx:x,cy:y,rx,ry,...stroke,class:'hg-trace'}));
+    }
     else if (a.shape === 'underline') group.append(node('line', {x1:x-rw/2,y1:y+rh/2+8,x2:x+rw/2,y2:y+rh/2+8,...stroke}));
     else if (a.shape === 'crosshair') {
       group.append(node('circle', {cx:x,cy:y,r:23,...stroke}));
@@ -59,8 +79,10 @@ export function renderOverlay(svg, input, viewport = {}) {
       const marker = node('marker', {id,markerWidth:9,markerHeight:9,refX:8,refY:4.5,orient:'auto'});
       marker.append(node('path',{d:'M 0 0 L 9 4.5 L 0 9 z',fill:accent}));
       const defs=node('defs');defs.append(marker);group.append(defs);
-      group.append(node('line',{x1:fx,y1:fy,x2:x,y2:y,stroke:accent,'stroke-width':4,'stroke-linecap':'round','marker-end':`url(#${id})`}));
-      group.append(node('circle',{cx:x,cy:y,r:15,...stroke}));
+      const controlX=fx+(x-fx)*0.38, controlY=fy+(y-fy)*0.11;
+      group.append(node('path',{d:`M ${fx} ${fy} Q ${controlX} ${controlY} ${x} ${y}`,stroke:accent,fill:'none','stroke-width':4,'stroke-linecap':'round','marker-end':`url(#${id})`,class:'hg-trace hg-arrow-path'}));
+      group.append(node('circle',{cx:x,cy:y,r:15,...stroke,class:'hg-pulse-ring'}));
+      group.append(node('circle',{cx:x,cy:y,r:3.2,fill:accent}));
     }
     if (a.shape !== 'badge') displayLabel(group,a.label,x,y,width,height,accent);
     svg.append(group);

@@ -225,3 +225,14 @@ npm run build:desktop         # unsigned unpacked preview; Windows/macOS
 The packaged GUI runs its own loopback broker without a system Node installation; MCP stdio agents require Node.js 22+ and the separately configured MCP entry. There is no cloud account, telemetry, screenshot capture, automatic approval or click control.
 
 The new `ui_locate` tool and `target:{app,role,name}` option on `visual_show` / `handoff_request` look up exactly one visible, unobstructed **foreground** control, or fail closed. See [`docs/NATIVE_RUNTIME.md`](docs/NATIVE_RUNTIME.md), [`docs/PLATFORM_MATRIX.md`](docs/PLATFORM_MATRIX.md) and [`docs/DESKTOP_QA.md`](docs/DESKTOP_QA.md).
+
+### v0.7: native Harness adapters and user-owned visual preferences
+
+- **DeepSeek Harness**: native Cordis plugin available in `integrations/deepseek-harness/`; run `node scripts/prepare-deepseek.mjs /path/to/deepseek-harness` inside a developer checkout. This is not yet accepted against a real DSH GUI.
+- **Tencent WorkBuddy**: generate a local MCP + Skill connector with `npm run connector:workbuddy` (not a Marketplace-ready remote connector).
+- **TRAE** and other stdio-MCP hosts: `node scripts/configure.mjs trae` / `workbuddy` / `deepseek`.
+- **豆包主 App**: no official extension surface verified; unsupported rather than faked.
+- **Local preferences**: `npm run preferences -- set visualStyle=handdrawn`, `motion=off` or `reset`; only visual options are stored, never the operation history.
+- **Local blueprints**: `npm run blueprints -- authorization`; optional MCP read-only utilities with `HANDOFFGLASS_EXTRAS=1`.
+
+See `docs/CHINA_HARNESS_INTEGRATION.md`, `docs/LOCAL_FIRST_MEMORY.md`, `docs/VISUAL_MOTION.md` for integration and accessibility policy.

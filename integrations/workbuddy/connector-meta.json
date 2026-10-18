@@ -1,0 +1,14 @@
+{
+  "name": "HandoffGlass",
+  "name_zh": "HandoffGlass 可视化交接",
+  "name_en": "HandoffGlass Visual Handoff",
+  "description": "Bring grounded, human-controlled on-screen guidance to local AI workflows.",
+  "description_zh": "在本机屏幕上以可视化标注指导操作，并安全地将关键决定交还给用户。",
+  "description_en": "Grounded local desktop guidance and human-controlled agent handoff.",
+  "source": "handoffglass-local",
+  "type": "mcp",
+  "version": "0.7.0",
+  "minWorkbuddyVersion": "5.0.0",
+  "examples_zh": ["帮我在电脑屏幕上指出需要检查的权限", "遇到二次验证时引导我完成操作，然后继续"],
+  "examples_en": ["Show me where to inspect the requested permissions", "Hand off MFA to me, then continue after independent verification"]
+}

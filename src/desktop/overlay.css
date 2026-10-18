@@ -1,3 +1,23 @@
-:root{color-scheme:dark}*{box-sizing:border-box}html,body,#canvas{margin:0;padding:0;width:100%;height:100%;overflow:hidden;pointer-events:none;background:transparent}svg{overflow:hidden}.halo{fill:none;stroke-width:3.7;filter:drop-shadow(0 1px 6px rgba(0,0,0,.62))}.guideline{stroke-width:4.5;stroke-linecap:round;filter:drop-shadow(0 1px 6px rgba(0,0,0,.65))}.label-bg{fill:#111b29;stroke:#617489;stroke-width:1}.label-text{font:600 13px system-ui,-apple-system,'Segoe UI',sans-serif;fill:#fff}
-
-@media (prefers-reduced-motion: reduce){svg *{animation:none!important;transition:none!important}}
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+html,body,#canvas{margin:0;padding:0;width:100%;height:100%;overflow:hidden;pointer-events:none;background:transparent}
+svg{overflow:hidden;isolation:isolate}
+.hg-mark{filter:drop-shadow(0px 0px 4px rgba(0,0,0,.62));transform-origin:center;animation:hg-arrive 450ms cubic-bezier(.2,.82,.3,1) both}
+.hg-trace{stroke-dasharray:1700;stroke-dashoffset:1700;animation:hg-handwrite 1s cubic-bezier(.3,.1,.2,1) forwards}
+.hg-aura{animation:hg-breathe 3.2s ease-in-out infinite}
+.hg-pulse-ring{animation:hg-breathe 3s ease-in-out infinite}
+.hg-mark-badge{filter:drop-shadow(0px 3px 10px rgba(0,0,0,.5))}
+svg[data-style=minimal] .hg-mark{filter:none}
+svg[data-style=minimal] .hg-aura{display:none}
+svg[data-style=handdrawn] .hg-trace{stroke-width:3.8;stroke-dasharray:1700;stroke-dashoffset:1700;animation:hg-handdraw 950ms ease-out forwards}
+svg[data-style=luminous] .hg-trace{filter:url(#hg-soft-glow)}
+svg[data-motion=off] *,svg[data-style=minimal][data-motion=gentle] .hg-aura{animation:none!important}
+svg[data-motion=off] .hg-trace{stroke-dashoffset:0!important;stroke-dasharray:none!important}
+svg[data-motion=gentle] .hg-aura{animation-duration:4.5s}
+svg[data-motion=expressive] .hg-mark{animation-duration:600ms}
+@keyframes hg-arrive{from{opacity:0;transform:translateY(6px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes hg-handwrite{to{stroke-dashoffset:0}}
+@keyframes hg-handdraw{to{stroke-dashoffset:0}}
+@keyframes hg-breathe{0%,100%{opacity:.42}50%{opacity:.92}}
+@media (prefers-reduced-motion:reduce){svg *,svg *::before,svg *::after{animation:none!important;transition:none!important}}
+@media (forced-colors:active){.hg-aura{display:none}}

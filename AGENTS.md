@@ -44,3 +44,11 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - macOS AX is global logical desktop coordinates; Windows UIA uses physical pixels and must use explicit monitor evidence for conversion to global DIP.
 - Do not claim packaged binaries work on a user desktop until `docs/DESKTOP_QA.md` has genuine evidence. CI-only structural packaging is not GUI acceptance.
 - Linux/Wayland and remote host/container sessions are not automatically supported. Prefer coordinate-free human handoff when no reliable locator is available.
+
+## v0.7 local-first and native harness integration
+- Read `docs/LOCAL_FIRST_MEMORY.md`, `docs/VISUAL_MOTION.md` and `docs/CHINA_HARNESS_INTEGRATION.md`.
+- WorkBuddy connector source is `integrations/workbuddy/`; generator must resolve absolute local paths only at installation, never commit developer-specific paths or publish machine-local connectors.
+- DeepSeek Harness Cordis adapter is `integrations/deepseek-harness/src/plugin.ts`, loaded from a real cloned DSH checkout with `scripts/prepare-deepseek.mjs`. Treat it as *developer preview* until tested on DSH; do not assert full runtime acceptance based on shape tests.
+- The user manages preferences. An Agent cannot write to long-term memory, capture history, grant permissions, or override OS reduced-motion requirements.
+- Do not add MCP tools by default that expand the model schema. Optional local context/blueprints are behind `HANDOFFGLASS_EXTRAS=1`.
+- Strong visual design is subject to accessibility: never hide a risk/decline action behind animation, blur or spotlights.

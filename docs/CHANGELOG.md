@@ -68,3 +68,13 @@
 - Add source/desktop dual-runtime documentation and unsigned Windows/macOS packaging workflow.
 - Add Cline, Windsurf and OpenCode MCP configuration generation.
 - Preserve no-click/no-credential/no-telemetry constraints. Real OS app startup, permissions and GUI tests are still mandatory.
+
+## v0.7.0 — local-first harness integration and refined motion
+
+- User-controlled, on-disk visual preferences (no approval/screen history), selectable from desktop tray.
+- Deterministic localized handoff blueprints; optional compact MCP context and blueprint tools.
+- Native DeepSeek Harness Cordis plugin source and local-checkout patch generator.
+- Tencent WorkBuddy MCP+Skill connector generator and TRAE/DeepSeek/WorkBuddy MCP config entries.
+- Declarative integration support matrix, strict unsupported flags for unverified desktop apps.
+- Production SVG hand-drawn stroke, refined glass/aura animation, progressive readable panel, reduced-motion support.
+- New tests for preferences, connectors, host strategies, local decision plans and CSS contracts.

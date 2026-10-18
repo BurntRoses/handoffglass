@@ -5,6 +5,8 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { BrokerClient } from './runtime.mjs';
 import { formatToolResult } from './output.mjs';
+import { VISUAL_STYLES, MOTION_MODES } from './local/preferences.mjs';
+import { BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { SHAPES, TONES, TEMPLATE_NAMES } from './visual/scene.mjs';
 
 const broker = new BrokerClient();
@@ -48,6 +50,8 @@ const presentation = z.object({
   scene: scene.optional(),
   template: z.enum(TEMPLATE_NAMES).optional(),
   timeoutSeconds: z.number().int().min(10).max(3600).optional(),
+  visualStyle: z.enum(VISUAL_STYLES).optional(),
+  motion: z.enum(MOTION_MODES).optional(),
   requestId: z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()
 });
 const compact = process.env.HANDOFFGLASS_OUTPUT === 'compact';
@@ -66,6 +70,20 @@ function makeServer() {
     messages: [{ role: 'user', content: { type: 'text', text:
       `Assist with this task: ${task}\nWhen automated action is unreliable or requires my informed decision, use HandoffGlass. Do not invent screen coordinates. Explain the action, allow refusal, and independently verify the result after I report completion. Do not ask me to reveal secrets.` } }]
   }));
+  // Extras are opt-in: keep the default model tool schema small.
+  if (process.env.HANDOFFGLASS_EXTRAS === '1') {
+    server.registerTool('handoff_context', {
+      title: 'Local visual preferences',
+      description: 'Read user-managed local display preferences. Never contains passwords, screen content or a history of approvals.',
+      inputSchema: z.object({}), annotations: { readOnlyHint: true }
+    }, safe(() => broker.context()));
+    server.registerTool('handoff_blueprint', {
+      title: 'Local human handoff blueprint',
+      description: 'Deterministically plan a common human-controlled step without spending model tokens. No action is executed.',
+      inputSchema: z.object({blueprint:z.enum(BLUEPRINT_NAMES),locale:z.enum(['zh-CN','en-US']).optional()}),
+      annotations: { readOnlyHint: true }
+    }, safe(({blueprint,locale}) => broker.blueprint(blueprint,locale)));
+  }
   server.registerTool('screen_displays', {
     title: 'Inspect display geometry',
     description: 'Return connected screen bounds in device-independent pixels (DIP). No screenshots or UI element location.',

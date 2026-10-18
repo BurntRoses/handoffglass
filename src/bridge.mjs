@@ -1,6 +1,8 @@
 import http from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validDisplay, canLocateAll } from './geometry.mjs';
+import { loadPreferences } from './local/preferences.mjs';
+import { compileBlueprint, BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { locateNative, validateTarget } from './native/locator.mjs';
 
 function sendJson(res, code, data) {
@@ -101,7 +103,7 @@ export class LocalBridge {
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
       '/agent/displays': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
-      '/agent/wait': 'GET', '/agent/cancel': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
+      '/agent/wait': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
     }
@@ -142,6 +144,16 @@ export class LocalBridge {
         await this.prepare();
         return sendJson(res, 200, { displays: this.displays, connected: this.connected, headless: this.headless });
       }
+      if (req.method === 'GET' && pathname === '/agent/context') {
+        const preferences = await loadPreferences();
+        return sendJson(res, 200, { preferences, storage: 'local', historyStored: false, modelCallRequired: false });
+      }
+      if (req.method === 'POST' && pathname === '/agent/blueprint') {
+        const { blueprint, locale } = await readJson(req);
+        if (!BLUEPRINT_NAMES.includes(blueprint)) return sendJson(res, 400, { error: 'Unknown blueprint' });
+        const preferences = await loadPreferences();
+        return sendJson(res, 200, compileBlueprint(blueprint, { locale: locale || preferences.locale }));
+      }
       if (req.method === 'POST' && pathname === '/agent/locate') {
         const body = await readJson(req);
         const target = validateTarget(body.target);
@@ -175,6 +187,10 @@ export class LocalBridge {
           delete body.target;
           body.x = hit.x; body.y = hit.y; body.width = hit.width; body.height = hit.height;
         }
+        // Apply user-owned visual preferences; Agents cannot persist them.
+        const preference = await loadPreferences();
+        if (body.visualStyle === undefined) body.visualStyle = preference.visualStyle;
+        if (body.motion === undefined) body.motion = preference.motion;
         // Validate BEFORE starting Electron, to avoid spawning a desktop for bad requests.
         const { normalizeRequest } = await import('./core.mjs');
         const normalized = normalizeRequest(body);
