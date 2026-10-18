@@ -189,6 +189,8 @@ export class LocalBridge {
         }
         // Apply user-owned visual preferences; Agents cannot persist them.
         const preference = await loadPreferences();
+        body.locale = preference.locale;
+        body.density = preference.density;
         if (await hasUserPreferences()) {
           // Persistent, explicitly user-chosen preferences outrank the Agent's cosmetic hints.
           body.visualStyle = preference.visualStyle;

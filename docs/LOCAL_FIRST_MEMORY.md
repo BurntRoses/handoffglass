@@ -33,3 +33,5 @@ Preferences deliberately **do not** include filenames, window titles, account id
 To extend memory to a host like DeepSeek Harness, add a plugin-owned `preference.read` adapter, not a broad conversation log sync. Keep scope local; include clear consent and revocation before any cloud sync.
 
 **Precedence:** whenever a human has saved a preference record, `visualStyle` and `motion` from the model-facing handoff request cannot override it. Without saved preferences, an Agent may suggest a per-scene visual style, but the OS reduced-motion setting still prevails.
+
+The desktop panel now consumes `locale` (zh-CN / en-US) and `density` (normal / compact), with user-visible language and density controls in the system tray. These are derived from the local profile in the broker, not sent to a model to translate static interface text.

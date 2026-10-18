@@ -78,3 +78,5 @@
 - Declarative integration support matrix, strict unsupported flags for unverified desktop apps.
 - Production SVG hand-drawn stroke, refined glass/aura animation, progressive readable panel, reduced-motion support.
 - New tests for preferences, connectors, host strategies, local decision plans and CSS contracts.
+
+- Desktop decision panel is bilingual (zh-CN/en-US) and density-aware; preferences appear in the tray and are applied by the broker without a model call.

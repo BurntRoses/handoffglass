@@ -161,11 +161,21 @@ async function setupTrayAndMenu() {
       try { await setAccessibilityConsent(menuItem.checked); }
       catch (error) { dialog.showErrorBox('Accessibility setting failed', error.message); menuItem.checked = !menuItem.checked; }
     }};
+  const languageOptions = [['zh-CN','简体中文'],['en-US','English']].map(([value,label])=>({
+    label,type:'radio',checked:visualPrefs.locale===value,
+    click:async()=>{try{await savePreferences({locale:value});}catch(error){dialog.showErrorBox('Language preference',error.message);}}
+  }));
+  const densityOptions = [['normal','Comfortable'],['compact','Compact']].map(([value,label])=>({
+    label,type:'radio',checked:visualPrefs.density===value,
+    click:async()=>{try{await savePreferences({density:value});}catch(error){dialog.showErrorBox('Density preference',error.message);}}
+  }));
   const context = Menu.buildFromTemplate([
     { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
     item,
     { label: 'Visual style (next handoff)', submenu: styleOptions },
     { label: 'Animation level (next handoff)', submenu: motionOptions },
+    { label: 'Language (next handoff)', submenu: languageOptions },
+    { label: 'Information density (next handoff)', submenu: densityOptions },
     { label: 'Copy MCP configuration (Claude/Cursor/Cline)', click: () => {
       const entry = app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
       const config = hostConfig('claude',{command:process.execPath,entry,compact:true,

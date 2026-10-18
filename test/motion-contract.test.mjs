@@ -20,3 +20,11 @@ test('desktop renderer explicitly respects OS reduced motion and system focus',a
  const js=await readFile(new URL('../src/desktop/panel.js',import.meta.url),'utf8');
  assert.match(js,/window\.handoffglass\.decide/);
 });
+
+test('handoff decision panel supports both languages and density settings',async()=>{
+ const html=await readFile(new URL('../src/desktop/panel.html',import.meta.url),'utf8');
+ const js=await readFile(new URL('../src/desktop/panel.js',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/desktop/panel.css',import.meta.url),'utf8');
+ assert.match(html,/id="note"/); assert.match(js,/'en-US'/);
+ assert.match(js,/data-density/); assert.match(css,/data-density=compact/);
+});
