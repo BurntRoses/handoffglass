@@ -32,7 +32,7 @@ try {
   const [a, b] = await Promise.all([client('host-A'), client('host-B')]);
   const { tools } = await a.listTools();
   assert.deepEqual(tools.map(tool => tool.name).sort(), [
-    'screen_displays', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
+    'screen_displays', 'ui_locate', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
   ].sort());
   const { prompts } = await a.listPrompts();
   assert.ok(prompts.some(p => p.name === 'assist-with-ui-step'));

@@ -14,7 +14,7 @@ module.exports = {
   extraResources: native,
   mac: { target: ['zip'], category: 'public.app-category.productivity', identity: null,
     hardenedRuntime: false },
-  win: { target: ['portable'], signingHashAlgorithms: ['sha256'] },
+  win: { target: ['portable'] },
   linux: { target: ['AppImage'], category: 'Utility' },
   publish: null
 };
