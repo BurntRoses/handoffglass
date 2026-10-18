@@ -90,3 +90,5 @@
 - Add `docs/AGENT_AUTONOMY.md`, an actionable Agent/Harness selection and verification contract without unrestricted memory access.
 
 - Add offline compact MCP response byte benchmark (avoids unsupported token-saving claims).
+
+- Packaging regression follow-up: explicitly terminate the isolated headless Broker spawned by the packaged MCP test before removing its runtime directory. Merely retrying EBUSY was insufficient (see Actions run 39146346211).
