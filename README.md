@@ -169,3 +169,9 @@ Read [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md), [`docs/MODEL_PLAYBOOK.md`
 ### Optional MCP prompt
 
 Hosts that expose MCP Prompts can invoke `assist-with-ui-step` with a short `task` argument. This offers a discoverable, lightweight guided workflow **without installing a separate Skill file**. Hosts that do not expose Prompts can continue using the six MCP tools and the bundled `skills/visual-handoff/SKILL.md`.
+
+### Safe host installer (opt-in)
+
+For JSON-based local host configs, preview a conservative merge with `node scripts/install-host.mjs cursor` or `node scripts/install-host.mjs gemini`. Add `--apply` to create a timestamped private backup and atomically write the merged JSON. Existing HandoffGlass entries require an additional `--replace` flag. No existing config is automatically changed by running `npm ci` or `npm run configure`.
+
+For VS Code specify `node scripts/install-host.mjs vscode --workspace /path/to/project --apply`; for Codex/TOML and JSONC configurations, use the non-destructive printed configuration instead. This installer never configures remote/cloud agent access to your local screen.

@@ -14,7 +14,7 @@
     "start": "node src/mcp.mjs",
     "test": "node --test test/*.test.mjs",
     "demo": "node demo/server.mjs",
-    "check": "node --check src/core.mjs && node --check src/geometry.mjs && node --check src/bridge.mjs && node --check src/runtime.mjs && node --check src/broker.mjs && node --check src/mcp.mjs && node --check src/desktop/main.mjs && node --check src/desktop/overlay.js && node --check src/desktop/panel.js && node --check scripts/mcp-smoke.mjs && node --check scripts/broker-control.mjs && node --check src/config.mjs && node --check scripts/configure.mjs && node --check src/output.mjs && node --check scripts/benchmark.mjs",
+    "check": "node --check src/core.mjs && node --check src/geometry.mjs && node --check src/bridge.mjs && node --check src/runtime.mjs && node --check src/broker.mjs && node --check src/mcp.mjs && node --check src/desktop/main.mjs && node --check src/desktop/overlay.js && node --check src/desktop/panel.js && node --check scripts/mcp-smoke.mjs && node --check scripts/broker-control.mjs && node --check src/config.mjs && node --check scripts/configure.mjs && node --check src/output.mjs && node --check scripts/benchmark.mjs && node --check scripts/install-host.mjs && node --check src/host-install.mjs",
     "verify": "npm run check && npm test",
     "doctor": "node scripts/doctor.mjs",
     "test:integration": "node scripts/mcp-smoke.mjs",
@@ -29,7 +29,8 @@
     "configure:gemini": "node scripts/configure.mjs gemini",
     "configure:zed": "node scripts/configure.mjs zed",
     "install:desktop": "npm install --include=optional",
-    "bench:broker": "node scripts/benchmark.mjs"
+    "bench:broker": "node scripts/benchmark.mjs",
+    "install:host": "node scripts/install-host.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

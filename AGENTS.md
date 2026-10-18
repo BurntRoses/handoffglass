@@ -29,3 +29,4 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - Electron is optional. Core/headless CI must run under `npm ci --omit=optional`.
 - Panel acknowledgements must come from the broker, not from timeouts or arbitrary renderer state.
 - See `docs/COMPATIBILITY.md` and `docs/MODEL_PLAYBOOK.md` for tested vs documented host integrations.
+- Keep `scripts/install-host.mjs` dry-run by default, conservatively merge existing JSON config and never automatically alter a host's TOML/JSONC. Use explicit `--apply` and backup for file mutations.

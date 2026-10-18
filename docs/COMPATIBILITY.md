@@ -52,3 +52,9 @@ Electron is optional in the package metadata to keep headless installation small
 4. **GUI-tested:** real local desktop verifies click-through, focus, monitors and handoff decision (not yet complete).
 
 Do not conflate these levels. Approval and tool permission behavior is owned by each host and should not be bypassed. Gemini `trust:false` is the safer default; HandoffGlass does not insert blanket trust settings.
+
+## Opt-in installation (JSON configurations only)
+
+`node scripts/install-host.mjs cursor` is dry-run by default. Add `--apply` for an explicit JSON merge with a timestamped 0600 backup; add `--replace` only if deliberately updating an existing HandoffGlass entry. It supports Cursor, Gemini, Copilot, Zed, VS Code workspace and Claude Desktop on macOS/Windows. It **refuses to rewrite JSONC/comments or malformed JSON**, since stripping comments or damaging host settings is worse than a manual copy-paste. For Codex's TOML configuration, use `node scripts/configure.mjs codex`.
+
+Do not run an automatic host installer on a machine other than the user's own authorized local environment. Generated host configs contain **no API keys or access tokens**.

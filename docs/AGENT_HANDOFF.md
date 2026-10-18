@@ -73,3 +73,7 @@ The repository's canonical design is now **one local MCP stdio server + one brok
 - Run `npm run verify`, `npm run bench:broker` and `npm run test:integration` in CI. The synthetic benchmark **does not** establish real-world latency.
 
 Next highest-value tasks remain native GUI acceptance, packaging, and opt-in, privacy-limited macOS AX / Windows UI Automation provider. Do not claim these are complete based on mock or headless test results. Issue #1, #3 and #4 remain open by design.
+
+### Optional host-config installer (v0.4 follow-up)
+
+`src/host-install.mjs` merges known JSON host schemas conservatively. `scripts/install-host.mjs` previews by default and requires explicit `--apply`; it creates 0600 backups and atomically writes JSON. Existing HandoffGlass stanzas require `--replace`. Do not change installer semantics to silently overwrite JSONC, TOML or unrelated host servers. Real-host launch verification remains separate from config-shape tests.
