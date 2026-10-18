@@ -10,7 +10,7 @@ if (process.platform === 'darwin' && !existsSync(join(__dirname,'native/macos/hg
 module.exports = {
   appId: 'dev.handoffglass.desktop', productName: 'HandoffGlass',
   asar: true, directories: { output: 'dist' },
-  files: [ 'src/**', 'package.json', '!src/mcp.mjs', '!src/config.mjs', '!src/host-install.mjs' ],
+  files: [ 'src/**', 'package.json' ],
   extraResources: native,
   mac: { target: ['zip'], category: 'public.app-category.productivity', identity: null,
     hardenedRuntime: false },

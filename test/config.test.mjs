@@ -40,3 +40,13 @@ test('all supported host profiles share a single stdio entry and do not rewrite 
   }
 });
 test('invalid host rejected', () => assert.throws(() => hostConfig('mystery'), /Unknown host/));
+
+test('installed desktop MCP uses the packaged executable as a Node-compatible stdio entry',()=>{
+  const cfg=JSON.parse(hostConfig('claude',{command:'/Applications/HandoffGlass.app/Contents/MacOS/HandoffGlass',
+    entry:'/Applications/HandoffGlass.app/Contents/Resources/app.asar/src/mcp.mjs',
+    compact:true,envOverrides:{ELECTRON_RUN_AS_NODE:'1'}}));
+  const result=cfg.mcpServers.handoffglass;
+  assert.equal(result.env.ELECTRON_RUN_AS_NODE,'1');
+  assert.equal(result.env.HANDOFFGLASS_OUTPUT,'compact');
+  assert.match(result.args[0],/app\.asar\/src\/mcp\.mjs/);
+});

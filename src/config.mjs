@@ -15,13 +15,13 @@ export const HOSTS = Object.freeze({
   windsurf: { label: 'Windsurf / Cascade', family: 'mcpServers' },
   opencode: { label: 'OpenCode CLI and desktop', family: 'opencode' },
 });
-export function configPayload({ command = process.execPath, entry = resolve(root, 'src/mcp.mjs'), compact = false } = {}) {
+export function configPayload({ command = process.execPath, entry = resolve(root, 'src/mcp.mjs'), compact = false, envOverrides = {} } = {}) {
   if (typeof command !== 'string' || !command || typeof entry !== 'string' || !entry) {
     throw new TypeError('A Node executable and MCP entry are required');
   }
   return {
     command, args: [entry],
-    ...(compact ? { env: { HANDOFFGLASS_OUTPUT: 'compact' } } : {})
+    ...((compact || Object.keys(envOverrides).length) ? { env: { ...(compact ? { HANDOFFGLASS_OUTPUT: 'compact' } : {}), ...envOverrides } } : {})
   };
 }
 export function hostConfig(host, options = {}) {

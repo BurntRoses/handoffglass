@@ -13,6 +13,7 @@ on:
       - 'scripts/build-native-macos.mjs'
       - 'scripts/verify-package.mjs'
       - 'scripts/verify-dist.mjs'
+      - 'scripts/packaged-mcp-smoke.mjs'
       - '.github/workflows/desktop-packages.yml'
 permissions:
   contents: read
@@ -48,6 +49,8 @@ jobs:
         run: npm run dist:desktop
       - name: Validate packaged runtime and native resources
         run: node scripts/verify-package.mjs
+      - name: Verify packaged stdio MCP runtime (no extra Node process)
+        run: node scripts/packaged-mcp-smoke.mjs
       - name: Verify downloadable artifact and SHA256 manifest
         run: node scripts/verify-dist.mjs
       - name: Upload unsigned engineering preview (NOT a verified installer)

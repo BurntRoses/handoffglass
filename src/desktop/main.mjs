@@ -1,4 +1,5 @@
-import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage, shell, dialog } from 'electron';
+import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage, shell, dialog, clipboard } from 'electron';
+import { hostConfig } from '../config.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -151,6 +152,16 @@ async function setupTrayAndMenu() {
   const context = Menu.buildFromTemplate([
     { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
     item,
+    { label: 'Copy MCP configuration (Claude/Cursor/Cline)', click: () => {
+      const entry = app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
+      const config = hostConfig('claude',{command:process.execPath,entry,compact:true,
+        envOverrides:{ ELECTRON_RUN_AS_NODE:'1' }});
+      clipboard.writeText(config);
+      dialog.showMessageBox({type:'info',title:'HandoffGlass MCP configuration copied',
+        message:'Paste this mcpServers entry into your local Agent settings. For Codex, use the TOML equivalent.',
+        detail: process.platform==='win32' ? 'For reliable Agent startup on Windows, install the desktop application to a stable path; portable temp directories may change.' :
+          'Use the same macOS user and this application location. No remote/cloud Agent will automatically see your local screen.'});
+    } },
     { label: 'Accessibility permission settings', click: () => {
       if (process.platform === 'darwin') void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
       else if (process.platform === 'win32') void shell.openExternal('ms-settings:privacy');

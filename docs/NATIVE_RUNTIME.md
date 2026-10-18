@@ -4,7 +4,7 @@
 
 **Developer/CLI track:** MCP stdio `src/mcp.mjs` runs on local Node.js 22+. On demand it starts the existing singleton Node broker, which invokes Electron for the desktop surface. This retains the original v0.5 workflow.
 
-**Installed desktop track:** `src/desktop/app.mjs` is the Electron application main. It starts the loopback broker **in the desktop process** and writes the same owner-only `~/.handoffglass/broker.json` manifest as the Node broker. Other MCP/CLI clients can attach to it. End users launching the desktop do not need a separate Node.js binary for the desktop. CLI/stdio hosts still require Node.js and a configured HandoffGlass MCP package/source checkout.
+**Installed desktop track:** `src/desktop/app.mjs` is the Electron application main. It starts the loopback broker **in the desktop process** and writes the same owner-only `~/.handoffglass/broker.json` manifest as the Node broker. Other MCP/CLI clients can attach to it. End users launching the desktop do not need a separate Node.js binary for the desktop. When the installed app is packaged with the MCP entry, compatible hosts can use its Electron binary with `ELECTRON_RUN_AS_NODE=1` and `.../resources/app.asar/src/mcp.mjs` as the stdio entry (menu: Copy MCP configuration). A system Node.js checkout is an alternative. This relies on the Electron run-as-Node fuse and must be tested against each installed artifact.
 
 Only one broker may be active per OS user. If a source broker is active when the desktop GUI is started, the GUI explains the conflict and exits rather than serving competing sessions. One startup lock coordinates creation; stale manifests are probed and replaced only when not live.
 
@@ -41,3 +41,7 @@ Signed/notarized builds, installed-binary launch tests, macOS hardened runtime/e
 - Microsoft: https://learn.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomation-elementfrompoint
 - Electron: https://www.electronjs.org/docs/latest/api/screen
 - electron-builder: https://www.electron.build/v26/docs/contents/
+
+### MCP without a system Node installation
+
+On a stable installed desktop binary, choose tray/menu > **Copy MCP configuration**. Paste the generated `mcpServers.handoffglass` into Claude/Cursor/Cline/Windsurf configuration. It points to the bundled Electron executable and `app.asar/src/mcp.mjs` with `ELECTRON_RUN_AS_NODE=1`. Codex needs equivalent TOML values. **Windows Portable EXE may unpack to a temporary path**; use a stable installed location for reliable host startup. `scripts/packaged-mcp-smoke.mjs` is run in CI to actually perform the MCP initialize/list-tools exchange using the packaged binary.
