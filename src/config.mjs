@@ -14,6 +14,9 @@ export const HOSTS = Object.freeze({
   cline: { label: 'Cline extension and CLI', family: 'mcpServers' },
   windsurf: { label: 'Windsurf / Cascade', family: 'mcpServers' },
   opencode: { label: 'OpenCode CLI and desktop', family: 'opencode' },
+  trae: { label: 'TRAE IDE / SOLO (MCP-supported mode)', family: 'mcpServers' },
+  workbuddy: { label: 'Tencent WorkBuddy (local MCP)', family: 'mcpServers' },
+  deepseek: { label: 'DeepSeek Harness (MCP fallback)', family: 'mcpServers' },
 });
 export function configPayload({ command = process.execPath, entry = resolve(root, 'src/mcp.mjs'), compact = false, envOverrides = {} } = {}) {
   if (typeof command !== 'string' || !command || typeof entry !== 'string' || !entry) {

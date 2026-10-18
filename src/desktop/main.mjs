@@ -1,6 +1,7 @@
 import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage, shell, dialog, clipboard } from 'electron';
 import { hostConfig } from '../config.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
+import { loadPreferences, savePreferences, VISUAL_STYLES, MOTION_MODES } from '../local/preferences.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { localAnnotations, contains } from '../geometry.mjs';
@@ -80,7 +81,7 @@ function draw(win, display) {
   const b = { id: String(display.id), x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height };
   const annotations = current ? localAnnotations(b, current.annotations) : [];
   if (!annotations.length) { win.hide(); return; }
-  win.webContents.send('hg:render', { annotations });
+  win.webContents.send('hg:render', { annotations, visualStyle: current?.visualStyle, motion: current?.motion });
   win.showInactive();
 }
 function findTargetDisplay(active) {
@@ -144,6 +145,17 @@ app.on('window-all-closed', () => {});
 app.on('before-quit', () => { closing = true; });
 panel = createPanel();
 async function setupTrayAndMenu() {
+  const visualPrefs = await loadPreferences();
+  const styleOptions = VISUAL_STYLES.map(value => ({
+    label: `Visual: ${value}`, type: 'radio', checked: visualPrefs.visualStyle === value,
+    click: async () => { try { await savePreferences({visualStyle: value}); }
+      catch(error) { dialog.showErrorBox('Visual preference', error.message); } }
+  }));
+  const motionOptions = MOTION_MODES.map(value => ({
+    label: `Motion: ${value}`, type: 'radio', checked: visualPrefs.motion === value,
+    click: async () => { try { await savePreferences({motion: value}); }
+      catch(error) { dialog.showErrorBox('Motion preference', error.message); } }
+  }));
   const item = { label: 'Enable read-only UI element inspection', type: 'checkbox',
     checked: await getAccessibilityConsent(), click: async menuItem => {
       try { await setAccessibilityConsent(menuItem.checked); }
@@ -152,6 +164,8 @@ async function setupTrayAndMenu() {
   const context = Menu.buildFromTemplate([
     { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
     item,
+    { label: 'Visual style (next handoff)', submenu: styleOptions },
+    { label: 'Animation level (next handoff)', submenu: motionOptions },
     { label: 'Copy MCP configuration (Claude/Cursor/Cline)', click: () => {
       const entry = app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
       const config = hostConfig('claude',{command:process.execPath,entry,compact:true,
