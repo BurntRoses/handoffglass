@@ -5,25 +5,46 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { BrokerClient } from './runtime.mjs';
 import { formatToolResult } from './output.mjs';
+import { SHAPES, TONES, TEMPLATE_NAMES } from './visual/scene.mjs';
 
 const broker = new BrokerClient();
 const annotation = z.object({
   x: z.number().finite().min(-100000).max(100000),
   y: z.number().finite().min(-100000).max(100000),
-  shape: z.enum(['arrow', 'ring', 'box', 'spotlight']).optional(),
+  shape: z.enum(SHAPES).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   label: z.string().max(64).optional(),
   width: z.number().positive().max(5000).optional(),
-  height: z.number().positive().max(5000).optional()
+  height: z.number().positive().max(5000).optional(),
+  id: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),
+  tone: z.enum(Object.keys(TONES)).optional(),
+  opacity: z.number().min(0).max(1).optional()
 });
+const layer = z.object({
+  id: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/),
+  zIndex: z.number().int().min(-100).max(100).optional(),
+  visible: z.boolean().optional(), opacity: z.number().min(0).max(1).optional(),
+  annotations: z.array(annotation).max(24).default([])
+});
+const scene = z.object({ version: z.literal(1), layers: z.array(layer).max(12) });
+const sceneOp = z.discriminatedUnion('op', [
+  z.object({ op: z.literal('upsert_layer'), layer }),
+  z.object({ op: z.literal('remove_layer'), layerId: z.string() }),
+  z.object({ op: z.literal('set_layer'), layerId: z.string(), visible: z.boolean().optional(),
+    opacity: z.number().min(0).max(1).optional(), zIndex: z.number().int().min(-100).max(100).optional() }),
+  z.object({ op: z.literal('upsert_annotation'), layerId: z.string(), annotation }),
+  z.object({ op: z.literal('remove_annotation'), layerId: z.string(), annotationId: z.string() })
+]);
 const presentation = z.object({
   title: z.string().trim().min(1).max(100),
   message: z.string().trim().min(1).max(1000),
   x: z.number().finite().min(-100000).max(100000).optional(),
   y: z.number().finite().min(-100000).max(100000).optional(),
-  shape: z.enum(['arrow', 'ring', 'box', 'spotlight']).optional(),
+  shape: z.enum(SHAPES).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   annotations: z.array(annotation).max(8).optional(),
+  scene: scene.optional(),
+  template: z.enum(TEMPLATE_NAMES).optional(),
   timeoutSeconds: z.number().int().min(10).max(3600).optional(),
   requestId: z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()
 });
@@ -34,7 +55,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.4.0' });
+  const server = new McpServer({ name: 'handoffglass', version: '0.5.0' });
   server.registerPrompt('assist-with-ui-step', {
     title: 'Help with a desktop step',
     description: 'Plan a safe human-guided step in an existing task; use the HandoffGlass tools when appropriate.',
@@ -50,7 +71,7 @@ function makeServer() {
   }, safe(() => broker.displays()));
   server.registerTool('visual_show', {
     title: 'Show on-screen guidance',
-    description: 'Draw up to eight independently grounded targets; never guess positions. Requires x/y global DIP coordinates. The human remains in control.',
+    description: 'Draw grounded global DIP targets, optionally with template focus|point|inspect|caution|sequence|verify or an explicit layered scene v1. Never guess coordinates.',
     inputSchema: presentation, annotations: { readOnlyHint: false }
   }, safe(args => broker.present('guide', args)));
   server.registerTool('handoff_request', {
@@ -58,6 +79,12 @@ function makeServer() {
     description: 'Ask the human to finish a step and decide whether to proceed. Set requestId to prevent duplicate requests on retry. Coordinates optional. If a different Agent already owns the screen, returns busy; do not retry blindly.',
     inputSchema: presentation, annotations: { readOnlyHint: false }
   }, safe(args => broker.present('handoff', args)));
+  server.registerTool('visual_scene_update', {
+    title: 'Update a live layered scene',
+    description: 'Atomically edit layers/marks with optimistic scene revision and per-Agent ownership. Does not reset timeout. Only sessions initially created with scene/template.',
+    inputSchema: z.object({sessionId:z.string().uuid(), expectedRevision:z.number().int().min(1),
+      operations:z.array(sceneOp).min(1).max(16)}), annotations: { readOnlyHint:false }
+  }, safe(({sessionId,expectedRevision,operations}) => broker.updateScene(sessionId,expectedRevision,operations)));
   server.registerTool('handoff_status', {
     title: 'Read owned handoff state',
     description: 'A completed decision is a user report, not proof that any permission or downstream action succeeded.',

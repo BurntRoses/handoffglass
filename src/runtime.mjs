@@ -129,5 +129,8 @@ export class BrokerClient {
   async wait(sessionId, maxWaitSeconds) {
     return this.request(`/agent/wait?sessionId=${encodeURIComponent(sessionId)}&maxWaitMs=${Math.round(maxWaitSeconds * 1000)}`);
   }
+  async updateScene(sessionId, expectedRevision, operations) {
+    return this.request('/agent/scene', { method: 'POST', body: { sessionId, expectedRevision, operations } });
+  }
   async cancel(sessionId) { return this.request('/agent/cancel', { method: 'POST', body: { sessionId } }); }
 }

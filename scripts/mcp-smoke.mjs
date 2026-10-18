@@ -32,7 +32,7 @@ try {
   const [a, b] = await Promise.all([client('host-A'), client('host-B')]);
   const { tools } = await a.listTools();
   assert.deepEqual(tools.map(tool => tool.name).sort(), [
-    'screen_displays', 'visual_show', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
+    'screen_displays', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
   ].sort());
   const { prompts } = await a.listPrompts();
   assert.ok(prompts.some(p => p.name === 'assist-with-ui-step'));
@@ -55,7 +55,17 @@ try {
   const second = await invoke(b, 'handoff_request', params);
   assert.notEqual(id, second.session.id);
   assert.equal((await invoke(b, 'handoff_cancel', { sessionId: second.session.id })).session.status, 'cancelled');
-  console.log('PASS: MCP v2 stdio, six tools, dual hosts, deduplicated handoff, ownership, cancellation');
+  const painted = await invoke(a, 'visual_show', { title:'Visual scene', message:'Review the highlight',
+    scene:{version:1,layers:[{id:'focus',annotations:[{id:'highlight',x:10,y:20,shape:'ring',tone:'info'}]}]}});
+  assert.equal(painted.session.sceneRevision,1);
+  const mutating = {sessionId:painted.session.id,expectedRevision:1,
+    operations:[{op:'set_layer',layerId:'focus',visible:false}]};
+  const otherHost = await b.callTool({name:'visual_scene_update',arguments:mutating});
+  assert.equal(otherHost.isError,true);
+  assert.equal((await invoke(a,'visual_scene_update',mutating)).session.sceneRevision,2);
+  assert.equal((await invoke(a,'handoff_status',{sessionId:painted.session.id})).session.annotations.length,0);
+  assert.equal((await invoke(a,'handoff_cancel',{sessionId:painted.session.id})).session.status,'cancelled');
+  console.log('PASS: MCP v2 stdio, seven tools, dual hosts, templates/scenes, ownership, updates, cancellation');
 } finally {
   for (const c of clients) await c.close().catch(() => {});
   const info = await readManifest(dir);

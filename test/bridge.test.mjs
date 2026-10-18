@@ -108,3 +108,42 @@ test('authenticated agent bridge deduplicates retries and separates owner access
   const finalRetry = await (await send(ownerA)).json();
   assert.equal(finalRetry.session.status, 'cancelled');
 }));
+
+test('agent scene updates are owner-scoped, versioned and revision-published', async () => fixture(async ({ request, bridge, manager }) => {
+  bridge.headless = true;
+  const ownerA = { authorization: `Bearer ${bridge.agentToken}`, 'x-handoffglass-owner': '11111111-1111-4111-8111-111111111111' };
+  const ownerB = { authorization: `Bearer ${bridge.agentToken}`, 'x-handoffglass-owner': '22222222-2222-4222-8222-222222222222' };
+  const session = (await (await request('/agent/show', {method:'POST',headers:ownerA,body:{...basic,
+    scene:{version:1,layers:[{id:'target',annotations:[{id:'mark_1',x:50,y:80,shape:'ring'}]}]}}})).json()).session;
+  assert.equal(session.sceneRevision,1);
+  const before = bridge.revision;
+  const args = {sessionId:session.id,expectedRevision:1,
+    operations:[{op:'set_layer',layerId:'target',visible:false}]};
+  const send = (headers,body=args) => request('/agent/scene', {method:'POST',headers,body});
+  assert.equal((await send(ownerB)).status,404);
+  assert.equal((await request('/agent/scene',{headers:ownerA})).status,405);
+  const updated = await (await send(ownerA)).json();
+  assert.equal(updated.session.sceneRevision,2);
+  assert.equal(updated.session.annotations.length,0);
+  assert.equal(bridge.revision,before+1);
+  assert.equal((await send(ownerA)).status,409);
+  const bad = await send(ownerA,{sessionId:session.id,expectedRevision:2,operations:[{op:'remove_layer',layerId:'not_real'}]});
+  assert.equal(bad.status,400);
+  assert.equal(manager.get(session.id).sceneRevision,2);
+  assert.equal(manager.get(session.id).verified,false);
+  manager.resolve(session.id,'declined');
+  assert.equal((await send(ownerA,{...args,expectedRevision:2})).status,409);
+}));
+
+test('rejects offscreen scene updates without modifying displayed targets', async () => fixture(async ({ request, bridge, manager }) => {
+  bridge.headless=true;
+  const owner = { authorization:`Bearer ${bridge.agentToken}`, 'x-handoffglass-owner':'11111111-1111-4111-8111-111111111111' };
+  const session=(await (await request('/agent/show',{method:'POST',headers:owner,body:{...basic,
+    scene:{version:1,layers:[{id:'one',annotations:[{id:'a',x:30,y:30,shape:'ring'}]}]}}})).json()).session;
+  bridge.headless=false;
+  bridge.displays=[{id:'main',x:0,y:0,width:100,height:100,scaleFactor:1}];
+  const res=await request('/agent/scene',{method:'POST',headers:owner,body:{sessionId:session.id,expectedRevision:1,
+    operations:[{op:'upsert_annotation',layerId:'one',annotation:{id:'b',x:999,y:50}}]}});
+  assert.equal(res.status,422);
+  assert.equal(manager.get(session.id).sceneRevision,1);
+}));

@@ -3,36 +3,9 @@ import { randomUUID } from 'node:crypto';
 
 export const TERMINAL_STATES = Object.freeze(['completed', 'declined', 'cancelled', 'expired', 'superseded']);
 const TERMINAL = new Set(TERMINAL_STATES);
-export const SHAPES = Object.freeze(['arrow', 'ring', 'box', 'spotlight']);
-const HEX = /^#[0-9a-fA-F]{6}$/;
-const MAX_ANNOTATIONS = 8;
-
-function text(value, max) {
-  return typeof value === 'string' ? value.trim().slice(0, max) : '';
-}
-function finiteCoord(value, key) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > 100000) {
-    throw new TypeError(`${key} must be a finite global DIP coordinate within ±100000`);
-  }
-  return value;
-}
-function optionalSize(value, key) {
-  if (value === undefined || value === null) return null;
-  if (!Number.isFinite(value) || value <= 0 || value > 5000) throw new TypeError(`${key} must be greater than 0 and <= 5000`);
-  return value;
-}
-export function normalizeAnnotation(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Annotation must be an object');
-  const shape = input.shape ?? 'arrow';
-  if (!SHAPES.includes(shape)) throw new TypeError('Unknown annotation shape');
-  const color = input.color ?? '#50dbb4';
-  if (typeof color !== 'string' || !HEX.test(color)) throw new TypeError('Color must be a six-digit hex color');
-  return {
-    x: finiteCoord(input.x, 'x'), y: finiteCoord(input.y, 'y'),
-    shape, color, width: optionalSize(input.width, 'width'), height: optionalSize(input.height, 'height'),
-    label: text(input.label, 64)
-  };
-}
+import { SHAPES, normalizeAnnotation, normalizeScene, flattenScene, patchScene, composeTemplate, MAX_MARKS } from './visual/scene.mjs';
+export { SHAPES, normalizeAnnotation } from './visual/scene.mjs';
+const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 export function normalizeRequest(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Request must be an object');
   const mode = input.mode ?? 'handoff';
@@ -48,10 +21,18 @@ export function normalizeRequest(input) {
   if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 10 || timeoutSeconds > 3600) {
     throw new TypeError('timeoutSeconds must be an integer between 10 and 3600');
   }
+  if (input.scene !== undefined && (input.annotations !== undefined || input.x !== undefined || input.y !== undefined || input.template !== undefined)) {
+    throw new TypeError('Choose scene, template/targets, or legacy annotations, not both');
+  }
+  if (input.template !== undefined && input.scene !== undefined) throw new TypeError('Choose scene or template');
+  let scene = null;
   let annotations;
-  if (input.annotations !== undefined) {
-    if (!Array.isArray(input.annotations) || input.annotations.length > MAX_ANNOTATIONS) {
-      throw new TypeError(`annotations must be an array of at most ${MAX_ANNOTATIONS} items`);
+  if (input.scene !== undefined) {
+    scene = normalizeScene(input.scene);
+    annotations = flattenScene(scene);
+  } else if (input.annotations !== undefined) {
+    if (!Array.isArray(input.annotations) || input.annotations.length > 8) {
+      throw new TypeError(`annotations must be an array of at most 8 items`);
     }
     annotations = input.annotations.map(normalizeAnnotation);
     if (input.x !== undefined || input.y !== undefined) throw new TypeError('Choose annotations or x/y shorthand, not both');
@@ -60,14 +41,22 @@ export function normalizeRequest(input) {
   } else {
     annotations = [];
   }
+  if (input.template !== undefined) {
+    if (typeof input.template !== 'string') throw new TypeError('Invalid template');
+    if (!annotations.length) throw new TypeError('Template requires grounded target coordinates');
+    scene = composeTemplate(input.template, annotations);
+    annotations = flattenScene(scene);
+  }
+  if (annotations.length > MAX_MARKS) throw new TypeError('Too many visible annotations');
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { mode, title, message, timeoutSeconds, annotations, requestId };
+  return { mode, title, message, timeoutSeconds, annotations, requestId, ...(scene ? { scene } : {}) };
 }
 function copySession(session) {
   if (!session) return null;
-  return { ...session, annotations: session.annotations.map(a => ({ ...a })) };
+  return { ...session, annotations: session.annotations.map(a => ({ ...a })),
+    ...(session.scene ? { scene: normalizeScene(session.scene) } : {}) };
 }
 
 /**
@@ -107,6 +96,7 @@ export class HandoffManager extends EventEmitter {
     const session = {
       id: randomUUID(), mode: normalized.mode, title: normalized.title,
       message: normalized.message, annotations: normalized.annotations,
+      ...(normalized.scene ? {scene:normalized.scene, sceneRevision:1} : {}),
       status: 'awaiting_user', createdAt: now, updatedAt: now,
       timeoutAt: now + normalized.timeoutSeconds * 1000,
       completionSource: null, verified: false
@@ -142,6 +132,26 @@ export class HandoffManager extends EventEmitter {
     if (TERMINAL.has(session.status)) return { error: 'already_final', session: copySession(session) };
     if (this.activeId !== id) return { error: 'not_active' };
     this.#finish(session, status);
+    return { session: copySession(session) };
+  }
+  /** Optimistic, owner-scoped and atomic scene change; never renews the handoff TTL. */
+  updateScene(id, owner, expectedRevision, operations) {
+    if (this.owners.get(id) !== owner) return { error: 'not_found' };
+    const session = this.sessions.get(id);
+    this.get(id); // Re-evaluate expiration first.
+    if (TERMINAL.has(session.status) || this.activeId !== id) return { error: 'already_final' };
+    if (!session.scene) return { error: 'scene_not_enabled' };
+    if (!Number.isInteger(expectedRevision) || expectedRevision !== session.sceneRevision) {
+      return { error: 'revision_conflict', sceneRevision: session.sceneRevision };
+    }
+    const next = patchScene(session.scene, operations);
+    const flattened = flattenScene(next);
+    // Allow temporarily hiding every layer to clear the screen without finishing a handoff.
+    session.scene = next;
+    session.annotations = flattened;
+    session.sceneRevision++;
+    session.updatedAt = this.clock();
+    this.emit('show', copySession(session));
     return { session: copySession(session) };
   }
   #finish(session, status) {

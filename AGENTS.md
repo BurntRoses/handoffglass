@@ -30,3 +30,10 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - Panel acknowledgements must come from the broker, not from timeouts or arbitrary renderer state.
 - See `docs/COMPATIBILITY.md` and `docs/MODEL_PLAYBOOK.md` for tested vs documented host integrations.
 - Keep `scripts/install-host.mjs` dry-run by default, conservatively merge existing JSON config and never automatically alter a host's TOML/JSONC. Use explicit `--apply` and backup for file mutations.
+
+## Scene v1 (v0.5+)
+- Read `docs/SCENE_PROTOCOL.md`, `docs/VISUAL_LANGUAGE.md` and `docs/PRODUCT_INTERACTIONS.md` before touching annotations or desktop overlay.
+- Pure scene semantics and templates belong in `src/visual/scene.mjs`. Do not duplicate rules in each MCP harness or DOM renderer.
+- Gallery (`npm run gallery`) imports the **production** SVG renderer. Update both the protocol tests and gallery when adding marks or templates.
+- Preserve owner-scoped optimistic `visual_scene_update` with no TTL reset or user-decision spoofing. Legacy six tool names remain stable.
+- Every new scene shape needs renderer tests, schema changes, documentation and an actual screen-oriented QA scenario.

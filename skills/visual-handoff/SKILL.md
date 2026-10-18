@@ -39,3 +39,9 @@ Two guided targets:
 - Avoid unconditional instruction to click Allow, Pay or Delete; explain implications and give a refusal path.
 - Do not claim the overlay sees pixels, reads DOM, or verifies action success. That requires separate capabilities.
 - Do not mix stale screenshot physical pixels with DIP screen coordinates.
+
+## Semantic templates & incremental scenes (v0.5)
+
+To minimize model tokens, prefer existing `visual_show` or `handoff_request` with `template:"focus"|"point"|"inspect"|"caution"|"sequence"|"verify"` plus measured global DIP targets. Never invent target locations. If no grounded coordinate exists, use handoff without any visual marks.
+
+For multi-step guidance, construct Scene v1 with layers and stable annotation IDs, then call `visual_scene_update({sessionId, expectedRevision, operations:[...]})` to modify a live scene. Always read/use the returned `sceneRevision` for the next patch; a stale revision conflict requires fetching status before rebuilding the desired patch. Updating visuals never reports task completion or extends a permission prompt deadline. See `docs/SCENE_PROTOCOL.md`.

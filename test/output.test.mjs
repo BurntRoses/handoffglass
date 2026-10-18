@@ -14,3 +14,11 @@ test('compact response strips prose and repeated annotations but keeps important
   assert.equal(JSON.stringify(out).includes('Private'), false);
   assert.equal(formatToolResult({ session:null,pending:true }, {compact:true}).pending,true);
 });
+
+test('compact results keep scene revision so an agent can patch again safely', () => {
+  const source={session:{id:'0000',mode:'guide',status:'awaiting_user',timeoutAt:42,verified:false,sceneRevision:7,
+    annotations:Array(12).fill({x:10,y:20})}};
+  const result=formatToolResult(source,{compact:true});
+  assert.equal(result.session.sceneRevision,7);
+  assert.equal('annotations' in result.session,false);
+});

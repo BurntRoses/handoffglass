@@ -1,8 +1,8 @@
 /** Opt-in compact MCP tool results. Stable default API remains unchanged. */
 function compactSession(session) {
   if (!session) return null;
-  const { id, status, mode, timeoutAt, verified, completionSource } = session;
-  return { id, status, mode, timeoutAt, verified, completionSource };
+  const { id, status, mode, timeoutAt, verified, completionSource, sceneRevision } = session;
+  return { id, status, mode, timeoutAt, verified, completionSource, ...(sceneRevision ? { sceneRevision } : {}) };
 }
 export function formatToolResult(value, { compact = false } = {}) {
   if (!compact || !value || typeof value !== 'object') return value;

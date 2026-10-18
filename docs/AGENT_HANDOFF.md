@@ -77,3 +77,17 @@ Next highest-value tasks remain native GUI acceptance, packaging, and opt-in, pr
 ### Optional host-config installer (v0.4 follow-up)
 
 `src/host-install.mjs` merges known JSON host schemas conservatively. `scripts/install-host.mjs` previews by default and requires explicit `--apply`; it creates 0600 backups and atomically writes JSON. Existing HandoffGlass stanzas require `--replace`. Do not change installer semantics to silently overwrite JSONC, TOML or unrelated host servers. Real-host launch verification remains separate from config-shape tests.
+
+## Completed after v0.4: Scene v1 / visual design infrastructure
+
+- Pure scene contract, 6 semantic templates, 7 SVG primitives, layered rendering, 12-layer/24-mark bound: `src/visual/scene.mjs`.
+- Atomic owner-scoped optimistic updates: `HandoffManager.updateScene`, `/agent/scene`, MCP `visual_scene_update`.
+- One production SVG renderer for desktop and local preview: `src/desktop/overlay-renderer.mjs`, `npm run gallery`.
+- Portable `schemas/scene-v1.schema.json`, sample JSON scenes and product/visual language decisions.
+- Tests cover shape SVG structure without a desktop; **real Windows/macOS rendering acceptance is still required**.
+- See `docs/SCENE_PROTOCOL.md`, `docs/VISUAL_LANGUAGE.md`, `docs/PRODUCT_INTERACTIONS.md`; avoid inventing another annotation abstraction or UI template system.
+
+### Adapter preparation already delivered
+- `src/visual/grounding.mjs` and `test/grounding.test.mjs`: fail-closed, pure grounding candidate contract including provenance, time freshness, ambiguity/occlusion/display checks; **not native AX/UIA implementation**.
+- `scripts/scene.mjs`: list templates, generate a scene from measured coordinates, validate sample scenes without MCP, Electron or a model.
+- Any future native adapter must be separately opt-in, permission-gated and return `global_DIP` bounds with measured timestamps. Do not trust unstructured natural-language bounding boxes.

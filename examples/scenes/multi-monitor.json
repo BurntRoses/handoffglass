@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "layers": [
+    {"id":"left_screen_focus","zIndex":10,"annotations":[
+      {"id":"primary","x":-420,"y":220,"width":150,"height":65,"shape":"spotlight","tone":"accent","label":"副屏上的控件"}
+    ]},
+    {"id":"right_screen_marker","zIndex":30,"visible":false,"annotations":[
+      {"id":"future","x":400,"y":220,"shape":"crosshair","tone":"success","label":"稍后显示"}
+    ]}
+  ]
+}

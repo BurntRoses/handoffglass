@@ -1,8 +1,30 @@
 # HandoffGlass
 
+
+## Scene v1 · reusable visual language (v0.5)
+
+HandoffGlass now supports **six semantic templates, seven SVG primitives and owned, versioned multi-layer scenes** without adding a rendering dependency or an AI model requirement.
+
+```bash
+npm run gallery       # read-only local template/layer preview with the real renderer
+npm run verify        # core, scene, bridge and SVG renderer tests
+```
+
+For grounded targets, existing `visual_show` and `handoff_request` can use `template: "focus" | "point" | "inspect" | "caution" | "sequence" | "verify"` with the existing `x/y` or `annotations` fields. Advanced hosts pass a `scene:{version:1,layers:[...]}` instead. A seventh tool, `visual_scene_update`, edits layer visibility, opacity, zIndex and marks **without starting a fresh handoff or resetting its TTL**. This tool is owner-scoped and uses `expectedRevision` to prevent stale writes. All original six tool names and legacy request shapes remain supported.
+
+Design and implementation resources:
+
+- [Live layer/template gallery](examples/scene-gallery.html) (`npm run gallery`)
+- [Visual language and palette](docs/VISUAL_LANGUAGE.md)
+- [Scene protocol and atomic patch operations](docs/SCENE_PROTOCOL.md)
+- [Product interaction decision logic](docs/PRODUCT_INTERACTIONS.md)
+- [Portable JSON Schema](schemas/scene-v1.schema.json) and [sample scenes](examples/scenes/)
+
+**Important:** the scene gallery simulates coordinates on a fictional UI; it is not evidence of installed desktop behavior, computer vision or automated permission approval.
+
 **Give an AI agent a way to point — and a safe way to hand control to a human.**
 
-> **0.4.0 engineering preview · local-first · Node.js + Electron · MCP v2 + Agent Skill**  
+> **0.5.0 engineering preview · local-first · Node.js + Electron · MCP v2 + Agent Skill**  
 > Supports Windows/macOS design targets. GUI behavior must be validated on an actual graphical desktop. This is not a general screen-understanding, CAPTCHA-solving or auto-clicking system.
 
 HandoffGlass is a developer-focused interaction layer that extends **existing** computer-use agents. The agent can show visual annotations on the user's desktop, request a manual decision, receive an explicit outcome and resume its original workflow **after separately verifying the real result**.
@@ -175,3 +197,13 @@ Hosts that expose MCP Prompts can invoke `assist-with-ui-step` with a short `tas
 For JSON-based local host configs, preview a conservative merge with `node scripts/install-host.mjs cursor` or `node scripts/install-host.mjs gemini`. Add `--apply` to create a timestamped private backup and atomically write the merged JSON. Existing HandoffGlass entries require an additional `--replace` flag. No existing config is automatically changed by running `npm ci` or `npm run configure`.
 
 For VS Code specify `node scripts/install-host.mjs vscode --workspace /path/to/project --apply`; for Codex/TOML and JSONC configurations, use the non-destructive printed configuration instead. This installer never configures remote/cloud agent access to your local screen.
+
+## Future grounding-adapter seam (pure contract, not an OS integration)
+
+`src/visual/grounding.mjs` implements a conservative validation contract for native AX / Windows UIA / browser DOM adapters: explicit provenance, observation timestamp, screen-space declaration, exact target identity, enabled/visible/unobstructed checks, ambiguity rejection and offscreen rejection. It has **no permission to enumerate live UI** and performs no OS queries. Grounding providers can later plug into this seam without weakening the generic MCP renderer.
+
+```bash
+npm run scene:templates
+node scripts/scene.mjs template caution 500 320 "核对权限范围"
+npm run scene:lint
+```

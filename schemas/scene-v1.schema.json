@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BurntRoses/handoffglass/blob/main/schemas/scene-v1.schema.json",
+  "title": "HandoffGlass Scene v1",
+  "description": "Versioned, standalone visual overlay scene in global device-independent pixels. Human retains control.",
+  "type": "object", "additionalProperties": false,
+  "required": ["version", "layers"],
+  "properties": {
+    "version": {"const": 1},
+    "layers": {"type": "array", "maxItems": 12, "items": {"$ref": "#/$defs/layer"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,47}$"},
+    "coordinate": {"type": "number", "minimum": -100000, "maximum": 100000},
+    "positiveSize": {"type": "number", "exclusiveMinimum": 0, "maximum": 5000},
+    "unit": {"type": "number", "minimum": 0, "maximum": 1},
+    "annotation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "x": {"$ref": "#/$defs/coordinate"}, "y": {"$ref": "#/$defs/coordinate"},
+        "shape": {"enum": ["arrow", "ring", "box", "spotlight", "badge", "underline", "crosshair"]},
+        "tone": {"enum": ["accent", "info", "success", "caution", "danger", "neutral"]},
+        "color": {"type": "string", "pattern": "^#[0-9a-fA-F]{6}$"},
+        "width": {"$ref": "#/$defs/positiveSize"}, "height": {"$ref": "#/$defs/positiveSize"},
+        "label": {"type": "string", "maxLength": 64}, "opacity": {"$ref": "#/$defs/unit"}
+      }
+    },
+    "layer": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "zIndex": {"type":"integer", "minimum":-100, "maximum":100},
+        "visible": {"type":"boolean"}, "opacity": {"$ref":"#/$defs/unit"},
+        "annotations": {"type":"array", "maxItems":24, "items":{"$ref":"#/$defs/annotation"}}
+      }
+    }
+  }
+}

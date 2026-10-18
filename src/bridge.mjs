@@ -95,10 +95,10 @@ export class LocalBridge {
     }
     const parsed = new URL(req.url, `http://${host}`);
     const pathname = parsed.pathname;
-    // Reject method confusion before touching state or allocating listeners.
+    // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
       '/agent/displays': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
-      '/agent/wait': 'GET', '/agent/cancel': 'POST' };
+      '/agent/wait': 'GET', '/agent/cancel': 'POST', '/agent/scene': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
     }
@@ -150,7 +150,7 @@ export class LocalBridge {
         if (!this.headless && !canLocateAll(this.displays, normalized.annotations)) {
           return sendJson(res, 422, { error: 'Target outside current display bounds; call screen_displays', code: 'outside_display' });
         }
-        const session = this.manager.show(normalized, owner);
+        const session = this.manager.show(body, owner);
         if (session.error) return sendJson(res, 409, { error: 'A different Agent already owns the active handoff', code: 'busy' });
         return sendJson(res, 200, { session, visible: !this.headless,
           coordinateSystem: 'global_DIP',
@@ -167,6 +167,22 @@ export class LocalBridge {
           return sendJson(res, 400, { error: 'Invalid wait timeout' });
         }
         return sendJson(res, 200, await this.manager.waitOwned(id, owner, ms));
+      }
+      if (req.method === 'POST' && pathname === '/agent/scene') {
+        const body = await readJson(req);
+        if (typeof body.sessionId !== 'string') return sendJson(res, 400, { error: 'Invalid session id' });
+        // Run full schema validation and out-of-bounds guard BEFORE mutating state.
+        const owned = this.manager.getOwned(body.sessionId, owner);
+        if (!owned) return sendJson(res, 404, { error: 'Session not found' });
+        if (!owned.scene) return sendJson(res, 409, { error: 'Session has no mutable scene', code: 'scene_not_enabled' });
+        if (body.expectedRevision !== owned.sceneRevision) return sendJson(res, 409, { error: 'Scene revision conflict', code: 'revision_conflict', sceneRevision: owned.sceneRevision });
+        const { patchScene, flattenScene } = await import('./visual/scene.mjs');
+        const preview = patchScene(owned.scene, body.operations);
+        if (!this.headless && !canLocateAll(this.displays, flattenScene(preview))) {
+          return sendJson(res, 422, { error: 'Scene target outside display', code: 'outside_display' });
+        }
+        const result = this.manager.updateScene(body.sessionId, owner, body.expectedRevision, body.operations);
+        return sendJson(res, result.error ? 409 : 200, result);
       }
       if (req.method === 'POST' && pathname === '/agent/cancel') {
         const body = await readJson(req);

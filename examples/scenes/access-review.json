@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "layers": [
+    {
+      "id": "context", "zIndex": 0, "opacity": 0.8,
+      "annotations": [
+        {"id":"policy","x":560,"y":290,"width":290,"height":86,"shape":"box","tone":"caution","label":"先检查权限范围"}
+      ]
+    },
+    {
+      "id": "decision", "zIndex": 20,
+      "annotations": [
+        {"id":"reject","x":410,"y":480,"width":110,"height":42,"shape":"ring","tone":"neutral","label":"可以拒绝"},
+        {"id":"details","x":710,"y":480,"shape":"arrow","tone":"info","label":"查看详细说明"}
+      ]
+    }
+  ]
+}

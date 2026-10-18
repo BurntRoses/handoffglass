@@ -43,3 +43,13 @@
 - Harden loopback routing with explicit HTTP method enforcement and cap simultaneous long-poll responders.
 - Add regression tests for method confusion and resource exhaustion.
 - Add `AGENTS.md` and `docs/AGENT_HANDOFF.md` with operational boundaries, priorities, commands and per-platform acceptance criteria.
+
+## v0.5.0 — reusable layered visual scenes
+
+- New dependency-free Scene v1 protocol with six composition templates, seven annotation shapes, shared semantic palette and atomic scene edits.
+- New MCP `visual_scene_update` (owner scope, expected revision, no renewed TTL) and `template` / `scene` options in existing tools.
+- Single production SVG renderer also used by the local gallery; no second renderer or preview-only SVG approximations.
+- Portable JSON Schema, three realistic synthetic scene fixtures, product interaction and visual design handbooks.
+- Additional unit, bridge, renderer and live MCP integration regression tests. Physical desktop acceptance still outstanding.
+
+- Added fail-closed UI grounding candidate contract and tests (pure library, no active AX/UIA enumeration), and minimal scene template/validation CLI for future adapters.
