@@ -23,6 +23,8 @@ jobs:
         run: npm run verify
       - name: Real MCP SDK stdio handshake smoke test (headless)
         run: npm run test:integration
+      - name: MCP optional local-context and deterministic blueprint smoke
+        run: npm run test:extras
       - name: Host configuration and lightweight broker benchmark
         run: |
           node scripts/configure.mjs all --compact
