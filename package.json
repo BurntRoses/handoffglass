@@ -52,7 +52,8 @@
     "connector:workbuddy": "node scripts/build-workbuddy.mjs",
     "test:extras": "node scripts/mcp-smoke.mjs --extras",
     "readiness": "node scripts/readiness.mjs",
-    "bench:context": "node scripts/context-budget.mjs"
+    "bench:context": "node scripts/context-budget.mjs",
+    "site:preview": "node scripts/site-preview.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

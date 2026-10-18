@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b1119" />
+  <meta name="description" content="HandoffGlass makes the handoff between AI agents and people visible. A local-first interaction runtime, built for MCP." />
+  <title>HandoffGlass — The handoff, made visible.</title>
+  <link rel="icon" href="../assets/brandmark.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./style.css" />
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
+  <header class="site-header" id="top">
+    <div class="container nav-inner">
+      <a class="brand" href="#top" aria-label="HandoffGlass home">
+        <img src="../assets/brandmark.svg" width="41" height="41" alt="" />
+        <span>handoffglass</span>
+      </a>
+      <nav class="navigation" aria-label="Primary">
+        <a href="#experience" data-i18n="nav.experience">Experience</a>
+        <a href="#features" data-i18n="nav.features">Features</a>
+        <a href="#integrations" data-i18n="nav.integrations">Integrations</a>
+        <a href="#start" data-i18n="nav.start">Get started</a>
+      </nav>
+      <div class="nav-actions">
+        <div class="language" role="group" aria-label="Language">
+          <button class="language-button" type="button" data-lang="en" aria-pressed="true">EN</button>
+          <button class="language-button" type="button" data-lang="zh" aria-pressed="false">中</button>
+          <button class="language-button" type="button" data-lang="ja" aria-pressed="false">日</button>
+        </div>
+        <a class="github-link" href="https://github.com/BurntRoses/handoffglass" rel="noopener noreferrer" target="_blank">GitHub <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section class="hero container" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="pulse-dot" aria-hidden="true"></span><span data-i18n="hero.eyebrow">LOCAL INTERACTION RUNTIME</span><span class="eyebrow-line"></span><span>MCP · SKILL</span></div>
+        <h1 id="hero-title"><span data-i18n="hero.line1">A better way</span><span class="gradient-text" data-i18n="hero.line2">to hand off.</span></h1>
+        <p class="hero-lead" data-i18n="hero.lead">When an AI agent needs your input, the next step should be visible—not buried in a chat.</p>
+        <div class="hero-cta">
+          <a class="primary-button" href="#experience"><span data-i18n="hero.explore">Explore the interaction</span><span aria-hidden="true">↗</span></a>
+          <a class="quiet-link" href="#start"><span data-i18n="hero.setup">Set it up</span><span aria-hidden="true">→</span></a>
+        </div>
+        <div class="hero-footnote"><span class="mini-halo" aria-hidden="true"></span><span data-i18n="hero.note">On your screen. Under your control.</span></div>
+      </div>
+      <div class="stage-wrap" id="experience">
+        <div class="stage-glow" aria-hidden="true"></div>
+        <div class="experience-stage" data-scene="focus" data-outcome="waiting" aria-label="Interactive product concept preview">
+          <div class="stage-topbar">
+            <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="fake-location"><span class="lock-dot" aria-hidden="true">◇</span> workspace / access</div>
+            <span class="stage-id">SCENE 01 / 03</span>
+          </div>
+          <div class="stage-body">
+            <aside class="stage-sidebar" aria-hidden="true">
+              <div class="skeleton small"></div><div class="sidebar-spacer"></div>
+              <div class="sidebar-row active"><span class="side-icon">◌</span><span class="skeleton short"></span></div>
+              <div class="sidebar-row"><span class="side-icon">▤</span><span class="skeleton short"></span></div>
+              <div class="sidebar-row"><span class="side-icon">◈</span><span class="skeleton short"></span></div>
+            </aside>
+            <div class="stage-workspace">
+              <div class="app-chip"><span class="chip-orbit"></span><span data-i18n="demo.workspace">Workspace settings</span></div>
+              <h2 class="demo-heading" data-i18n="demo.heading">Review the next step</h2>
+              <p class="demo-body" data-i18n="demo.body">Your connected workspace is requesting an action.</p>
+              <div class="mock-options">
+                <div class="mock-option"><span class="mock-avatar">◈</span><span><b data-i18n="demo.option1">Connected application</b><small data-i18n="demo.option1sub">Request details</small></span><span class="option-check">✓</span></div>
+                <div class="mock-option dim"><span class="mock-avatar ghost">◇</span><span><b data-i18n="demo.option2">Permissions</b><small data-i18n="demo.option2sub">Review before continuing</small></span></div>
+              </div>
+              <div class="action-row"><button class="mock-back" type="button" tabindex="-1" aria-hidden="true" data-i18n="demo.later">Later</button><div class="target-wrap"><button class="mock-target" type="button" tabindex="-1" aria-hidden="true" data-i18n="demo.review">Review access</button></div></div>
+            </div>
+          </div>
+          <div class="guide-mask" aria-hidden="true"></div>
+          <div class="scene-art" aria-hidden="true">
+            <svg class="focus-art" viewBox="0 0 720 500" preserveAspectRatio="none"><defs><filter id="inkglow"><feGaussianBlur stdDeviation="5"/></filter></defs><path class="ink-blur" d="M478 334C493 294 648 295 672 334S662 404 568 406S445 385 478 334"/><path class="ink-path" d="M478 334C493 294 648 295 672 334S662 404 568 406S445 385 478 334"/><path class="ink-edge" d="M501 325Q562 308 629 323"/></svg>
+            <svg class="sequence-art" viewBox="0 0 720 500" preserveAspectRatio="none"><path d="M385 252C462 220 495 249 530 310" fill="none" stroke="#96ebd3" stroke-width="2.5" stroke-dasharray="7 8"/><path d="m519 298 12 12 4-17" fill="none" stroke="#b6ffee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="sequence-number one">1</span><span class="sequence-number two">2</span>
+            <div class="caution-art"><span>!</span></div>
+            <div class="target-tag"><span class="tag-spark">✧</span><span data-i18n="demo.tag">YOUR NEXT STEP</span></div>
+          </div>
+          <div class="handoff-card" role="status" aria-live="polite">
+            <div class="handoff-topline"><span class="handoff-status"><span class="status-ring"></span><span data-i18n="demo.yourturn">Your turn</span></span><span class="micro-mark">H / G</span></div>
+            <div class="handoff-title" data-i18n="demo.cardtitle">Take a moment to review</div>
+            <div class="progressive-copy"><span data-i18n="demo.cardbody">Decide in the original window.</span></div>
+            <div class="handoff-buttons"><button id="complete" class="complete-button" type="button" data-i18n="demo.completed">I've finished</button><button id="decline" class="decline-button" type="button" data-i18n="demo.decline">Decline</button></div>
+          </div>
+          <div class="stage-caption"><span class="stage-caption-mark">●</span><span data-i18n="demo.preview">INTERACTIVE CONCEPT PREVIEW</span></div>
+        </div>
+        <div class="scene-controls" role="group" aria-label="Choose a demo scene">
+          <button class="scene-tab is-active" type="button" data-scenario="focus" aria-pressed="true"><span class="scene-tab-symbol">◎</span><span data-i18n="scene.focus">Focus</span></button>
+          <button class="scene-tab" type="button" data-scenario="sequence" aria-pressed="false"><span class="scene-tab-symbol">②</span><span data-i18n="scene.sequence">Sequence</span></button>
+          <button class="scene-tab" type="button" data-scenario="caution" aria-pressed="false"><span class="scene-tab-symbol">◇</span><span data-i18n="scene.caution">Review</span></button>
+        </div>
+      </div>
+    </section>
+    <section class="integration-rail container" aria-labelledby="rail-title">
+      <p id="rail-title" data-i18n="rail.title">One local layer. Many ways to call it.</p>
+      <div class="rail-items" aria-label="Agent integration examples"><span>Claude Code</span><span>Codex</span><span>DeepSeek Harness</span><span>WorkBuddy</span><span>TRAE</span><span>Cursor</span></div>
+    </section>
+    <section class="section container" id="features" aria-labelledby="features-title">
+      <div class="section-eyebrow"><span class="eyebrow-index">01 / 03</span><span data-i18n="features.eyebrow">THE INTERACTION LAYER</span></div>
+      <div class="section-heading"><h2 id="features-title" data-i18n="features.heading">Less explaining.<br/>More doing.</h2><p data-i18n="features.intro">A quiet visual language for the moments an agent can't finish alone.</p></div>
+      <div class="feature-grid">
+        <article class="feature-card feature-wide"><div class="feature-index">01 <span>VISUAL SCENES</span></div><div class="feature-illustration" aria-hidden="true"><div class="orb orb-a"></div><div class="orb orb-b"></div><svg viewBox="0 0 490 190" class="feature-line"><path d="M95 110C100 34 346 48 363 108C386 178 123 180 95 110Z"/><path d="M97 107C143 94 179 92 216 94" class="faint"/></svg><div class="feature-card-mini">◎ &nbsp; Focus</div></div><div class="feature-text"><h3 data-i18n="features.visual.title">Draw attention, beautifully.</h3><p data-i18n="features.visual.body">Animated paths, softly lit focus areas and scenes composed in layers. Designed to guide without getting in the way.</p></div></article>
+        <article class="feature-card"><div class="feature-index">02 <span>HUMAN HANDOFF</span></div><div class="feature-icon witness">↗</div><div class="feature-text"><h3 data-i18n="features.handoff.title">A clear moment of control.</h3><p data-i18n="features.handoff.body">People choose. The agent receives an explicit result and decides how to proceed.</p></div></article>
+        <article class="feature-card"><div class="feature-index">03 <span>LOCAL BY DESIGN</span></div><div class="feature-icon core-icon">◈</div><div class="feature-text"><h3 data-i18n="features.local.title">Keep the work nearby.</h3><p data-i18n="features.local.body">One shared local broker, on-device visual preferences and opt-in native control lookup.</p></div></article>
+      </div>
+    </section>
+    <section class="section flow-section container" aria-labelledby="flow-title">
+      <div class="section-eyebrow"><span class="eyebrow-index">02 / 03</span><span data-i18n="flow.eyebrow">FROM ONE MOMENT TO THE NEXT</span></div>
+      <div class="section-heading"><h2 id="flow-title" data-i18n="flow.heading">The thread stays intact.</h2><p data-i18n="flow.intro">A small action shouldn't mean starting over.</p></div>
+      <div class="flow-line"><article><div class="flow-step-num">01</div><div><h3 data-i18n="flow.one.title">Agent asks</h3><p data-i18n="flow.one.body">Locate a control or request a handoff.</p></div></article><article><div class="flow-step-num">02</div><div><h3 data-i18n="flow.two.title">You decide</h3><p data-i18n="flow.two.body">Follow the cue. Complete or decline.</p></div></article><article><div class="flow-step-num">03</div><div><h3 data-i18n="flow.three.title">Agent resumes</h3><p data-i18n="flow.three.body">Check the result. Continue the task.</p></div></article></div>
+    </section>
+    <section class="section container integration-section" id="integrations" aria-labelledby="integrations-title">
+      <div class="section-eyebrow"><span class="eyebrow-index">03 / 03</span><span data-i18n="integrations.eyebrow">WORKS WITH YOUR AGENT</span></div>
+      <div class="integration-panel"><div class="integration-copy"><h2 id="integrations-title" data-i18n="integrations.heading">One runtime.<br/>Your agent.</h2><p data-i18n="integrations.body">MCP for broad compatibility. An optional Skill for tool selection. Native extensions where the harness allows it.</p><a href="https://github.com/BurntRoses/handoffglass/blob/main/docs/COMPATIBILITY.md" target="_blank" rel="noopener noreferrer" class="panel-link"><span data-i18n="integrations.link">Explore integrations</span><span>↗</span></a></div><div class="network-diagram" aria-hidden="true"><div class="network-core"><img src="../assets/brandmark.svg" alt="" /></div><div class="network-node n1">MCP</div><div class="network-node n2">CLI</div><div class="network-node n3">Skill</div><div class="network-node n4">Plugin</div><svg class="network-connect" viewBox="0 0 450 280"><path d="M225 141L89 59M225 141L352 59M225 141L84 223M225 141L360 225"/></svg></div></div>
+    </section>
+    <section class="section container start-section" id="start" aria-labelledby="start-title"><div class="section-eyebrow"><span data-i18n="start.eyebrow">MAKE IT PART OF THE WORKFLOW</span></div><div class="start-head"><h2 id="start-title" data-i18n="start.title">A few lines to begin.</h2><p data-i18n="start.subtitle">Run the local MCP server, then connect it to your agent.</p></div><div class="terminal"><div class="terminal-top"><span class="terminal-lights"><i></i><i></i><i></i></span><span>Terminal</span><button id="copy-command" class="copy-button" type="button"><span data-i18n="start.copy">Copy</span><span aria-hidden="true"> ↗</span></button></div><pre id="install-command"><code><span class="command-comment"># Get the source</span>
+git clone https://github.com/BurntRoses/handoffglass.git
+cd handoffglass
+npm ci
+npm run configure</code></pre></div><div class="start-links"><a href="https://github.com/BurntRoses/handoffglass/blob/main/docs/INTEGRATIONS.md" rel="noopener noreferrer" target="_blank"><span data-i18n="start.guide">Integration guide</span> ↗</a><a href="https://github.com/BurntRoses/handoffglass/blob/main/docs/VISUAL_LANGUAGE.md" rel="noopener noreferrer" target="_blank"><span data-i18n="start.design">Visual language</span> ↗</a></div></section>
+  </main>
+  <footer class="site-footer"><div class="container footer-inner"><div><a class="footer-brand" href="#top">handoffglass <span>✧</span></a><p data-i18n="footer.text">The handoff, made visible.</p></div><div class="footer-note"><span data-i18n="footer.preview">Private engineering preview</span><span>© 2026 HandoffGlass</span></div></div></footer>
+</body>
+</html>
