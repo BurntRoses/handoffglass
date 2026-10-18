@@ -57,3 +57,5 @@
 - Fix stale-manifest broker restart on Windows by clearing the failed manifest under the startup lock before spawning, and surface asynchronous process-launch errors.
 
 - Electron overlay now loads a deterministic classic-script bundle of the same canonical SVG renderer used in gallery; avoids file-URL ESM issues without adding a bundler dependency.
+
+- Normalize renderer source and generated bundle line endings; `.gitattributes` enforces LF across hosts so Windows CI performs the same deterministic integrity check.

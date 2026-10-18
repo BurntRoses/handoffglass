@@ -1,0 +1,8 @@
+# Canonical UTF-8/LF sources for deterministic Windows/macOS/Linux bundle checks
+*.mjs text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
