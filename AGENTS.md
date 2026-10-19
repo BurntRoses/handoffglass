@@ -79,3 +79,9 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - A failed native check must clear stale visible annotations, never reuse a guessed position. Do not reset handoff TTL or set `verified:true` when a target is observed.
 - Respect display-layout invalidation, terminal sessions and in-flight stale native results. New scene mutations must stop auto-tracking or explicitly reconcile tracking and revision ownership.
 - Real macOS AX / Windows UIA timings, focus behavior and click-through still require a physical desktop QA run.
+
+## v0.15 event recovery
+- `handoff_events(sessionId, after, limit)` is owner-scoped, memory-only and incremental; never include screen data or secrets in journal entries.
+- `recovery=verify_downstream` is required after user-reported completion. Do not invent task success.
+- Never auto-claim sessions owned by disconnected MCP clients. Per-process owner isolation is an explicit security boundary.
+- Reject scene edits while a native target is missing; do not re-display stale positions.

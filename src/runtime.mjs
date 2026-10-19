@@ -138,6 +138,7 @@ export class BrokerClient {
   async present(mode, args) { return this.request('/agent/show', { method: 'POST', body: { ...args, mode } }); }
   async displays() { return this.request('/agent/displays'); }
   async status(sessionId) { return this.request(`/agent/status?sessionId=${encodeURIComponent(sessionId)}`); }
+  async events(sessionId,after=0,limit=20) { return this.request(`/agent/events?sessionId=${encodeURIComponent(sessionId)}&after=${after}&limit=${limit}`); }
   async wait(sessionId, maxWaitSeconds) {
     return this.request(`/agent/wait?sessionId=${encodeURIComponent(sessionId)}&maxWaitMs=${Math.round(maxWaitSeconds * 1000)}`);
   }

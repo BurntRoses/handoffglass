@@ -118,3 +118,7 @@ With read-only Accessibility enabled, exact foreground UI targets follow the app
 | [Motion & interaction](docs/VISUAL_MOTION.md) | [Agent development guide](AGENTS.md) | [Security & privacy](docs/SECURITY.md) |
 
 <sub>Private engineering preview · Windows and macOS installers are unsigned preview builds. GitHub Actions verifies packages and MCP startup; desktop interaction still needs on-device acceptance. Repository license: UNLICENSED.</sub>
+
+### Handoff event stream (v0.15)
+
+Use `handoff_events` with a session ID and incremental cursor to inspect local target-loss, recovery and human-decision transitions. It returns a concise recommended next action; it never claims to verify a downstream task. The setting center displays the same events without task content. [Protocol and safety details](docs/INTERACTION_EVENTS.md).

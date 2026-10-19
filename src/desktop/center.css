@@ -19,3 +19,13 @@
 .host-evidence{margin-top:18px}.evidence-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.evidence-top strong{font-size:13px}.evidence-top p,.evidence-disclaimer{font-size:11px;line-height:1.7;color:var(--center-muted)}.evidence-top p{margin:7px 0 0}.evidence-live{font-size:10px;color:var(--center-primary);white-space:nowrap}.evidence-list{display:grid;gap:7px;margin-top:21px}.evidence-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 15px;background:var(--center-raised);border:1px solid var(--center-edge);border-radius:11px}.evidence-name{font-size:12px;font-weight:700}.evidence-metadata{font-size:10px;color:var(--center-muted);text-align:right}.evidence-empty{padding:16px 6px;font-size:12px;color:var(--center-muted)}.evidence-disclaimer{margin:16px 0 0}@media(max-width:500px){.evidence-top{flex-direction:column}.evidence-item{align-items:flex-start;flex-direction:column}.evidence-metadata{text-align:left}}
 
 .layout-health{display:flex;align-items:center;gap:9px;border-radius:10px;padding:11px 13px;font-size:11px;line-height:1.65;margin-top:12px;background:var(--center-raised);color:var(--center-muted);border:1px solid var(--center-edge)}.layout-health::before{content:'';width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:var(--center-muted)}.layout-health[data-state='consistent']::before{background:var(--center-primary);box-shadow:0 0 12px rgba(125,246,196,.22)}
+
+/* Ephemeral event chronology: stable, compact and keyboard-independent. */
+.handoff-timeline {padding:23px 26px 18px}
+.timeline-list {list-style:none;margin:22px 0 0;padding:0;display:grid;gap:0}
+.timeline-item {position:relative;display:flex;align-items:baseline;gap:14px;padding:0 0 18px;color:var(--center-text);font-size:13px;line-height:1.5}
+.timeline-item:not(:last-child)::after {content:'';position:absolute;left:5px;top:15px;bottom:3px;width:1px;background:var(--center-border)}
+.timeline-dot {flex:0 0 11px;width:11px;height:11px;margin-top:4px;border:2px solid var(--center-primary);border-radius:50%;background:var(--center-panel)}
+.timeline-item time {margin-left:auto;white-space:nowrap;font-size:11px;color:var(--center-muted);font-variant-numeric:tabular-nums}
+.timeline-empty {color:var(--center-muted);font-size:13px;padding:4px 0 8px}
+@media(max-width:620px){.handoff-timeline{padding:18px}.timeline-item{gap:10px}.timeline-item time{font-size:10px}}

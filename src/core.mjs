@@ -151,6 +151,8 @@ export class HandoffManager extends EventEmitter {
     this.get(id); // Re-evaluate expiration first.
     if (TERMINAL.has(session.status) || this.activeId !== id) return { error: 'already_final' };
     if (!session.scene) return { error: 'scene_not_enabled' };
+    if (['lost','layout_changed','desktop_unavailable'].includes(session.targetTracking?.status))
+      return { error: 'target_unavailable' };
     if (!Number.isInteger(expectedRevision) || expectedRevision !== session.sceneRevision) {
       return { error: 'revision_conflict', sceneRevision: session.sceneRevision };
     }
@@ -159,6 +161,8 @@ export class HandoffManager extends EventEmitter {
     // Allow temporarily hiding every layer to clear the screen without finishing a handoff.
     session.scene = next;
     session.annotations = flattened;
+    // A manual scene edit transfers control from native auto-follow to the Agent.
+    if (session.targetTracking) session.targetTracking = { status: 'manual', observedAt: null };
     session.sceneRevision++;
     session.updatedAt = this.clock();
     this.emit('show', copySession(session));
@@ -171,7 +175,7 @@ export class HandoffManager extends EventEmitter {
     if(!['tracking','lost','layout_changed','desktop_unavailable'].includes(status))throw new TypeError('Invalid anchor state');
     const previous=session.targetTracking;
     const changed=!previous || previous.status!==status ||
-      previous.signature!==signature || JSON.stringify(session.annotations)!==JSON.stringify(annotations);
+      previous.signature!==signature || previous.reason!==reason || JSON.stringify(session.annotations)!==JSON.stringify(annotations);
     if(!changed)return {session:copySession(session),changed:false};
     session.annotations=annotations.map(a=>({...a}));
     if(scene && session.scene && JSON.stringify(scene)!==JSON.stringify(session.scene)) {

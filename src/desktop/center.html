@@ -64,6 +64,12 @@
           <svg id="displayMap" role="img" aria-label="Relative monitor layout" viewBox="0 0 700 260"></svg>
           <p class="display-note" id="displayNote"></p><div class="layout-health" id="layoutHealth" role="status" aria-live="polite"></div>
         </div>
+        <div class="card handoff-timeline" aria-labelledby="timelineTitle">
+          <div class="evidence-top"><div><strong id="timelineTitle" data-i="timelineTitle">交接事件</strong>
+            <p data-i="timelineDesc">只展示本机状态变化，不记录操作内容。</p></div>
+            <span class="evidence-live" data-i="timelineLocal">仅本机 · 临时</span></div>
+          <ol id="handoffTimeline" class="timeline-list" aria-live="polite"></ol>
+        </div>
         <div class="card report-card"><div><strong data-i="reportTitle">脱敏诊断报告</strong><p data-i="reportDesc">复制本机协议检查结果，不包含密钥、任务或屏幕内容。</p></div><button type="button" class="quiet-button" id="copyReport" data-i="reportCopy">复制报告</button></div>
         <div class="info-note"><span class="info-glyph">i</span><p data-i="healthFoot">此页不能证明某个宿主客户端已经成功安装，也不能替代真实桌面的鼠标穿透与多显示器验收。</p></div>
       </section>

@@ -7,6 +7,7 @@ import { locateNative, validateTarget } from './native/locator.mjs';
 import { HostActivity } from './local/host-activity.mjs';
 import { layoutSignature, compareObservation } from './native/calibration.mjs';
 import { NativeAnchorTracker } from './native/anchor-tracker.mjs';
+import { InteractionJournal, recoveryFor } from './local/interaction-journal.mjs';
 
 function sendJson(res, code, data) {
   if (res.destroyed || res.writableEnded) return;
@@ -57,6 +58,7 @@ export class LocalBridge {
     this.lastPoll = 0;
     this.lastAgentRequestAt = null;
     this.hostActivity = new HostActivity();
+    this.journal = new InteractionJournal(manager);
     this.displays = [];
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
@@ -91,6 +93,7 @@ export class LocalBridge {
   }
   async stop() {
     this.anchors.close();
+    this.journal.close();
     for (const respond of [...this.waiters]) respond(this.snapshot());
     if (this.server) {
       await new Promise(resolve => this.server.close(resolve));
@@ -111,7 +114,7 @@ export class LocalBridge {
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/desktop/diagnostics': 'GET', '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
       '/agent/displays': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
-      '/agent/wait': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
+      '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
     }
@@ -149,7 +152,8 @@ export class LocalBridge {
         lastAgentActivityAt: this.lastAgentRequestAt,
         displays: this.displays.length, pendingPolls: this.waiters.size,
         handoff: active ? { status: active.status, mode: active.mode, timeoutAt: active.timeoutAt } : null,
-        hostActivity: this.hostActivity.snapshot()
+        hostActivity: this.hostActivity.snapshot(),
+        timeline: this.journal.recent(12)
       });
     }
     if (req.method === 'GET' && pathname === '/state') {
@@ -259,6 +263,17 @@ export class LocalBridge {
         const id = parsed.searchParams.get('sessionId');
         return sendJson(res, 200, { session: this.manager.getOwned(id, owner), connected: this.connected });
       }
+      if (req.method === 'GET' && pathname === '/agent/events') {
+        const id = parsed.searchParams.get('sessionId');
+        if (!id || !this.manager.getOwned(id, owner)) return sendJson(res, 404, {error:'Session not found',code:'not_found'});
+        const after = Number(parsed.searchParams.get('after') ?? 0);
+        const limit = Number(parsed.searchParams.get('limit') ?? 20);
+        if (!Number.isSafeInteger(after) || after < 0 || !Number.isInteger(limit) || limit < 1 || limit > 32)
+          return sendJson(res,400,{error:'Invalid event cursor',code:'invalid_cursor'});
+        const events = this.journal.read(id,{after,limit});
+        return sendJson(res,200,{...events,recovery:recoveryFor(this.manager.getOwned(id,owner)),
+          note:'Events are local observations, not proof of downstream task success.'});
+      }
       if (req.method === 'GET' && pathname === '/agent/wait') {
         const id = parsed.searchParams.get('sessionId');
         const ms = Number(parsed.searchParams.get('maxWaitMs') ?? 15000);
@@ -285,6 +300,10 @@ export class LocalBridge {
         if (!this.headless && !canLocateAll(this.displays, flattenScene(preview))) {
           return sendJson(res, 422, { error: 'Scene target outside display', code: 'outside_display' });
         }
+        // Do not resurrect stale native coordinates through a scene edit while
+        // the target is missing or the desktop/display layout is changing.
+        if (owned.targetTracking && ['lost','layout_changed','desktop_unavailable'].includes(owned.targetTracking.status))
+          return sendJson(res,409,{error:'Native target currently unverified',code:'target_unavailable'});
         const result = this.manager.updateScene(body.sessionId, owner, body.expectedRevision, body.operations);
         // Manual edits take ownership of the scene and stop automatic target following.
         if (!result.error) this.anchors.clearFor(body.sessionId);

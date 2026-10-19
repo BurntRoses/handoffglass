@@ -1,3 +1,11 @@
+## 0.15.0 — Incremental handoff recovery
+
+- Added an owner-scoped `handoff_events` MCP tool for bounded cursor-based transitions and deterministic recovery guidance.
+- Added private Broker-only interaction journal and localized timeline in the desktop settings center.
+- Native target loss or display changes now block unsafe scene updates; manual scene edits visibly release auto-follow ownership.
+- Added tests for permissions, ownership, cursor bounds, failure transitions, user decisions and expiry.
+- No persistent event history, screenshots, hidden automation or model dependency.
+
 ## v0.14.0 — Live anchored native UI targets
 
 - Exact foreground Accessibility/UIA targets can now follow window movement locally without new model calls.

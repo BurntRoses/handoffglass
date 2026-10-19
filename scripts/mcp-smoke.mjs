@@ -33,7 +33,7 @@ try {
   const [a, b] = await Promise.all([client('host-A'), client('host-B')]);
   const { tools } = await a.listTools();
   const names = [
-    'screen_displays', 'ui_locate', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_wait', 'handoff_cancel'
+    'screen_displays', 'ui_locate', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_events', 'handoff_wait', 'handoff_cancel'
   ];
   if (extras) names.push('handoff_context', 'handoff_blueprint', 'handoff_assess');
   assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());
@@ -66,6 +66,11 @@ try {
   assert.equal((await invoke(b, 'handoff_status', { sessionId: id })).session, null);
   assert.equal((await invoke(b, 'handoff_cancel', { sessionId: id })).error, 'not_found');
   assert.equal((await invoke(a, 'handoff_status', { sessionId: id })).session.status, 'awaiting_user');
+  const stream = await invoke(a,'handoff_events',{sessionId:id});
+  assert.equal(stream.events[0].type,'started');
+  assert.equal(stream.recovery,'await_human_or_continue');
+  const next = await invoke(a,'handoff_events',{sessionId:id,after:stream.nextCursor});
+  assert.equal(next.events.length,0);
   assert.equal((await invoke(a, 'handoff_cancel', { sessionId: id })).session.status, 'cancelled');
   assert.equal((await invoke(a, 'handoff_wait', { sessionId: id })).session.status, 'cancelled');
   const second = await invoke(b, 'handoff_request', params);
@@ -81,7 +86,7 @@ try {
   assert.equal((await invoke(a,'visual_scene_update',mutating)).session.sceneRevision,2);
   assert.equal((await invoke(a,'handoff_status',{sessionId:painted.session.id})).session.annotations.length,0);
   assert.equal((await invoke(a,'handoff_cancel',{sessionId:painted.session.id})).session.status,'cancelled');
-  console.log(`PASS: MCP v2 stdio, ${extras ? 'eleven' : 'eight'} tools, dual hosts, scene updates, local context/blueprints, ownership, cancellation`);
+  console.log(`PASS: MCP v2 stdio, ${extras ? 'twelve' : 'nine'} tools, dual hosts, scene updates, local context/blueprints, ownership, cancellation`);
 } finally {
   for (const c of clients) await c.close().catch(() => {});
   const info = await readManifest(dir);

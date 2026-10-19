@@ -93,3 +93,7 @@ npm run preferences -- set visualStyle=handdrawn
 <sub>非公開の開発プレビュー。インストーラーは未署名です。CI はパッケージと MCP 起動を検証していますが、画面操作の実機試験は継続中です。ライセンス: UNLICENSED。</sub>
 
 接続と検証：[ローカルホストの呼び出し履歴](docs/HOST_ACTIVITY.md) · [ディスプレイ座標の再確認](docs/GEOMETRY_RECHECK.md)。
+
+### ハンドオフイベント（v0.15）
+
+`handoff_events` はローカルの位置変更・追跡失敗・復帰・ユーザーの判断をカーソル方式で返します。完了の自己申告は操作の検証ではありません。[イベント仕様](docs/INTERACTION_EVENTS.md)。
