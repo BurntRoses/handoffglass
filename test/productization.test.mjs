@@ -26,6 +26,7 @@ test('first-run desktop setup is IPC-scoped and preserves explicit opt-in',async
  const app=await readFile(join(root,'src/desktop/main.mjs'),'utf8');
  const preload=await readFile(join(root,'src/desktop/setup-preload.cjs'),'utf8');
  const html=await readFile(join(root,'src/desktop/setup.html'),'utf8');
+ const setupJs=await readFile(join(root,'src/desktop/setup.js'),'utf8');
  assert.match(setup,/event\.sender===window\.webContents/);
  assert.match(setup,/setAccessibilityConsent\(accessibility\)/);
  assert.match(app,/registerSetupIPC\(\)/);
@@ -34,6 +35,7 @@ test('first-run desktop setup is IPC-scoped and preserves explicit opt-in',async
  assert.match(html,/id="accessibility"/);
  assert.doesNotMatch(html,/accessibility"[^>]*checked/i);
  assert.match(html,/Content-Security-Policy/);
+ assert.match(setupJs,/replaceChildren\(document\.createTextNode/,'locale changes must replace the heading');
 });
 test('cross-platform branded icon paths and build task are configured',async()=>{
  const config=await readFile(join(root,'electron-builder.config.cjs'),'utf8');
