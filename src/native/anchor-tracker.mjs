@@ -8,9 +8,14 @@ const allowedStatus = new Set(['tracking', 'lost', 'layout_changed', 'desktop_un
 const errorCodes = new Set(['consent_required','permission_denied','target_not_found','ambiguous_target',
   'display_mapping','native_timeout','native_error','no_desktop','helper_unavailable','unsupported_platform']);
 const finiteRect = v => v && [v.x,v.y,v.width,v.height].every(Number.isFinite) && v.width > 0 && v.height > 0;
-const shiftMarks = (annotations, dx, dy) => annotations.map(a => ({ ...a, x:a.x+dx, y:a.y+dy }));
-const shiftScene = (scene, dx, dy) => scene ? {
-  ...scene, layers:scene.layers.map(layer => ({...layer, annotations:shiftMarks(layer.annotations,dx,dy)}))
+const shiftMarks = (annotations, origin, located) => annotations.map(a => {
+  const followsSize = Math.abs(a.x-origin.x)<0.001 && Math.abs(a.y-origin.y)<0.001;
+  return { ...a, x:a.x+located.x-origin.x, y:a.y+located.y-origin.y,
+    ...(followsSize && a.width !== undefined ? {width:Math.max(1,a.width+located.width-origin.width)}:{}),
+    ...(followsSize && a.height !== undefined ? {height:Math.max(1,a.height+located.height-origin.height)}:{}) };
+});
+const shiftScene = (scene, origin, located) => scene ? {
+  ...scene, layers:scene.layers.map(layer => ({...layer, annotations:shiftMarks(layer.annotations,origin,located)}))
 } : undefined;
 
 export class NativeAnchorTracker {
@@ -72,11 +77,11 @@ export class NativeAnchorTracker {
       const located=await this.locator(anchor.target,displays);
       if(generation!==this.generation || this.current!==anchor || this.manager.active()?.id!==anchor.id)return 'obsolete';
       if(!finiteRect(located) || !canLocateAll(displays,[located]))throw Object.assign(new Error('Unreliable location'),{code:'display_mapping'});
-      const dx=located.x-anchor.origin.x,dy=located.y-anchor.origin.y;
-      const annotations=shiftMarks(anchor.baseline,dx,dy);
+      if(located.width>5000 || located.height>5000)throw Object.assign(new Error('Invalid target size'),{code:'display_mapping'});
+      const annotations=shiftMarks(anchor.baseline,anchor.origin,located);
       if(!canLocateAll(displays,annotations))throw Object.assign(new Error('Overlay would leave display'),{code:'display_mapping'});
       this.manager.setAnchorState(anchor.id,{status:'tracking',annotations,
-        ...(anchor.scene?{scene:shiftScene(anchor.scene,dx,dy)}:{}),observedAt:this.now(),signature});
+        ...(anchor.scene?{scene:shiftScene(anchor.scene,anchor.origin,located)}:{}),observedAt:this.now(),signature});
       return 'tracking';
     } catch(e) {
       if(generation!==this.generation || this.current!==anchor || this.manager.active()?.id!==anchor.id)return 'obsolete';

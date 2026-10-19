@@ -124,3 +124,19 @@ test('HTTP native-target handoff attaches a live tracker, and manual scene edits
     assert.equal(off.session.targetTracking,undefined);
   }finally{await bridge.stop();manager.close();}
 });
+
+test('native target resizing updates highlight dimensions and display scale changes invalidate geometry evidence',async()=>{
+  const manager=new HandoffManager();let latest={x:300,y:300,width:160,height:90};
+  let displays=[{...screen[0]}];
+  const tracker=new NativeAnchorTracker({manager,locator:async()=>latest,getDisplays:()=>displays,intervalMs:60000});
+  const s=manager.show({...base,x:260,y:280,width:110,height:45,template:'inspect'});
+  tracker.track(s.id,target,{x:260,y:280,width:110,height:45});
+  assert.equal(await tracker.recheck(),'tracking');
+  const next=manager.get(s.id);
+  assert.equal(next.annotations[0].width,160);
+  assert.equal(next.annotations[0].height,90);
+  displays=[{...displays[0],scaleFactor:2}];
+  assert.equal(await tracker.recheck(),'layout_changed');
+  assert.equal(manager.get(s.id).annotations.length,0);
+  tracker.close();manager.close();
+});
