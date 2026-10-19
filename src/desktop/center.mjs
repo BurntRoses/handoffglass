@@ -10,6 +10,7 @@ import { summarizeDiagnostics } from './center-model.mjs';
 import { checkLocalMcp } from '../local/mcp-probe.mjs';
 import { makeSupportReport } from '../local/support-report.mjs';
 import { inspectLayout } from '../native/calibration.mjs';
+import metadata from '../../package.json' with { type: 'json' };
 const here = dirname(fileURLToPath(import.meta.url));
 const HOSTS_SET = new Set(Object.keys(HOSTS));
 let center = null;
@@ -38,7 +39,7 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
       const [preferences, accessibility, live] = await Promise.all([
         loadPreferences(),getAccessibilityConsent(),getDiagnostics()
       ]);
-      return {ok:true,preferences,accessibility,diagnostics:summarizeDiagnostics(live),
+      return {ok:true,appVersion:metadata.version,preferences,accessibility,diagnostics:summarizeDiagnostics(live),
         platform:process.platform,hosts:Object.keys(HOSTS)};
     } catch(error) {return {ok:false,error:'Could not read local service state'};}
   });

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HandoffManager } from '../src/core.mjs';
 import { LocalBridge } from '../src/bridge.mjs';
+import { GroundingError } from '../src/visual/grounding.mjs';
 
 async function fixture(fn) {
   const manager = new HandoffManager();
@@ -16,6 +17,22 @@ async function fixture(fn) {
   finally { await bridge.stop(); manager.close(); }
 }
 const basic = { title: 'Read permissions', message: 'Make your own decision', mode: 'handoff' };
+
+test('native failures retain actionable codes across the authenticated bridge', async () => fixture(async ({ bridge, request }) => {
+  bridge.headless = true;
+  const target = { app: 'Fixture', role: 'button', name: 'Locate target' };
+  const headers = { authorization: `Bearer ${bridge.agentToken}`,
+    'x-handoffglass-owner': '11111111-1111-4111-8111-111111111111' };
+  for (const code of ['consent_required', 'permission_denied', 'app_not_frontmost', 'target_not_found']) {
+    bridge.locator = async () => { throw new GroundingError(code, 'Fixture native failure'); };
+    for (const path of ['/agent/locate', '/agent/show']) {
+      const response = await request(path, { method: 'POST', headers,
+        body: { ...basic, target } });
+      assert.equal(response.status, 400);
+      assert.deepEqual(await response.json(), { error: 'Fixture native failure', code });
+    }
+  }
+}));
 
 test('secret-protected loopback bridge and strict headers', async () => fixture(async ({ bridge, request, url }) => {
   assert.equal(bridge.server.address().address, '127.0.0.1');

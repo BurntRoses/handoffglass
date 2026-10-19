@@ -57,7 +57,7 @@ function showState(d){
 }
 let toastTimeout;
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('visible'),2800);}
-async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}if(!prefs||(!settingsDirty&&!busy)){
+async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}value('appVersion',r.appVersion?`v${r.appVersion}`:'—');if(!prefs||(!settingsDirty&&!busy)){
       prefs={...r.preferences,accessibility:r.accessibility};
       for(const name of ['visualStyle','motion','theme','locale','density'])$(name).value=prefs[name];
       $('accessibility').checked=prefs.accessibility;

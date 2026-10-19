@@ -4,6 +4,7 @@ import { validDisplay, canLocateAll } from './geometry.mjs';
 import { loadPreferences, hasUserPreferences } from './local/preferences.mjs';
 import { compileBlueprint, BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { locateNative, validateTarget } from './native/locator.mjs';
+import { GroundingError } from './visual/grounding.mjs';
 import { HostActivity } from './local/host-activity.mjs';
 import { layoutSignature, compareObservation } from './native/calibration.mjs';
 import { NativeAnchorTracker } from './native/anchor-tracker.mjs';
@@ -79,7 +80,8 @@ export class LocalBridge {
     if (this.server) return this.port;
     this.server = http.createServer((req, res) => {
       void this.#handle(req, res).catch(error => {
-        sendJson(res, error.httpCode || 400, { error: error.message });
+        sendJson(res, error.httpCode || 400, { error: error.message,
+          ...(error instanceof GroundingError ? { code: error.code } : {}) });
       });
     });
     try {
