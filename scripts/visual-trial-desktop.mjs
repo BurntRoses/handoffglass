@@ -114,7 +114,7 @@ void app.whenReady().then(async()=>{
    });
   });
   for(const event of ['move','resize'])win.on(event,()=>{clearTimeout(moveTimer);moveTimer=setTimeout(()=>void enqueue(follow),120);});
-  await until(()=>win.isFocused(),'Fixture did not receive focus');
+  if(smoke)await until(()=>win.isFocused(),'Fixture did not receive focus. Unlock the desktop and keep the trial window in front.');
   await show();
   if(smoke){
    await runVisualChecks({win,overlays,show,follow,invoke,active:()=>active,scene,presets,report,output,pause,until});
