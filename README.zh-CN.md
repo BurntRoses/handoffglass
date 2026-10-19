@@ -56,6 +56,8 @@ Agent                       HandoffGlass                     用户
 
 运行 `npm run gallery` 查看 [场景模板实验室](examples/scene-gallery.html)，或运行 `npm run site:preview` 体验[多语言产品展示页](site/index.html)。
 
+本机 MCP 连接自检：`npm run connection:check`。显示器坐标图、错误码和脱敏报告见[连接诊断指南](docs/CONNECTION_DIAGNOSTICS.md)。
+
 ## 快速开始
 
 **Node.js 22+** · **Windows / macOS** · 支持 MCP 的本地 Agent

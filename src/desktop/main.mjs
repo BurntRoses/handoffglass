@@ -204,7 +204,11 @@ async function setupTrayAndMenu() {
   } catch (error) { console.warn('Tray unavailable:',error.message); }
 }
 registerSetupIPC();
-registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics')});
+registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics'),
+  getDisplayInfo:()=>screen.getAllDisplays().map((d,i)=>({
+    id:String(d.id),bounds:{x:d.bounds.x,y:d.bounds.y,width:d.bounds.width,height:d.bounds.height},
+    scaleFactor:d.scaleFactor,primary:d.id===screen.getPrimaryDisplay().id
+  }))});
 await setupTrayAndMenu();
 syncDisplays();
 void maybeShowFirstRun().catch(error => console.error('First-run setup:', error.message));
