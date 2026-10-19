@@ -7,9 +7,12 @@ import { HOSTS } from '../config.mjs';
 import { loadPreferences, savePreferences } from '../local/preferences.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
 import { summarizeDiagnostics } from './center-model.mjs';
+import { checkLocalMcp } from '../local/mcp-probe.mjs';
+import { makeSupportReport } from '../local/support-report.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const HOSTS_SET = new Set(Object.keys(HOSTS));
 let center = null;
+let checkRunning = false;
 function authorized(event) {return center && !center.isDestroyed() && event.sender === center.webContents;}
 export async function showControlCenter() {
   if (center && !center.isDestroyed()) {center.show();center.focus();return center;}
@@ -26,8 +29,8 @@ export async function showControlCenter() {
   center.show();
   return center;
 }
-export function registerCenterIPC({getDiagnostics}) {
-  if (typeof getDiagnostics !== 'function') throw new TypeError('Diagnostics provider is required');
+export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
+  if (typeof getDiagnostics !== 'function' || typeof getDisplayInfo !== 'function') throw new TypeError('Diagnostics and display providers are required');
   ipcMain.handle('hg:center:read',async event=>{
     if(!authorized(event)) return {ok:false,error:'Unauthorized window'};
     try {
@@ -57,6 +60,32 @@ export function registerCenterIPC({getDiagnostics}) {
     if(!authorized(event)||typeof host!=='string'||!HOSTS_SET.has(host))return {ok:false,error:'Unknown host'};
     try {return {ok:true,content:connection(host)};}
     catch {return {ok:false,error:'Cannot generate this host configuration'};}
+  });
+  ipcMain.handle('hg:center:test',async event=>{
+    if(!authorized(event))return {ok:false,code:'unauthorized'};
+    if(checkRunning)return {ok:false,code:'already_running'};
+    checkRunning=true;
+    try {
+      const entry=app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
+      return await checkLocalMcp({command:process.execPath,entry,
+        env:{...process.env,...(app.isPackaged?{ELECTRON_RUN_AS_NODE:'1'}:{})},timeoutMs:18000});
+    } catch {return {ok:false,code:'test_unavailable'};}
+    finally {checkRunning=false;}
+  });
+  ipcMain.handle('hg:center:report',async(event,code)=>{
+    if(!authorized(event))return {ok:false,code:'unauthorized'};
+    try {
+      const diagnostics=summarizeDiagnostics(await getDiagnostics());
+      const report=makeSupportReport({appVersion:app.getVersion(),platform:process.platform,
+        diagnostics,localTest:{code}});
+      clipboard.writeText(JSON.stringify(report,null,2));
+      return {ok:true};
+    } catch {return {ok:false,code:'report_unavailable'};}
+  });
+  ipcMain.handle('hg:center:displays',async event=>{
+    if(!authorized(event))return {ok:false,code:'unauthorized'};
+    try{return {ok:true,displays:getDisplayInfo()};}
+    catch{return {ok:false,code:'display_unavailable'};}
   });
   ipcMain.handle('hg:center:permission',async event=>{
     if(!authorized(event))return {ok:false,error:'Unauthorized window'};

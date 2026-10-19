@@ -9,9 +9,9 @@ Open it from the tray menu (**Control Center…**). Double-clicking the tray ico
 | Page | What it does | How information is obtained |
 | --- | --- | --- |
 | Overview | Local broker, desktop heartbeat, current handoff, recent Agent API activity | Authenticated loopback read-only diagnostics |
-| Agent connections | Host-specific MCP config preview and copy | Existing config generator; no automatic host modification |
+| Agent connections | MCP config preview/copy; isolated local stdio-MCP self-test | Current executable, temporary headless runtime, no host modification |
 | Appearance | Theme, locale, drawing style, motion, density and UI lookup consent | Private local preferences; explicit user save |
-| Diagnostics | Broker, desktop, recent calls, display count and safe handoff summary | Sanitized snapshot; no window title or task content |
+| Diagnostics | Broker, desktop, recent calls, display layout and sanitized support report | Desktop runtime display geometry; no screen pixels or task content |
 
 ## Correct reading of connection status
 
@@ -39,3 +39,5 @@ For a real desktop integration review, inspect `src/desktop/center.{html,css,js,
 See `docs/DESKTOP_QA.md` for real-device window, DPI, permissions and accessibility validation. A browser preview with mocked desktop state is useful for layout checks, **not** a physical desktop acceptance test.
 
 When settings are being edited, periodic refresh does not overwrite the form. Once saved, the next refresh reflects any changes made from the tray or another settings window.
+
+For the executable smoke-test, display map and troubleshooting codes, see [Connection diagnostics](CONNECTION_DIAGNOSTICS.md).

@@ -64,3 +64,8 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - Local preference `theme: system | dark | light` is user-owned, with backward-compatible defaults.
 - Use safe textContent and localized copy; never render host-supplied HTML. Test dark/light/reduced-motion/forced-colors before UI claims.
 - See `docs/INTERFACE_SYSTEM.md` for design and IPC rules.
+
+## v0.12 self-test and support-report contract
+- `npm run connection:check` launches an isolated, headless MCP child and sends initialize/tools/list/screen_displays only; it never validates that an external host registered a tool.
+- Control Center IPC for connection test, display geometry and support report must remain sender-bound; no caller-provided command execution or sensitive data in a report.
+- Keep `docs/CONNECTION_DIAGNOSTICS.md` and `test/mcp-probe.test.mjs` up to date.

@@ -56,6 +56,8 @@ Agent                     HandoffGlass                         You
 
 Try the [interactive scene gallery](examples/scene-gallery.html) with `npm run gallery`, or open the [multilingual product preview](site/index.html) with `npm run site:preview`.
 
+Local connection test: `npm run connection:check` · [Diagnostics guide](docs/CONNECTION_DIAGNOSTICS.md).
+
 ## Get started
 
 **Node.js 22+** · **macOS / Windows** · an MCP-capable desktop agent

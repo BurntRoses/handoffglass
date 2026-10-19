@@ -1,3 +1,11 @@
+## v0.12.0 — local MCP connection check and display layout
+
+- Add an isolated real stdio-MCP preflight: initialize, tool discovery, and read-only headless screen geometry. No host registration is assumed.
+- Surface manual diagnostics and code-specific recovery in Control Center without collecting task data.
+- Visualize global DIP display bounds and scaling (including negative monitor origins).
+- Copy an allowlisted support report free of paths, tokens and task content.
+- Add subprocess timeout, ownership and bounds tests and a three-platform CI connection check.
+
 ## Unreleased — desktop Control Center
 
 - Dedicated four-page native desktop management window (overview, Agent connections, appearance, diagnostics).

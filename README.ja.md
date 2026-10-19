@@ -40,6 +40,8 @@ AI エージェントのためのローカル対話レイヤー。操作する�
 トレイの **Control Center** から、ローカルサービスの状態、各エージェント用 MCP 設定、表示設定、読み取り専用 UI 検索の許可、簡潔な診断を確認できます。API の利用履歴は、特定のクライアントが接続済みであることを保証しません。[詳細](docs/CONTROL_CENTER.md)。
 
 
+ローカル接続チェック：`npm run connection:check` · [接続診断ガイド](docs/CONNECTION_DIAGNOSTICS.md)。
+
 ## はじめる
 
 **Node.js 22+** · **macOS / Windows** · MCP に対応したローカルエージェント
