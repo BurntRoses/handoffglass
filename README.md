@@ -16,6 +16,12 @@ A local interaction layer for AI agents. Point to the next step, bring a human i
 
 </div>
 
+[Installation & setup guide](site/getting-started.html)
+
+[First-run desktop guide](docs/ONBOARDING.md)
+
+[Brand & app icons](docs/BRAND.md)
+
 ## A better moment between agent and human
 
 Agents can work for hours. Sometimes the next step is yours: sign in, review access, choose an account, or make a decision. HandoffGlass makes that moment visible on your desktop—without breaking the agent's workflow.
