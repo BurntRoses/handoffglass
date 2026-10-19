@@ -207,7 +207,8 @@ registerSetupIPC();
 registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics'),
   getDisplayInfo:()=>screen.getAllDisplays().map((d,i)=>({
     id:String(d.id),bounds:{x:d.bounds.x,y:d.bounds.y,width:d.bounds.width,height:d.bounds.height},
-    scaleFactor:d.scaleFactor,primary:d.id===screen.getPrimaryDisplay().id
+    scaleFactor:d.scaleFactor,primary:d.id===screen.getPrimaryDisplay().id,
+    ...(process.platform==='win32'?{physicalBounds:screen.dipToScreenRect(null,d.bounds)}:{})
   }))});
 await setupTrayAndMenu();
 syncDisplays();

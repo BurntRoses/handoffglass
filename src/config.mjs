@@ -30,7 +30,11 @@ export function configPayload({ command = process.execPath, entry = resolve(root
 export function hostConfig(host, options = {}) {
   const spec = HOSTS[host];
   if (!spec) throw new TypeError(`Unknown host: ${host}`);
-  const entry = configPayload(options);
+  // A declaration about the configuration that launched this process. Activity is
+  // only shown after an authenticated local MCP request reaches the broker.
+  const entry = configPayload({ ...options, envOverrides: {
+    ...(options.envOverrides || {}), HANDOFFGLASS_HOST_ID: host
+  } });
   if (spec.family === 'toml') {
     // JSON-quoted UTF-8 strings are valid TOML basic strings, including Windows paths.
     const env = entry.env ? `\n[mcp_servers.handoffglass.env]\n${Object.entries(entry.env).map(([k,v]) => `${k} = ${JSON.stringify(v)}`).join('\n')}\n` : '';

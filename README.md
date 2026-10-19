@@ -56,7 +56,7 @@ Agent                     HandoffGlass                         You
 
 Try the [interactive scene gallery](examples/scene-gallery.html) with `npm run gallery`, or open the [multilingual product preview](site/index.html) with `npm run site:preview`.
 
-Local connection test: `npm run connection:check` · [Diagnostics guide](docs/CONNECTION_DIAGNOSTICS.md).
+Local connection test: `npm run connection:check` · [Connection evidence](docs/HOST_ACTIVITY.md) · [Display geometry](docs/GEOMETRY_RECHECK.md) · [Diagnostics guide](docs/CONNECTION_DIAGNOSTICS.md).
 
 ## Get started
 

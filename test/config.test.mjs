@@ -5,7 +5,8 @@ import { claudeConfig, codexConfig } from '../src/config.mjs';
 test('MCP JSON contains a valid executable and absolute entry path', () => {
   const result = JSON.parse(claudeConfig({ command: '/usr/local/bin/node', entry: '/Users/test/handoff glass/src/mcp.mjs' }));
   assert.deepEqual(result.mcpServers.handoffglass, {
-    command: '/usr/local/bin/node', args: ['/Users/test/handoff glass/src/mcp.mjs']
+    command: '/usr/local/bin/node', args: ['/Users/test/handoff glass/src/mcp.mjs'],
+    env: {HANDOFFGLASS_HOST_ID:'claude'}
   });
 });
 test('Codex config quotes Windows paths and embedded spaces', () => {
@@ -28,12 +29,14 @@ test('all supported host profiles share a single stdio entry and do not rewrite 
       assert.deepEqual(object.command, [options.command,options.entry]);
       assert.equal(object.type,'local');
       assert.equal(object.environment.HANDOFFGLASS_OUTPUT,'compact');
+      assert.equal(object.environment.HANDOFFGLASS_HOST_ID,host);
     } else {
       const object = JSON.parse(config);
       const key = host === 'vscode' ? 'servers' : host === 'zed' ? 'context_servers' : 'mcpServers';
       assert.equal(object[key].handoffglass.command, options.command);
       assert.deepEqual(object[key].handoffglass.args, [options.entry]);
       assert.equal(object[key].handoffglass.env.HANDOFFGLASS_OUTPUT, 'compact');
+      assert.equal(object[key].handoffglass.env.HANDOFFGLASS_HOST_ID, host);
       if (host === 'vscode') assert.equal(object[key].handoffglass.type, 'stdio');
       if (host === 'gemini') assert.equal(object[key].handoffglass.timeout, 60000);
     }

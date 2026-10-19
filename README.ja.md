@@ -91,3 +91,5 @@ npm run preferences -- set visualStyle=handdrawn
 [アーキテクチャ](docs/ARCHITECTURE.md) · [シーン仕様](docs/SCENE_PROTOCOL.md) · [ビジュアルガイド](docs/VISUAL_LANGUAGE.md) · [MCP Skill](skills/visual-handoff/SKILL.md) · [ネイティブ実行環境](docs/NATIVE_RUNTIME.md) · [セキュリティ](docs/SECURITY.md)
 
 <sub>非公開の開発プレビュー。インストーラーは未署名です。CI はパッケージと MCP 起動を検証していますが、画面操作の実機試験は継続中です。ライセンス: UNLICENSED。</sub>
+
+接続と検証：[ローカルホストの呼び出し履歴](docs/HOST_ACTIVITY.md) · [ディスプレイ座標の再確認](docs/GEOMETRY_RECHECK.md)。

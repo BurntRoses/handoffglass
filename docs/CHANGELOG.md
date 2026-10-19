@@ -1,3 +1,12 @@
+## v0.13.0 — on-device host activity and geometry rechecks
+
+- Attribute *observed* authenticated MCP tool calls to the caller-declared host configuration. No host enrollment, identity authentication or persisted task log is implied. Evidence expires after fifteen minutes.
+- Show local tool call evidence in Control Center (separate from isolated self-tests), with clear trust labels and no task content.
+- Extend `ui_locate` with an optional previous observation for deterministic motion and display-layout comparisons, without new model tools or automatic clicks.
+- Reject Windows UIA rectangles crossing monitor/DPI boundaries rather than transforming only their center point.
+- Check display metadata consistency in Control Center; this is **not** physical target-accuracy calibration.
+- Maintain small MCP tool schemas and read-only, local-first behavior.
+
 ## v0.12.0 — local MCP connection check and display layout
 
 - Add an isolated real stdio-MCP preflight: initialize, tool discovery, and read-only headless screen geometry. No host registration is assumed.

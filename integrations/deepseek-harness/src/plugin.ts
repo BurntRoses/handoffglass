@@ -11,7 +11,7 @@ export const inject = ['tools']
 
 export function apply(ctx: Context) {
   // A single client instance scopes ownership to this plugin. Reload creates a new owner.
-  const bridge = new BrokerClient()
+  const bridge = new BrokerClient({ env: { ...process.env, HANDOFFGLASS_HOST_ID: 'deepseek' } })
   ctx.tools.register(defineTool({
     name: 'handoffglass_guide',
     description: 'Show grounded visual guidance on the human local desktop. Human may refuse. Never invent screen coordinates or click on their behalf.',

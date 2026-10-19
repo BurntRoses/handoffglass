@@ -9,6 +9,7 @@ import { getAccessibilityConsent, setAccessibilityConsent } from '../native/pref
 import { summarizeDiagnostics } from './center-model.mjs';
 import { checkLocalMcp } from '../local/mcp-probe.mjs';
 import { makeSupportReport } from '../local/support-report.mjs';
+import { inspectLayout } from '../native/calibration.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const HOSTS_SET = new Set(Object.keys(HOSTS));
 let center = null;
@@ -84,7 +85,11 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
   });
   ipcMain.handle('hg:center:displays',async event=>{
     if(!authorized(event))return {ok:false,code:'unauthorized'};
-    try{return {ok:true,displays:getDisplayInfo()};}
+    try{
+      const displays=getDisplayInfo();
+      const normalized=displays.map(d=>({id:d.id,...d.bounds,scaleFactor:d.scaleFactor,physicalBounds:d.physicalBounds}));
+      return {ok:true,displays,layoutCheck:inspectLayout(normalized,process.platform)};
+    }
     catch{return {ok:false,code:'display_unavailable'};}
   });
   ipcMain.handle('hg:center:permission',async event=>{

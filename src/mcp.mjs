@@ -62,7 +62,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.11.0' });
+  const server = new McpServer({ name: 'handoffglass', version: '0.13.0' });
   server.registerPrompt('assist-with-ui-step', {
     title: 'Help with a desktop step',
     description: 'Plan a safe human-guided step in an existing task; use the HandoffGlass tools when appropriate.',
@@ -100,8 +100,11 @@ function makeServer() {
   server.registerTool('ui_locate', {
     title: 'Locate foreground UI control (explicit opt-in)',
     description: 'Read-only exact-match macOS Accessibility / Windows UIA targeting, requires HANDOFFGLASS_ENABLE_ACCESSIBILITY=1, foreground app and granted OS access; never clicks.',
-    inputSchema: z.object({ target: uiTarget }), annotations: { readOnlyHint: true }
-  }, safe(({ target }) => broker.locate(target)));
+    inputSchema: z.object({ target: uiTarget,
+      previous: z.object({x:z.number().finite(),y:z.number().finite(),width:z.number().positive(),height:z.number().positive(),
+        layoutSignature:z.string().regex(/^[0-9a-f]{16}$/).optional()}).optional()
+    }), annotations: { readOnlyHint: true }
+  }, safe(({ target, previous }) => broker.locate(target, previous)));
   server.registerTool('visual_show', {
     title: 'Show on-screen guidance',
     description: 'Draw grounded global DIP targets or exact foreground {app,role,name} target (with explicit accessibility opt-in), optionally with template focus|point|inspect|caution|sequence|verify or an explicit layered scene v1. Never guess coordinates.',

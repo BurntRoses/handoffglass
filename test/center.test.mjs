@@ -12,7 +12,7 @@ const state=(patch={})=>({schemaVersion:1,broker:'running',desktopConnected:true
 test('center readout distinguishes a running broker from an authenticated host connection',()=>{
   assert.deepEqual(summarizeDiagnostics(state(),now), {
     broker:'running',desktop:'present',agentActivity:'not_observed',displays:2,
-    session:{state:'idle'},observation:'agent_activity_not_host_registration'
+    session:{state:'idle'},hosts:[],observation:'authenticated_tool_call_host_label_unverified'
   });
   assert.equal(summarizeDiagnostics(state({lastAgentActivityAt:now-119999}),now).agentActivity,'recent');
   assert.equal(summarizeDiagnostics(state({lastAgentActivityAt:now-120001}),now).agentActivity,'not_observed');
@@ -74,5 +74,7 @@ test('desktop control center is a separate sandboxed surface with narrow IPC',as
   for(const page of ['overview','connections','appearance','diagnostics'])assert.match(html,new RegExp(`data-view="${page}"`));
   assert.match(css,/prefers-reduced-motion/);
   assert.match(ui,/textContent/);
+  assert.match(html,/id=\"hostEvidence\"/);
+  assert.match(ui,/config_declared|observedHosts/);
   assert.doesNotMatch(ui,/innerHTML\s*=/);
 });
