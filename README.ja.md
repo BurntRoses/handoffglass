@@ -1,100 +1,42 @@
 <div align="center">
 
-<img src="assets/brandmark.svg" alt="HandoffGlass" width="76" height="76" />
+<img src="assets/brandmark.svg" alt="HandoffGlass" width="76" />
 
 # HandoffGlass
 
 **次の一手を、見えるかたちに。**
 
-AI エージェントのためのローカル対話レイヤー。操作する場所を示し、人の判断を受け取り、元のエージェントへ結果を戻します。
+エージェントの次の操作をデスクトップに表示し、人の判断を受け取り、作業を再開します。
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [**日本語**](README.ja.md)
+[English](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-[はじめる](#はじめる) · [連携](#連携) · [ビジュアルシステム](#ビジュアルシステム) · [ドキュメント](#ドキュメント)
-
-<img src="assets/hero.svg" alt="HandoffGlass のデスクトップ案内と人への引き継ぎを示すコンセプト図" width="100%" />
+<img src="assets/hero.svg" alt="Desktop guidance" width="100%" />
 
 </div>
 
-[インストールと連携](site/getting-started.html)
+## 見せる。選ぶ。続ける。
 
-[初回起動とデスクトップ版](docs/ONBOARDING.md)
+HandoffGlass はローカルの AI エージェントとデスクトップをつなぎます。矢印、リング、スポットライト、手描き風アニメーションで対象を示し、専用パネルで操作結果を受け取ります。
 
-[ブランドとアプリアイコン](docs/BRAND.md) · [UI デザイン](docs/INTERFACE_SYSTEM.md)
+<img src="assets/interaction-flow.svg" alt="Interaction flow" width="100%" />
 
-## エージェントが進め、人が決める
+## Codex に引き継ぐ
 
-サインイン、アクセス権の確認、アカウントの選択。人の判断が必要な場面で、HandoffGlass は画面上の対象を示し、操作結果をエージェントに返します。
+[Codex 引き継ぎガイド](docs/CODEX_HANDOFF.md)を渡してください。Codex が GitHub からの取得、環境構築、実機テスト、修正、PR 作成まで進めます。
 
-<img src="assets/interaction-flow.svg" alt="HandoffGlass interaction flow" width="100%" />
-
-| | |
-|:--|:--|
-| **画面で案内** | 矢印、リング、スポットライト、更新できるレイヤー。 |
-| **人に引き継ぐ** | 完了・拒否・キャンセルを区別する専用パネル。 |
-| **作業に戻る** | 状態を構造化して返し、実際の結果はエージェントが検証。 |
-| **ローカル中心** | 共有ブローカー、許可制の UI 要素検索、端末内の表示設定。 |
-
-### デスクトップ・コントロールセンター
-
-トレイの **Control Center** から、ローカルサービスの状態、各エージェント用 MCP 設定、表示設定、読み取り専用 UI 検索の許可、簡潔な診断を確認できます。API の利用履歴は、特定のクライアントが接続済みであることを保証しません。[詳細](docs/CONTROL_CENTER.md)。
-
-ローカル接続チェック：`npm run connection:check` · [接続診断ガイド](docs/CONNECTION_DIAGNOSTICS.md)。
-
-## はじめる
-
-**Node.js 22+** · **macOS / Windows** · MCP に対応したローカルエージェント
+## クイックスタート
 
 ```bash
-git clone https://github.com/BurntRoses/handoffglass.git
-cd handoffglass
 npm ci
 npm run verify
 npm run configure
+npm run desktop:demo
 ```
 
-生成された設定を利用するか、stdio MCP サーバーを直接登録します。
+## エージェント連携
 
-```json
-{
-  "mcpServers": {
-    "handoffglass": {
-      "command": "node",
-      "args": ["/absolute/path/to/handoffglass/src/mcp.mjs"]
-    }
-  }
-}
-```
+Codex · Claude · Cursor · VS Code · Gemini CLI · Trae · Cline · Windsurf · OpenCode · Zed · DeepSeek Harness · WorkBuddy
 
-実際の画面表示は `npm run desktop:demo`、シーンのプレビューは `npm run gallery` で確認できます。多言語の[製品プレビュー](site/index.html)は `npm run site:preview` で起動します。
+[連携一覧](docs/COMPATIBILITY.md) · [設計](docs/ARCHITECTURE.md) · [ビジュアル](docs/VISUAL_LANGUAGE.md) · [文書一覧](docs/INDEX.md)
 
-## 連携
-
-`Claude Code` · `Codex` · `Cursor` · `VS Code` · `Gemini CLI` · `TRAE` · `Cline` · `Windsurf` · `OpenCode` · `Zed`
-
-[DeepSeek Harness 用 Cordis プラグイン](integrations/deepseek-harness/)と [WorkBuddy 用 MCP + Skill コネクター](integrations/workbuddy/)も用意しています。各ホスト上での受け入れ試験は今後実施します。[対応状況](docs/COMPATIBILITY.md)をご覧ください。
-
-## ビジュアルシステム
-
-6 種類のシーンテンプレート、7 種類の SVG プリミティブ。レイヤー更新、手描きの輪郭、柔らかなハイライト、段階的な案内を共通レンダラーで描画します。
-
-```bash
-npm run gallery
-npm run preferences -- set visualStyle=handdrawn
-```
-
-ユーザーの表示設定を優先します。UI 要素の検索は許可制で、クリックや承認は代行しません。
-
-## ドキュメント
-
-[アーキテクチャ](docs/ARCHITECTURE.md) · [シーン仕様](docs/SCENE_PROTOCOL.md) · [ビジュアルガイド](docs/VISUAL_LANGUAGE.md) · [MCP Skill](skills/visual-handoff/SKILL.md) · [ネイティブ実行環境](docs/NATIVE_RUNTIME.md) · [セキュリティ](docs/SECURITY.md)
-
-<sub>非公開の開発プレビュー。インストーラーは未署名です。CI はパッケージと MCP 起動を検証していますが、画面操作の実機試験は継続中です。ライセンス: UNLICENSED。</sub>
-
-接続と検証：[ローカルホストの呼び出し履歴](docs/HOST_ACTIVITY.md) · [ディスプレイ座標の再確認](docs/GEOMETRY_RECHECK.md)。
-
-### ハンドオフイベント（v0.15）
-
-`handoff_events` はローカルの位置変更・追跡失敗・復帰・ユーザーの判断をカーソル方式で返します。完了の自己申告は操作の検証ではありません。[イベント仕様](docs/INTERACTION_EVENTS.md)。
-
-ローカル開発：[Codex 引き継ぎガイド](docs/CODEX_HANDOFF.md) · [ドキュメント一覧](docs/INDEX.md)。
+<sub>非公開開発リポジトリ · v0.15 · UNLICENSED</sub>
