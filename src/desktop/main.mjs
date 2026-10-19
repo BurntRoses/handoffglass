@@ -1,5 +1,6 @@
 import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage, shell, dialog, clipboard } from 'electron';
 import { hostConfig } from '../config.mjs';
+import { showSetup, registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
 import { loadPreferences, savePreferences, VISUAL_STYLES, MOTION_MODES } from '../local/preferences.mjs';
 import { dirname, join } from 'node:path';
@@ -170,6 +171,7 @@ async function setupTrayAndMenu() {
     click:async()=>{try{await savePreferences({density:value});}catch(error){dialog.showErrorBox('Density preference',error.message);}}
   }));
   const context = Menu.buildFromTemplate([
+    { label: 'Setup & Agent connections…', click: () => void showSetup() },
     { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
     item,
     { label: 'Visual style (next handoff)', submenu: styleOptions },
@@ -199,8 +201,10 @@ async function setupTrayAndMenu() {
     if (!icon.isEmpty()) { tray = new Tray(icon); tray.setToolTip('HandoffGlass'); tray.setContextMenu(context); tray.on('double-click', () => { if (current?.mode === 'handoff') panel.showInactive(); }); }
   } catch (error) { console.warn('Tray unavailable:',error.message); }
 }
+registerSetupIPC();
 await setupTrayAndMenu();
 syncDisplays();
+void maybeShowFirstRun().catch(error => console.error('First-run setup:', error.message));
 function requestDisplaySync() {
   clearTimeout(displayDebounce);
   displayDebounce = setTimeout(syncDisplays, 140);

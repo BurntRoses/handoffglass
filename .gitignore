@@ -10,3 +10,6 @@ dist/
 
 dist/
 native/macos/hg-locate
+
+# Deterministically generated during desktop packaging
+build/icons/

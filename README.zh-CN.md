@@ -16,6 +16,12 @@
 
 </div>
 
+[逐步安装与接入](site/getting-started.html)
+
+[首次启动与桌面安装](docs/ONBOARDING.md)
+
+[品牌与应用图标](docs/BRAND.md)
+
 ## Agent 做事，关键一步由你决定
 
 登录、授权、选账户、确认设置。有些操作需要人亲自完成。HandoffGlass 在真实桌面上指出位置、展示必要的说明，并把用户的选择反馈给 Agent，让任务接着往下走。
