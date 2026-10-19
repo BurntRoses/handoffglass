@@ -1,98 +1,62 @@
-# Codex local development handoff
+# Codex 本地接手指南
 
-**Baseline:** HandoffGlass 0.15.0; private repository `BurntRoses/handoffglass`. This handoff was prepared against commit `9b06d207ee53a16bc73b94ae9dd58e96eb3cfa0b`. Always check `git rev-parse HEAD` before using these notes; newer commits and real observations take precedence.
+**项目：** [BurntRoses/handoffglass](https://github.com/BurntRoses/handoffglass)
 
-## Objective / 目标
+**交接方式：** 从获取 GitHub 仓库开始，由 Codex 独立执行。包括拉取文件、阅读源码、安装环境、运行桌面程序、测试、修复、提交和创建 Pull Request。
 
-Move from headless protocol confidence to a desktop application that reliably guides a person through an actual task and lets the calling Agent continue. **Work on the installed application on a real Mac/Windows computer.** The product is local-first; do not add screen surveillance, cloud dependencies, parallel Agents or a second Broker to accelerate testing.
+## 1. 自行获取仓库
 
-### Five-minute start on the user's Mac (Apple Silicon)
+先检查当前工作区。如果已在该仓库，核对远程地址后直接更新；否则使用本机已有的 GitHub 认证克隆：
 
-```sh
-git clone https://github.com/BurntRoses/handoffglass.git
+```bash
+pwd
+gh auth status
+gh repo clone BurntRoses/handoffglass
 cd handoffglass
-node --version                 # Node 22 or later
-npm ci                        # desktop Electron included; requires network initially
-npm run verify                # syntax, repository integrity, 126+ Node regressions
-npm run test:integration      # actual MCP SDK client/server handshake
-npm run connection:check      # independent local MCP initialization
-npm run test:extras           # optional tool schemas and replies
-npm run doctor                # local environment diagnostics
-npm run desktop:demo          # real Electron UI: requires an interactive desktop
+git fetch origin
+git status --short
+git rev-parse HEAD
 ```
 
-The `npm run verify` suite is **not** desktop acceptance. On first native inspection, explicitly enable read-only Accessibility in the HandoffGlass UI, check `npm run accessibility`, and grant access to the appropriate helper in macOS System Settings; do not silently prompt or script OS permission changes. Inspect console logs without leaking account content. Test with harmless mock windows, not real payment or authorization screens.
+根据实际工作目录调整命令，无需让用户先手动下载或解压代码。建立 `codex/*` 工作分支。
 
-### Entry points and state ownership
+## 2. 阅读并运行
 
-```text
-Agent desktop/CLI                   HandoffGlass (one OS account)
-      │
-      └─ stdio → src/mcp.mjs → src/runtime.mjs ── authenticated loopback ─┐
-                                                                         │
-                      src/broker.mjs → HandoffManager (one active session)│
-                                │                  ↑                    │
-                      src/bridge.mjs ───────────────┘                    │
-                                │ separate desktop bearer              │
-                      Electron src/desktop/main.mjs                     │
-                       ├─ transparent, mouse-through overlays           │
-                       ├─ human decision panel                          │
-                       ├─ setup and Control Center                      │
-                       └─ native locator via macOS AX / Windows UIA     │
-                                                                         │
-               Local preferences: user-owned, narrow, no operation log  ┘
+按顺序阅读 `AGENTS.md`、`docs/ARCHITECTURE.md`、`docs/DESKTOP_QA.md` 与相关模块及其测试。
+
+```bash
+node --version
+npm ci
+npm run handoff:check
+npm run test:integration
+npm run test:extras
+npm run connection:check
+npm run doctor
+npm run desktop:demo
 ```
 
-Canonical descriptions: [architecture](ARCHITECTURE.md), [security](SECURITY.md), [scene protocol](SCENE_PROTOCOL.md), [interaction events](INTERACTION_EVENTS.md), [native behavior](NATIVE_RUNTIME.md). `docs/INDEX.md` is the document map.
+记录操作系统、Git 提交、测试结果和可复现问题。遇到失败就定位并修改源码。
 
-### What is implemented — and what is not verified
+## 3. 完成真实桌面交接
 
-| Capability | Implementation | Evidence still required |
-|---|---|---|
-| Owner-isolated MCP, single Broker, session state/events | Node tests; GitHub three-OS headless CI | Real host reconnection without crossing owners |
-| Accessible target lookup, opt-in tracking and stale-target removal | macOS Swift / Windows UIA; deterministic tests | AX/UIA behavior, permissions, exact highlight drift on physical monitors |
-| Electron desktop setup, Control Center, overlay, handoff panel | Source, simulated browser layout tests, packaged structural smoke | Click-through, focus, full-screen, display hotplug, HiDPI, normal quit/relaunch |
-| Claude/Codex/Trae etc. MCP config generation | Generator and protocol tests | Each real client launching tools with correct working directory and executable |
-| DeepSeek Cordis, WorkBuddy connector | Integration source and shape tests | Real host load and end-to-end human handoff |
-| Unsigned macOS/Windows packages | GitHub Actions build/stdio checks | Clean install, app permissions, OS security warnings, uninstall; production signing later |
-| Context-size savings | Synthetic compact vs normal response bytes | Actual model token accounting and task success/false-target baseline |
+连接 Codex MCP 配置，在本机使用测试窗口完成整条流程：
 
-**Safety semantics:** `completed` remains `verified=false`; `handoff_events` reports cursor-based local state transitions, not proof of the downstream effect. New MCP clients never inherit the previous process's owner identity. Do not solve reconnection by making sessions globally claimable.
+**Codex 发起 → 目标定位 → 视觉提示 → 用户操作 → 事件回传 → Codex 核验并继续。**
 
-## Work order — concrete experiments
+逐项测试窗口移动、尺寸变化、目标消失和恢复、显示器切换、不同 DPI、焦点与鼠标穿透、完成和拒绝、进程重启。
 
-**P0 · One end-to-end Codex scenario, then fix failures.** Connect the real local Codex CLI/desktop client via generated configuration (`node scripts/configure.mjs codex`), trigger a synthetic `handoff_request`, select Complete and Decline in separate runs, then verify agent-side `handoff_events` and independent task state. Record tool arguments, scrubbed responses, session/owner semantics, and whether actual overlay appeared. Refuse unsupported privileges.
+运行完整桌面界面，检查深浅主题、动效、字体及中英日文案。对问题直接修复并新增测试。
 
-**P0 · Native geometry and trust.** On macOS AX first (the primary development machine), exercise an exact role/name target; move/resize, switch apps, hide/show control, change Space, deny/revoke permission and move a secondary screen left of the primary. Measure target drift and recovery latency on video **without private UI**. On Windows repeat with 100% / 150% mixed scaling. Fix source of coordinate error, not a compensating magic offset.
+## 4. 工作优先级
 
-**P0 · Desktop UX.** Confirm transparent overlays pass mouse events through and never trap focus; panel always has a reachable Decline/Cancel path. Test dark/light, reduced motion, Chinese/English/Japanese copy, switching displays and Electron restart. Compare actual app screenshot with `site/` demo only as a visual reference.
+1. **任务闭环：** MCP 接通、准确定位、状态回传与继续执行。
+2. **桌面体验：** 窗口跟随、鼠标穿透、多屏、权限、动画与排版。
+3. **安装发布：** 原生构建、安装升级、签名公证。
+4. **宿主适配：** DeepSeek Harness、WorkBuddy、Trae 的真实调用测试。
+5. **性能对照：** 准确率、耗时、模型调用次数及 token。
 
-**P1 · Real Harness adoption.** Install and run DeepSeek Harness, WorkBuddy, Trae, then Claude/Codex as relevant. Confirm actual tool calls in Control Center; note caller labels are configuration-supplied, not authenticated client identity. Do not mark unsupported hosts as compatible merely because MCP JSON can be emitted.
+## 5. 提交
 
-**P1 · Distribution.** Build unsigned packages with `npm run dist:desktop`, run `npm run test:packaged` where applicable, inspect upgrade/reinstall, packaging resources, signatures and first-run gating. Do not publish a production binary until signing/notarization and acceptance pass.
+每轮完成 `npm run handoff:check`、MCP 集成测试和对应实机检查；推送独立分支并创建 PR，写清修改文件、测试结果、实际表现和下一步。
 
-**P2 · Measured efficiency.** On a fixed, repeatable task set compare text-only, static mark and tracked HandoffGlass handoffs. Record wall time, tool calls, model token usage, correct targets, refusals and downstream verification. Reject token savings that increase false guidance.
-
-Primary issue tracker: [#1 desktop QA](https://github.com/BurntRoses/handoffglass/issues/1), [#3 native targeting](https://github.com/BurntRoses/handoffglass/issues/3), [#4 distribution](https://github.com/BurntRoses/handoffglass/issues/4), [#9 Harness E2E](https://github.com/BurntRoses/handoffglass/issues/9), [#10 efficiency](https://github.com/BurntRoses/handoffglass/issues/10).
-
-## Reproducible QA record
-
-Use one entry per executed experiment, in the PR or corresponding private Issue; avoid creating a growing repository log for every test.
-
-```text
-Host/OS:           macOS version / Windows build, CPU, Electron version
-Build:             git SHA, source vs installer, Node version
-Environment:       displays, scaling, foreground app, AX/UIA permission
-Scenario:          exact non-sensitive reproduction steps
-Expected / actual: behavior, coordinates when not sensitive, status + error codes
-Evidence:          redacted video or screenshot location (private, no secrets)
-Tests:             exact commands and pass/fail counts
-Disposition:       fixed / reproduced / blocked and next action
-```
-
-## Completion criteria
-
-- Work on a branch; submit small, reproducible PRs rather than a large rewrite. `npm run verify` and full MCP tests pass, and relevant real GUI scenarios pass on the operating system touched.
-- No credentials, user screen contents, app-data directories or generated Electron executables committed. `.gitignore` intentionally excludes build outputs.
-- Explain measured impact and remaining limitations; update `docs/DESKTOP_QA.md` only with genuine device observations. Keep private bugs and evidence in private Issues.
-- Preserve the owner/bearer boundary, OS consent and the human decision contract in all fixes.
+[架构](ARCHITECTURE.md) · [桌面验收](DESKTOP_QA.md) · [交互事件](INTERACTION_EVENTS.md) · [路线图](ROADMAP.md) · [文档索引](INDEX.md)

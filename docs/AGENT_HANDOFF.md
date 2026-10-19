@@ -1,7 +1,5 @@
-# Agent development notes
+# Agent 开发交接
 
-For the current, executable handoff, see **[Codex local development handoff](CODEX_HANDOFF.md)**. It includes installation, actual host and desktop test scenarios, priorities, evidence collection and acceptance criteria.
+[Codex 接手指南](CODEX_HANDOFF.md) 是当前执行入口。Codex 从 GitHub 获取仓库开始，负责环境配置、实机测试、修改、回归验证与 PR。
 
-The corresponding compact repository-wide agent instructions are in [AGENTS.md](../AGENTS.md). The runtime contract is documented in [Architecture](ARCHITECTURE.md), [Scene protocol](SCENE_PROTOCOL.md), [Interaction events](INTERACTION_EVENTS.md), [Security](SECURITY.md) and [Desktop QA](DESKTOP_QA.md).
-
-Prior version-by-version implementation notes are preserved in Git history; do not treat those older plans as a backlog.
+[工程规则](../AGENTS.md) · [架构](ARCHITECTURE.md) · [桌面验收](DESKTOP_QA.md) · [事件接口](INTERACTION_EVENTS.md) · [文档索引](INDEX.md)

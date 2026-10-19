@@ -1,40 +1,41 @@
-# HandoffGlass — instructions for coding agents
+# HandoffGlass · Codex 工程规则
 
-Start with [the Codex handoff](docs/CODEX_HANDOFF.md), then [the architecture map](docs/ARCHITECTURE.md). `docs/INDEX.md` links the rest. Treat the current code, tests and actual desktop observations as authoritative over old prose.
+## 接手入口
 
-## Goal
+从 [Codex 接手指南](docs/CODEX_HANDOFF.md) 开始。Codex 自行获取 GitHub 私有仓库、建立工作分支、配置环境、运行程序和测试、修复问题、提交 PR。
 
-Make the existing **local** human↔agent visual handoff reliable on real macOS and Windows desktops. Fix failures, run acceptance scenarios, improve the UX, and document evidence. Do not build a new assistant, browser automation bot, parallel broker, or platform-specific copy of the core.
+## 目标
 
-## Invariants
+把 HandoffGlass 打磨成稳定、精确、美观的原生桌面交接工具。先完成真实 Codex → HandoffGlass → 用户 → Codex 任务闭环，再处理定位精度、桌面交互、安装发布与其他 Harness。
 
-1. Humans make sensitive decisions. Never auto-approve permissions, bypass MFA, click a payment/consent control or invent a target location.
-2. `completed` is a **user report** (`verified: false`); independently verify the downstream result. Refusals, cancellations and timeouts are final.
-3. Keep the per-user Broker loopback-only with separate agent/desktop bearer credentials, bounded requests, owner isolation and a single active session. Never recover an old session just from a public ID.
-4. Accessibility inspection requires explicit opt-in and exact foreground evidence. On ambiguous, stale, unavailable or cross-display targets: **remove guidance rather than guess**.
-5. No hidden screenshots, recording, OCR, telemetry, external calls, long-term task history or Agent writes to user preferences. Follow OS reduced-motion settings.
-6. A GUI crash or missing desktop must not be reported as a displayed overlay. Do not conflate headless CI, packaged MCP handshake and native desktop acceptance.
-7. Preserve public MCP tool names and response contracts. Keep optional schema-heavy tools behind `HANDOFFGLASS_EXTRAS=1`.
-8. Keep Electron optional for headless MCP. Native or renderer edits require macOS/Windows regression scenarios, not just Node tests.
+## 代码地图
 
-## Change workflow
-
-- Work from a fresh branch, inspect the affected module and its adjacent tests first; keep changes scoped. Do not change unrelated user settings or rewrite history.
-- Baseline: `npm ci`, `npm run verify`, `npm run test:integration`, `npm run connection:check`, `npm run test:extras` (Node 22+). If installation is unavailable, run dependency-free checks and state the missing verification.
-- For GUI work: `npm run desktop:demo` and `docs/DESKTOP_QA.md` on an **actual** interactive desktop. Record OS version, display layout/scaling, permissions, reproduction steps, expected/actual result and redacted evidence.
-- For packaging: `npm run build:icons`, `npm run native:macos` on macOS, then `npm run dist:desktop`. Inspect `electron-builder.config.cjs`; CI creates **unsigned engineering previews**, not a signed release.
-- For scene/visual changes: run `npm run gallery`, `npm run scene:lint` and update the *production* renderer, schema, preview and tests together.
-- Every PR: explain behavior, commands/results, evidence, remaining risk and any new permissions. Do not mark GitHub Issues #1, #3, #4, #9 or #10 complete without their stated real-world evidence.
-
-## Code ownership map
-
-| Change | Files to read first |
+| 工作内容 | 源码入口 |
 |---|---|
-| Session/state/ownership | `src/core.mjs`, `src/local/interaction-journal.mjs`, `test/core.test.mjs` |
-| MCP/host registration | `src/mcp.mjs`, `src/config.mjs`, `src/host-install.mjs` |
-| Broker, launch, security | `src/runtime.mjs`, `src/broker.mjs`, `src/bridge.mjs` |
-| Native AX/UIA and tracking | `src/native/`, `native/`, `test/native-locator.test.mjs`, `test/anchor-tracker.test.mjs` |
-| On-screen presentation | `src/desktop/`, `src/visual/`, `docs/SCENE_PROTOCOL.md` |
-| Packaging/installation | `electron-builder.config.cjs`, `.github/workflows/desktop-packages.yml`, `scripts/verify-package.mjs` |
+| MCP 工具 / 配置 | `src/mcp.mjs`、`src/config.mjs`、`src/hosts/` |
+| 会话 / Broker / 通信 | `src/core.mjs`、`src/broker.mjs`、`src/bridge.mjs`、`src/runtime.mjs` |
+| 桌面界面 | `src/desktop/` |
+| 标注与场景 | `src/visual/` |
+| UI 定位与跟随 | `src/native/`、`native/` |
+| 事件 / 偏好 / 策略 | `src/local/` |
+| 宿主适配 | `integrations/`、`skills/` |
+| 构建与验收 | `scripts/`、`test/`、`.github/workflows/` |
 
-If you encounter a mismatch between documentation and code, validate the code path, fix the description, and add a regression test where appropriate. Avoid expanding the default tool schema or runtime dependencies without a measured benefit.
+## 工程约定
+
+- 保持单一 Broker、会话所有权隔离和桌面/Agent 独立通信凭据。
+- 原生坐标以实时 AX/UIA 证据为依据；目标失效后清除旧标注并重新定位。
+- 关键授权与确认由用户完成；Agent 使用实际应用状态核验结果。
+- 保持 MCP 接口兼容、Electron 可选以及界面资源本地化。
+- 视觉改动同步更新生产渲染器、预览和测试，尊重系统减少动态效果的设置。
+- 文档采用简洁直接的写法，记录操作、结果和真实问题。
+
+## 工作节奏
+
+1. 自动获取或更新仓库，创建 `codex/*` 分支。
+2. 运行 `npm ci`、`npm run handoff:check`、`npm run test:integration`、`npm run connection:check`。
+3. 在本地运行 `npm run desktop:demo`，完成 [桌面验收](docs/DESKTOP_QA.md)。
+4. 修复可复现的问题，编写回归测试。
+5. 推送分支并创建 PR，附上执行结果和下一项工作。
+
+[系统架构](docs/ARCHITECTURE.md) · [开发路线图](docs/ROADMAP.md) · [文档索引](docs/INDEX.md)
