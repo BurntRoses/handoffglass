@@ -9,7 +9,7 @@ const here=dirname(fileURLToPath(import.meta.url));
 const HOST_ALLOWLIST=new Set(Object.keys(HOSTS));
 let window=null;
 const asBoolean = v => v === true;
-function connection(host) {
+export function connection(host) {
   const entry=app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
   return hostConfig(host,{command:process.execPath,entry,compact:true,
     envOverrides:{ELECTRON_RUN_AS_NODE:'1'}});

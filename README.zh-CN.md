@@ -33,6 +33,11 @@
 | **接得上** | 结构化返回会话状态，实际结果仍由 Agent 核验。 |
 | **留在本地** | 多 Agent 共用本机服务；原生 UI 定位按需授权；视觉偏好本地保存。 |
 
+### 桌面设置中心
+
+从托盘打开 **Control Center**，可查看本地服务状态、复制各 Agent 的 MCP 配置、调整外观与动效、管理只读定位权限，并运行不含隐私内容的诊断。近期 MCP 请求不等于某个宿主已经完成连接。详见 [设置中心文档](docs/CONTROL_CENTER.md)。
+
+
 ## 交接如何发生
 
 <img src="assets/interaction-flow.svg" alt="Agent, human and agent handoff flow" width="100%" />

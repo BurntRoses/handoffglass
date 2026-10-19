@@ -33,6 +33,11 @@ Agents can work for hours. Sometimes the next step is yours: sign in, review acc
 | **Return with context** | Machine-readable status, with the final result verified by the calling agent. |
 | **Stay local** | Shared on-device broker, opt-in native UI targeting and locally stored visual preferences. |
 
+### Desktop Control Center
+
+The tray **Control Center** brings together live broker/desktop status, local MCP configuration for each supported host, appearance preferences and read-only diagnostics. It does not report a host as connected merely because the broker is running. [Control Center guide](docs/CONTROL_CENTER.md).
+
+
 ## See it in action
 
 <img src="assets/interaction-flow.svg" alt="Agent, human and agent handoff flow" width="100%" />

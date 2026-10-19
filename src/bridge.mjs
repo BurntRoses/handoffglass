@@ -52,6 +52,7 @@ export class LocalBridge {
     this.server = null;
     this.port = null;
     this.lastPoll = 0;
+    this.lastAgentRequestAt = null;
     this.displays = [];
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
@@ -101,7 +102,7 @@ export class LocalBridge {
     const parsed = new URL(req.url, `http://${host}`);
     const pathname = parsed.pathname;
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
-    const routes = { '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
+    const routes = { '/desktop/diagnostics': 'GET', '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
       '/agent/displays': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
       '/agent/wait': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
@@ -132,6 +133,15 @@ export class LocalBridge {
     if (req.method === 'GET' && pathname === '/health') {
       return sendJson(res, 200, { ok: true, pid: process.pid, protocol: 1 });
     }
+    if (req.method === 'GET' && pathname === '/desktop/diagnostics') {
+      const active = this.manager.active();
+      return sendJson(res, 200, {
+        schemaVersion: 1, broker: 'running', desktopConnected: this.connected,
+        lastAgentActivityAt: this.lastAgentRequestAt,
+        displays: this.displays.length, pendingPolls: this.waiters.size,
+        handoff: active ? { status: active.status, mode: active.mode, timeoutAt: active.timeoutAt } : null
+      });
+    }
     if (req.method === 'GET' && pathname === '/state') {
       return sendJson(res, 200, this.snapshot());
     }
@@ -140,6 +150,7 @@ export class LocalBridge {
       if (typeof owner !== 'string' || !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(owner)) {
         return sendJson(res, 403, { error: 'Agent identity is required', code: 'invalid_owner' });
       }
+      this.lastAgentRequestAt = Date.now();
       if (req.method === 'GET' && pathname === '/agent/displays') {
         await this.prepare();
         return sendJson(res, 200, { displays: this.displays, connected: this.connected, headless: this.headless });

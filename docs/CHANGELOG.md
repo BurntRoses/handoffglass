@@ -1,3 +1,10 @@
+## Unreleased — desktop Control Center
+
+- Dedicated four-page native desktop management window (overview, Agent connections, appearance, diagnostics).
+- Read-only, desktop-authenticated, owner-redacted diagnostics with honest Agent activity semantics.
+- Reusable host config generator, user preference persistence, read-only UI lookup consent; tray shortcut.
+- Sandboxed renderer, no new framework or model dependency; regression and privacy tests.
+
 ## 0.4.0 — lightweight multi-harness integration (2026-10-18)
 
 - Add stable `requestId` for idempotent human handoff retries (without resetting user timer).

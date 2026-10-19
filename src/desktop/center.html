@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'">
+<meta name="color-scheme" content="dark light">
+<title>HandoffGlass · Control Center</title>
+<link rel="stylesheet" href="ui-tokens.css"><link rel="stylesheet" href="center.css">
+<script src="center.js" defer></script>
+</head><body>
+<div class="shell">
+  <aside class="sidebar" aria-label="Control Center navigation">
+    <div class="brand"><img src="../../assets/brandmark.svg" alt="" width="38" height="38"><div class="brand-name">handoffglass <span>CONTROL CENTER</span></div></div>
+    <div class="sidebar-label">WORKSPACE <span class="sidebar-version">v0.11</span></div>
+    <nav class="nav" aria-label="Sections">
+      <button type="button" data-page="overview" aria-current="page"><span class="nav-symbol" aria-hidden="true">◈</span><span data-i="overview">概览</span><span class="nav-arrow">↗</span></button>
+      <button type="button" data-page="connections"><span class="nav-symbol" aria-hidden="true">⧉</span><span data-i="connections">Agent 连接</span><span class="nav-arrow">↗</span></button>
+      <button type="button" data-page="appearance"><span class="nav-symbol" aria-hidden="true">◌</span><span data-i="appearance">外观与动态</span><span class="nav-arrow">↗</span></button>
+      <button type="button" data-page="diagnostics"><span class="nav-symbol" aria-hidden="true">⌁</span><span data-i="diagnostics">运行诊断</span><span class="nav-arrow">↗</span></button>
+    </nav>
+    <div class="sidebar-bottom"><span class="status-light" aria-hidden="true"></span><span data-i="local">PRIVATE · ON DEVICE</span></div>
+  </aside>
+  <main class="main" id="main">
+    <header class="topbar"><span class="breadcrumb">HANDOFFGLASS <span class="breadcrumb-slash">/</span> <span id="crumb">OVERVIEW</span></span><div class="top-actions"><span id="refreshed" aria-live="off">—</span><button id="refresh" type="button" class="quiet-button" data-i="refresh">刷新</button></div></header>
+    <div class="content">
+      <section data-view="overview" class="view">
+        <div class="eyebrow"><span class="orbit-mark" aria-hidden="true">✳</span> <span data-i="workspace">LOCAL WORKSPACE</span></div>
+        <h1 data-i="welcome">你的 Agent，随时接得上。</h1>
+        <p class="lead" data-i="welcomeDesc">在这里查看本地交接状态。需要你操作时，桌面引导会自动出现。</p>
+        <div class="hero-card" aria-label="Visual handoff illustration">
+          <div class="hero-copy"><span>HUMAN IN THE LOOP</span><strong data-i="hero">让下一步清晰可见。</strong><small data-i="heroDesc">Agent 发起 · 本地引导 · 你来决定 · Agent 继续</small></div>
+          <svg class="hero-art" viewBox="0 0 450 180" aria-hidden="true" fill="none"><defs><linearGradient id="line" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#B9FFE7"/><stop offset="1" stop-color="#64CBAA"/></linearGradient></defs><rect x="104" y="17" width="278" height="151" rx="13" stroke="#A6D6CC" stroke-opacity=".35" fill="#152A2F"/><path d="M105 46H382" stroke="#A6D6CC" stroke-opacity=".22"/><circle cx="125" cy="31" r="3" fill="#88BAAD"/><circle cx="137" cy="31" r="3" fill="#88BAAD" fill-opacity=".55"/><rect x="126" y="66" width="116" height="8" rx="4" fill="#B1C9C4" fill-opacity=".22"/><rect x="126" y="88" width="181" height="5" rx="2.5" fill="#B1C9C4" fill-opacity=".12"/><rect x="126" y="101" width="138" height="5" rx="2.5" fill="#B1C9C4" fill-opacity=".12"/><rect x="268" y="119" width="86" height="26" rx="7" fill="#285C53" stroke="#88DEBB" stroke-opacity=".4"/><path d="M241 118C250 104 322 101 359 116C381 130 363 157 322 162C273 169 232 143 241 118Z" stroke="url(#line)" stroke-linecap="round" stroke-width="3" class="hand-trace"/><path d="M355 167L376 149L375 161M376 149L364 150" stroke="#B2FFE1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="metrics"><div class="metric"><span data-i="brokerTitle">本地服务</span><strong id="brokerState">—</strong><small data-i="brokerDesc">仅在这台设备运行</small></div><div class="metric"><span data-i="desktopTitle">桌面引导</span><strong id="desktopState">—</strong><small data-i="desktopDesc">等待屏幕服务反馈</small></div><div class="metric"><span data-i="handoffTitle">当前交接</span><strong id="handoffState">—</strong><small data-i="handoffDesc">没有正在等待的操作</small></div></div>
+        <div class="section-bottom"><div><strong data-i="activityTitle">最近 Agent 活动</strong><p data-i="activityDesc">只记录是否收到本地请求，不保存会话正文。</p></div><span class="state-pill" id="agentActivity">—</span></div>
+      </section>
+      <section data-view="connections" class="view" hidden>
+        <div class="eyebrow" data-i="connectLabel">02 / CONNECT</div><h1 data-i="connectTitle">连接你的 Agent。</h1><p class="lead" data-i="connectDesc">为当前设备生成配置。复制到宿主软件的 MCP 设置，重新加载工具即可。</p>
+        <div class="card"><label class="field"><span data-i="host">选择 Agent / Harness</span><select id="host"><option value="claude">Claude Desktop / Claude Code</option><option value="codex">OpenAI Codex</option><option value="cursor">Cursor</option><option value="vscode">VS Code / GitHub Copilot</option><option value="trae">TRAE</option><option value="workbuddy">Tencent WorkBuddy</option><option value="deepseek">DeepSeek Harness</option><option value="gemini">Gemini CLI</option><option value="opencode">OpenCode</option><option value="cline">Cline</option><option value="windsurf">Windsurf</option><option value="zed">Zed</option></select></label>
+          <div class="code-caption"><span data-i="localConfig">本机 MCP 配置</span><span id="configFormat">JSON / MCP</span></div><pre id="config" class="code" tabindex="0" aria-label="MCP configuration"></pre><div class="card-bottom"><small data-i="configHint">由当前安装位置生成。移动应用后请重新复制。</small><button type="button" class="primary" id="copy" data-i="copy">复制配置</button></div></div>
+        <p class="subtle" data-i="connectNote">这里只能观测本机 MCP 请求；无法直接验证外部宿主是否已加载工具。请在 Agent 中确认工具列表。</p>
+      </section>
+      <section data-view="appearance" class="view" hidden>
+        <div class="eyebrow" data-i="styleLabel">03 / PERSONALIZE</div><h1 data-i="styleTitle">按自己的方式工作。</h1><p class="lead" data-i="styleDesc">外观偏好仅保存在本机，所有 Agent 共享。你选定的设置不会被 Agent 覆盖。</p>
+        <form class="card" id="preferences" novalidate><div class="form-grid"><label class="field"><span data-i="visual">视觉风格</span><select name="visualStyle" id="visualStyle"><option value="luminous">Luminous · 柔光</option><option value="minimal">Minimal · 极简</option><option value="handdrawn">Hand-drawn · 手绘</option></select></label><label class="field"><span data-i="motion">动画</span><select name="motion" id="motion"><option value="gentle">Gentle · 柔和</option><option value="expressive">Expressive · 丰富</option><option value="off">Off · 关闭</option></select></label><label class="field"><span data-i="theme">主题</span><select name="theme" id="theme"><option value="system">System · 跟随系统</option><option value="dark">Dark · 深色</option><option value="light">Light · 浅色</option></select></label><label class="field"><span data-i="language">语言</span><select name="locale" id="locale"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label><label class="field"><span data-i="density">信息密度</span><select name="density" id="density"><option value="normal">Comfortable · 舒适</option><option value="compact">Compact · 紧凑</option></select></label></div>
+        <label class="consent"><input type="checkbox" id="accessibility"><span class="consent-content"><strong data-i="inspect">允许只读 UI 控件定位</strong><small data-i="inspectDesc">仅在 Agent 请求时读取当前前台应用的控件位置。默认关闭。</small></span></label>
+        <div class="card-bottom"><button type="button" class="quiet-button" id="permission" data-i="openPermission">打开系统辅助功能设置</button><button type="submit" class="primary" id="save" data-i="save">保存设置</button></div>
+        </form>
+      </section>
+      <section data-view="diagnostics" class="view" hidden>
+        <div class="eyebrow" data-i="healthLabel">04 / RUNTIME</div><h1 data-i="healthTitle">运行诊断。</h1><p class="lead" data-i="healthDesc">显示本地服务当前能够确认的状态，不读取屏幕内容。</p>
+        <div class="card diagnosis"><div class="diag-row"><span data-i="checkBroker">本地 Broker</span><strong id="diagBroker">—</strong></div><div class="diag-row"><span data-i="checkDesktop">桌面服务</span><strong id="diagDesktop">—</strong></div><div class="diag-row"><span data-i="checkAgent">最近 MCP 请求</span><strong id="diagAgent">—</strong></div><div class="diag-row"><span data-i="checkDisplays">检测到的显示器</span><strong id="diagDisplays">—</strong></div><div class="diag-row"><span data-i="checkSession">人工交接</span><strong id="diagSession">—</strong></div><div class="diag-row"><span data-i="checkPermission">只读控件定位</span><strong id="diagPermission">—</strong></div></div>
+        <div class="info-note"><span class="info-glyph">i</span><p data-i="healthFoot">此页不能证明某个宿主客户端已经成功安装，也不能替代真实桌面的鼠标穿透与多显示器验收。</p></div>
+      </section>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+  </main>
+</div>
+</body></html>
