@@ -20,7 +20,7 @@
 
 [首次启动与桌面安装](docs/ONBOARDING.md)
 
-[品牌与应用图标](docs/BRAND.md)
+[品牌与应用图标](docs/BRAND.md) · [界面设计规范](docs/INTERFACE_SYSTEM.md)
 
 ## Agent 做事，关键一步由你决定
 
@@ -34,6 +34,9 @@
 | **留在本地** | 多 Agent 共用本机服务；原生 UI 定位按需授权；视觉偏好本地保存。 |
 
 ## 交接如何发生
+
+<img src="assets/interaction-flow.svg" alt="Agent, human and agent handoff flow" width="100%" />
+
 
 ```text
 Agent                       HandoffGlass                     用户

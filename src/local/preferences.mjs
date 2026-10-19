@@ -7,8 +7,9 @@ import { runtimeDir, secureRuntimeDir } from '../runtime.mjs';
 export const VISUAL_STYLES = Object.freeze(['minimal', 'luminous', 'handdrawn']);
 export const MOTION_MODES = Object.freeze(['off', 'gentle', 'expressive']);
 export const LOCALES = Object.freeze(['zh-CN', 'en-US']);
-export const DEFAULT_PREFERENCES = Object.freeze({ version: 1, visualStyle: 'luminous', motion: 'gentle', locale: 'zh-CN', density: 'normal' });
-const KEYS = Object.freeze({ visualStyle: VISUAL_STYLES, motion: MOTION_MODES, locale: LOCALES, density: ['normal', 'compact'] });
+export const THEMES = Object.freeze(['system', 'dark', 'light']);
+export const DEFAULT_PREFERENCES = Object.freeze({ version: 1, visualStyle: 'luminous', motion: 'gentle', locale: 'zh-CN', density: 'normal', theme: 'system' });
+const KEYS = Object.freeze({ visualStyle: VISUAL_STYLES, motion: MOTION_MODES, locale: LOCALES, density: ['normal', 'compact'], theme: THEMES });
 export function validatePreferences(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Preferences must be an object');
   if (Object.keys(value).some(k => k !== 'version' && !Object.hasOwn(KEYS, k))) throw new TypeError('Unknown preference key');

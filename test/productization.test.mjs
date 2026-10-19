@@ -35,7 +35,8 @@ test('first-run desktop setup is IPC-scoped and preserves explicit opt-in',async
  assert.match(html,/id="accessibility"/);
  assert.doesNotMatch(html,/accessibility"[^>]*checked/i);
  assert.match(html,/Content-Security-Policy/);
- assert.match(setupJs,/replaceChildren\(document\.createTextNode/,'locale changes must replace the heading');
+ assert.match(setupJs,/textContent=t\(el\.dataset\.t\)/,'locale changes replace text rather than append copies');
+ assert.match(setup,/ELECTRON_RUN_AS_NODE/,'source and packaged Electron must both enter the Node MCP runtime');
 });
 test('cross-platform branded icon paths and build task are configured',async()=>{
  const config=await readFile(join(root,'electron-builder.config.cjs'),'utf8');

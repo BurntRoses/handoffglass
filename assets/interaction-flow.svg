@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="366" viewBox="0 0 1440 366" role="img" aria-labelledby="title desc">
+<title id="title">HandoffGlass interaction flow</title><desc id="desc">A vector illustration of an agent highlighting a target, a person deciding, and an agent resuming work.</desc>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10202A"/><stop offset="1" stop-color="#0B141C"/></linearGradient>
+<linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#D3FFF0"/><stop offset="1" stop-color="#63CCB5"/></linearGradient>
+<filter id="soft"><feGaussianBlur stdDeviation="6"/></filter><filter id="shade"><feDropShadow dx="0" dy="12" stdDeviation="19" flood-opacity=".3"/></filter>
+</defs>
+<rect x="0.5" y="0.5" width="1439" height="365" rx="25" fill="url(#bg)" stroke="#9BDBCD" stroke-opacity=".18"/>
+<g opacity=".05" stroke="#B4FFDD"><path d="M0 60h1440M0 120h1440M0 180h1440M0 240h1440M0 300h1440"/><path d="M80 0v366M160 0v366M240 0v366M320 0v366M400 0v366M480 0v366M560 0v366M640 0v366M720 0v366M800 0v366M880 0v366M960 0v366M1040 0v366M1120 0v366M1200 0v366M1280 0v366M1360 0v366"/></g>
+<g font-family="system-ui,Segoe UI,Arial,sans-serif">
+<text x="66" y="65" fill="#87BCB2" letter-spacing="2" font-size="13" font-weight="700">01 / GUIDE</text>
+<text x="530" y="65" fill="#87BCB2" letter-spacing="2" font-size="13" font-weight="700">02 / DECIDE</text>
+<text x="995" y="65" fill="#87BCB2" letter-spacing="2" font-size="13" font-weight="700">03 / RESUME</text>
+<rect x="66" y="93" width="361" height="196" rx="16" fill="#1C3039" stroke="#B7FFF1" stroke-opacity=".24" filter="url(#shade)"/>
+<path d="M66 130h361" stroke="#B7FFF1" stroke-opacity=".15"/><circle cx="90" cy="111" r="5" fill="#71999B"/><circle cx="107" cy="111" r="5" fill="#71999B"/><circle cx="124" cy="111" r="5" fill="#71999B"/>
+<path d="M94 166h151" stroke="#51727A" stroke-width="10" stroke-linecap="round"/><path d="M94 193h213" stroke="#42666B" stroke-width="7" stroke-linecap="round"/><rect x="217" y="230" width="158" height="34" rx="8" fill="#7AE0BD" fill-opacity=".14"/>
+<rect x="211" y="224" width="169" height="45" rx="12" fill="none" stroke="#D3FFE8" stroke-width="3" filter="url(#soft)"/><path d="M211 246C202 219 373 213 380 242C390 280 215 288 211 246Z" fill="none" stroke="url(#edge)" stroke-width="3.5" stroke-linecap="round"/><path d="M326 285l38-28m-11 0 13-3-3 14" stroke="#D1FFF0" stroke-width="3" stroke-linecap="round"/>
+<text x="94" y="320" fill="#CEDFD9" font-size="17" font-weight="580">Find the next step.</text>
+<rect x="529" y="93" width="361" height="196" rx="16" fill="#1B3038" stroke="#B7FFF1" stroke-opacity=".24" filter="url(#shade)"/>
+<rect x="555" y="117" width="48" height="40" rx="11" fill="#294842" stroke="#86D8B9" stroke-opacity=".5"/><path d="M571 138l10 9 11-18" fill="none" stroke="#A7F4D6" stroke-width="3" stroke-linecap="round"/>
+<text x="620" y="132" fill="#E9FFF5" font-size="18" font-weight="600">Human decision</text><text x="620" y="150" fill="#84B2A8" font-size="11">The choice stays with you</text>
+<path d="M555 176h301" stroke="#5A7D82" stroke-opacity=".35"/><rect x="554" y="196" width="145" height="52" rx="10" fill="#253C45" stroke="#6D9595" stroke-opacity=".36"/><text x="607" y="229" fill="#CBD9D7" font-size="14">Decline</text>
+<rect x="710" y="196" width="153" height="52" rx="10" fill="#ABF4D6"/><text x="749" y="228" fill="#183B34" font-size="14" font-weight="700">Finished ✓</text>
+<text x="557" y="320" fill="#CEDFD9" font-size="17" font-weight="580">A clear answer.</text>
+<rect x="995" y="93" width="361" height="196" rx="16" fill="#1B3038" stroke="#B7FFF1" stroke-opacity=".24" filter="url(#shade)"/>
+<path d="M1030 135l16 17 35-38" fill="none" stroke="#A4F6D9" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1100 127h208" stroke="#647E83" stroke-width="10" stroke-linecap="round"/><path d="M1030 185h275" stroke="#3E7772" stroke-width="10" stroke-linecap="round"/>
+<rect x="1028" y="214" width="258" height="44" rx="8" fill="#163F3A" stroke="#65D7B4" stroke-opacity=".42"/><text x="1045" y="243" fill="#B5FADB" font-size="15" font-weight="610">Verify → Continue</text>
+<text x="1027" y="320" fill="#CEDFD9" font-size="17" font-weight="580">Work picks up again.</text>
+<path d="M450 193h55m-10-8 10 8-10 8M915 193h55m-10-8 10 8-10 8" fill="none" stroke="#8BE4C9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

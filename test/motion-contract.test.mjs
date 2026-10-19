@@ -26,5 +26,5 @@ test('handoff decision panel supports both languages and density settings',async
  const js=await readFile(new URL('../src/desktop/panel.js',import.meta.url),'utf8');
  const css=await readFile(new URL('../src/desktop/panel.css',import.meta.url),'utf8');
  assert.match(html,/id="note"/); assert.match(js,/'en-US'/);
- assert.match(js,/data-density/); assert.match(css,/data-density=compact/);
+ assert.match(js,/dataset\.density/); assert.match(css,/data-density='compact'/);
 });

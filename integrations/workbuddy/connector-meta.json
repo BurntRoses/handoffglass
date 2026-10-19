@@ -7,7 +7,7 @@
   "description_en": "Grounded local desktop guidance and human-controlled agent handoff.",
   "source": "handoffglass-local",
   "type": "mcp",
-  "version": "0.8.0",
+  "version": "0.10.0",
   "minWorkbuddyVersion": "5.0.0",
   "examples_zh": ["帮我在电脑屏幕上指出需要检查的权限", "遇到二次验证时引导我完成操作，然后继续"],
   "examples_en": ["Show me where to inspect the requested permissions", "Hand off MFA to me, then continue after independent verification"]

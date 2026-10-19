@@ -1,24 +1,53 @@
-const text={
- 'zh-CN':{agent:'连接 Agent',preferences:'视觉偏好',ready:'准备就绪',choose:'选择你的 Agent',chooseDesc:'复制本地 MCP 配置并添加到该 Agent 的工具设置。不会自动修改其他应用。',host:'Agent / Harness',copy:'复制配置 ↗',hostNote:'此配置由本机安装位置生成。粘贴到宿主的 MCP 配置中，再重新加载工具。',visual:'让指引符合你的习惯',visualDesc:'偏好只保存在此设备。AI Agent 不会覆盖你选择的外观设置。',style:'视觉风格',motion:'动效强度',language:'界面语言',density:'信息密度',inspect:'开启只读 UI 控件定位',inspectDesc:'仅在需要时查询前台应用控件位置；可能需要系统辅助功能权限。默认关闭。',permission:'打开 macOS 辅助功能设置 ↗',done:'接下来，交给你的 Agent。',doneDesc:'HandoffGlass 会在本地运行。需要你接管时，提示会直接出现在屏幕上。',running:'本地服务已运行',runningDesc:'返回你的 Agent，重新加载 MCP 工具即可开始使用。',note:'敏感操作由你决定。Agent 只接收你明确报告的结果。',private:'本地优先，无需云账号',back:'上一步',next:'继续',finish:'完成',copied:'配置已复制。打开对应 Agent 的 MCP 设置并粘贴。',saved:'偏好已保存',error:'操作失败，请重试'},
- 'en-US':{agent:'Connect an agent',preferences:'Appearance',ready:'Ready',choose:'Choose your agent',chooseDesc:'Copy the local MCP configuration into the agent’s tool settings. Other applications are never changed automatically.',host:'Agent / Harness',copy:'Copy configuration ↗',hostNote:'Generated using this installation’s path. Paste it into your host’s MCP settings, then reload its tools.',visual:'Make it feel like yours',visualDesc:'Preferences stay on this device. An agent cannot override your chosen appearance.',style:'Visual style',motion:'Motion',language:'Language',density:'Information density',inspect:'Enable read-only UI element lookup',inspectDesc:'Queries visible foreground controls when needed. OS accessibility permission may be required. Off by default.',permission:'Open macOS accessibility settings ↗',done:'Your agent can take it from here.',doneDesc:'HandoffGlass runs locally. When your input is needed, guidance will appear on screen.',running:'Local service is running',runningDesc:'Return to your agent and reload its MCP tools to begin.',note:'Sensitive choices remain yours. Agents receive only the decision you explicitly report.',private:'Local first · No cloud account',back:'Back',next:'Continue',finish:'Finish',copied:'Configuration copied. Paste it into your agent’s MCP settings.',saved:'Preferences saved',error:'Unable to complete this action'}
-};
-let step=0,locale='zh-CN';
-const $=id=>document.getElementById(id);
-const feedback=$('feedback');
-const state={};
-function translate(){const t=text[locale];document.documentElement.lang=locale;const plain=locale==='zh-CN'?['把下一步，','指给你看。']:['The next step,','made visible.'];$('heading').replaceChildren(document.createTextNode(plain[0]));const em=document.createElement('em');em.textContent=plain[1];$('heading').append(em);$('subtitle').textContent=locale==='zh-CN'?'让 AI Agent 在需要你操作时，准确指出位置，并在完成后继续原来的任务。':'When an agent needs your input, the next step appears on screen—not in a long chat.';document.querySelectorAll('[data-t]').forEach(el=>{if(Object.hasOwn(t,el.dataset.t))el.textContent=t[el.dataset.t];});$('next').textContent=t[step===2?'finish':'next']+' →';$('permission').hidden=state.platform!=='darwin';}
-function showStep(n){step=n;document.querySelectorAll('[data-screen]').forEach(el=>el.hidden=Number(el.dataset.screen)!==n);document.querySelectorAll('[data-step]').forEach(el=>{const i=Number(el.dataset.step);el.classList.toggle('is-active',i===n);el.classList.toggle('is-done',i<n);});$('back').disabled=n===0;feedback.textContent='';translate();}
-function report(message,failed=false){feedback.textContent=message;feedback.style.color=failed?'#ffd1b8':'#a6ecd0';}
-$('copy').addEventListener('click',async()=>{const r=await window.hgSetup.copy($('host').value);report(r.ok?text[locale].copied:r.error||text[locale].error,!r.ok);});
-$('permission').addEventListener('click',async()=>{const r=await window.hgSetup.permission();if(!r.ok)report(r.error,true);});
-$('locale').addEventListener('change',()=>{locale=$('locale').value;translate();});
-$('back').addEventListener('click',()=>showStep(Math.max(0,step-1)));
-$('next').addEventListener('click',async()=>{
-  if(step===1){const val={visualStyle:$('visualStyle').value,motion:$('motion').value,locale:$('locale').value,density:$('density').value,accessibility:$('accessibility').checked};const r=await window.hgSetup.save(val);if(!r.ok){report(r.error||text[locale].error,true);return;}report(text[locale].saved);}
-  if(step===2){await window.hgSetup.close();return;}showStep(step+1);
+'use strict';
+const translations = Object.freeze({
+ 'zh-CN':{
+  tagline:'人和 Agent 之间，少一点距离。',hero1:'让下一步，',hero2:'清晰可见。',subtitle:'真正需要你做决定时，HandoffGlass 会指出位置，再把任务交回 Agent。',artLabel:'下一步操作',welcome:'快速设置',agent:'连接',appearance:'外观',ready:'完成',choose:'连接你的 Agent',chooseDesc:'选择常用的 Agent，将本机配置添加到它的 MCP 设置中。',host:'Agent / Harness',configTitle:'本机连接配置',copy:'复制配置',hostNote:'复制后粘贴到宿主的 MCP 配置，重新加载工具即可。',visual:'调成你喜欢的样子',visualDesc:'外观设置只保存在本机，后续所有 Agent 共用。',style:'视觉风格',motion:'动态效果',theme:'界面明暗',language:'界面语言',density:'信息密度',inspect:'允许只读控件定位',inspectDesc:'查询当前前台应用的控件位置。默认关闭，随时可更改。',permission:'打开系统辅助功能设置 ↗',done:'设置好了。',doneDesc:'你可以返回刚才的 Agent，重新加载 MCP 工具开始使用。',running:'本地服务已就绪',runningDesc:'配置已经准备好。请在 Agent 中确认能看到 HandoffGlass 工具。',note:'你负责决定。Agent 负责继续完成任务。',private:'本机运行 · 无需云账号',back:'返回',next:'继续',finish:'完成',copied:'配置已复制',saved:'偏好已保存',error:'操作失败，请重试',configUnavailable:'暂时无法预览配置',loading:'正在准备配置…'},
+ 'en-US':{
+  tagline:'A closer way to work with your agent.',hero1:'The next step,',hero2:'made visible.',subtitle:'When a decision needs you, HandoffGlass points the way and brings your agent back into the flow.',artLabel:'YOUR NEXT STEP',welcome:'Quick setup',agent:'Connect',appearance:'Appearance',ready:'Finish',choose:'Connect your agent',chooseDesc:'Choose a host and add this device’s configuration to its MCP settings.',host:'Agent / Harness',configTitle:'Local configuration',copy:'Copy configuration',hostNote:'Paste into your host’s MCP settings, then reload its tools.',visual:'Make it yours',visualDesc:'Your visual preferences stay on this device, shared across agents.',style:'Visual style',motion:'Motion',theme:'Appearance',language:'Language',density:'Information density',inspect:'Allow read-only element lookup',inspectDesc:'Locates foreground UI controls on request. Off by default; change anytime.',permission:'Open system accessibility settings ↗',done:'You’re ready.',doneDesc:'Return to your agent and reload MCP tools to get started.',running:'Local service is ready',runningDesc:'Your configuration is prepared. Confirm HandoffGlass tools appear in your agent.',note:'You make the decision. Your agent picks up the task.',private:'On-device · No cloud account',back:'Back',next:'Continue',finish:'Finish',copied:'Configuration copied',saved:'Preferences saved',error:'Could not complete the action',configUnavailable:'Configuration preview unavailable',loading:'Preparing configuration…'}
 });
-document.querySelectorAll('[data-step]').forEach(el=>el.addEventListener('click',()=>{const target=Number(el.dataset.step);if(target>1&&step===0)return;if(step===1&&target===2)return;showStep(target);}));
-(async()=>{const result=await window.hgSetup.status();if(!result.ok){report('Setup unavailable',true);return;}state.platform=result.platform;
-  for(const [key,val] of Object.entries(result.preferences))if($(key)&&typeof val==='string')$(key).value=val;
-  $('accessibility').checked=result.accessibility;locale=result.preferences.locale;showStep(0);
-})().catch(error=>report(error.message,true));
+const $=id=>document.getElementById(id);
+const safeLocale=value=>Object.hasOwn(translations,value)?value:'en-US';
+let locale='zh-CN',step=0,platform='',statusReady=false,previewSerial=0;
+const feedback=$('feedback');
+function t(key){return translations[locale]?.[key] || translations['en-US'][key] || key;}
+function report(message,isError=false){feedback.textContent=message;feedback.classList.toggle('is-error',isError);}
+function translate(){
+  document.documentElement.lang=locale;
+  document.querySelectorAll('[data-t]').forEach(el=>{el.textContent=t(el.dataset.t)});
+  $('next').querySelector('span').textContent=t(step===2?'finish':'next');
+  $('stepCounter').textContent=`STEP 0${step+1} / 03`;
+  $('permission').hidden=platform!=='darwin';
+}
+function showStep(index){step=Math.max(0,Math.min(2,index));document.querySelectorAll('[data-screen]').forEach(el=>{el.hidden=Number(el.dataset.screen)!==step});document.querySelectorAll('[data-step]').forEach(el=>{const position=Number(el.dataset.step);el.classList.toggle('is-active',position===step);el.classList.toggle('is-done',position<step);position===step?el.setAttribute('aria-current','step'):el.removeAttribute('aria-current')});$('back').disabled=step===0;report('');translate();}
+function applyTheme(value){document.documentElement.dataset.theme=value==='light'?'light':value==='dark'?'dark':'system';}
+async function updatePreview(){
+ const serial=++previewSerial;const host=$('host').value;$('format').textContent=host==='codex'?'MCP / TOML':'MCP / JSON';$('configPreview').textContent=t('loading');
+ try{const response=await window.hgSetup.preview(host);if(serial!==previewSerial)return;$('configPreview').textContent=response?.ok?response.content:t('configUnavailable');$('copy').disabled=!response?.ok;}
+ catch{if(serial===previewSerial){$('configPreview').textContent=t('configUnavailable');$('copy').disabled=true;}}
+}
+$('host').addEventListener('change',updatePreview);
+$('copy').addEventListener('click',async()=>{
+ try{const result=await window.hgSetup.copy($('host').value);report(result?.ok?t('copied'):(result?.error||t('error')),!result?.ok);}catch{report(t('error'),true);}
+});
+$('permission').addEventListener('click',async()=>{try{const response=await window.hgSetup.permission();if(!response?.ok)report(response?.error||t('error'),true);}catch{report(t('error'),true);}});
+$('theme').addEventListener('change',()=>applyTheme($('theme').value));
+$('locale').addEventListener('change',()=>{locale=safeLocale($('locale').value);translate();});
+$('back').addEventListener('click',()=>showStep(step-1));
+$('next').addEventListener('click',async()=>{
+ if(step===1){
+   const settings={visualStyle:$('visualStyle').value,motion:$('motion').value,theme:$('theme').value,locale:$('locale').value,density:$('density').value,accessibility:$('accessibility').checked};
+   try{const result=await window.hgSetup.save(settings);if(!result?.ok){report(result?.error||t('error'),true);return;}}catch{report(t('error'),true);return;}
+ }
+ if(step===2){try{await window.hgSetup.close();}catch{report(t('error'),true);}return;}
+ showStep(step+1);
+});
+document.querySelectorAll('[data-step]').forEach(button=>button.addEventListener('click',()=>{const target=Number(button.dataset.step);if(target<=step)showStep(target);}));
+(async()=>{
+  const response=await window.hgSetup.status();
+  if(!response?.ok)throw Error(t('error'));
+  statusReady=true;platform=response.platform;
+  for(const [key,value] of Object.entries(response.preferences||{}))if($(key)&&typeof value==='string')$(key).value=value;
+  $('accessibility').checked=response.accessibility===true;
+  locale=safeLocale(response.preferences?.locale||'zh-CN');
+  applyTheme(response.preferences?.theme||'system');showStep(0);await updatePreview();
+})().catch(error=>{report(error.message||t('error'),true);$('copy').disabled=true;});

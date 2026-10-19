@@ -20,11 +20,13 @@ AI エージェントのためのローカル対話レイヤー。操作する�
 
 [初回起動とデスクトップ版](docs/ONBOARDING.md)
 
-[ブランドとアプリアイコン](docs/BRAND.md)
+[ブランドとアプリアイコン](docs/BRAND.md) · [UI デザイン](docs/INTERFACE_SYSTEM.md)
 
 ## エージェントが進め、人が決める
 
 サインイン、アクセス権の確認、アカウントの選択。人の判断が必要な場面で、HandoffGlass は画面上の対象を示し、操作結果をエージェントに返します。
+
+<img src="assets/interaction-flow.svg" alt="HandoffGlass interaction flow" width="100%" />
 
 | | |
 |:--|:--|
