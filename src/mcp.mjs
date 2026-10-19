@@ -41,6 +41,7 @@ const sceneOp = z.discriminatedUnion('op', [
 const uiTarget = z.object({ app: z.string().trim().min(1).max(128), role: z.string().trim().min(1).max(80), name: z.string().trim().min(1).max(256) });
 const presentation = z.object({
   target: uiTarget.optional(),
+  followTarget: z.boolean().optional(),
   title: z.string().trim().min(1).max(100),
   message: z.string().trim().min(1).max(1000),
   x: z.number().finite().min(-100000).max(100000).optional(),
@@ -62,7 +63,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.13.0' });
+  const server = new McpServer({ name: 'handoffglass', version: '0.14.0' });
   server.registerPrompt('assist-with-ui-step', {
     title: 'Help with a desktop step',
     description: 'Plan a safe human-guided step in an existing task; use the HandoffGlass tools when appropriate.',
@@ -107,12 +108,12 @@ function makeServer() {
   }, safe(({ target, previous }) => broker.locate(target, previous)));
   server.registerTool('visual_show', {
     title: 'Show on-screen guidance',
-    description: 'Draw grounded global DIP targets or exact foreground {app,role,name} target (with explicit accessibility opt-in), optionally with template focus|point|inspect|caution|sequence|verify or an explicit layered scene v1. Never guess coordinates.',
+    description: 'Draw grounded global DIP targets or exact foreground {app,role,name} target (with explicit accessibility opt-in). Native targets are followed while visible (followTarget:false disables), optionally with template focus|point|inspect|caution|sequence|verify or an explicit layered scene v1. Never guess coordinates.',
     inputSchema: presentation, annotations: { readOnlyHint: false }
   }, safe(args => broker.present('guide', args)));
   server.registerTool('handoff_request', {
     title: 'Request human intervention',
-    description: 'Ask the human to finish a step and decide whether to proceed. Set requestId to prevent duplicate requests on retry. Coordinates optional, or use a foreground {app,role,name} target with opt-in Accessibility. If a different Agent already owns the screen, returns busy; do not retry blindly.',
+    description: 'Ask the human to finish a step and decide whether to proceed. Set requestId to prevent duplicate requests on retry. Coordinates optional, or use a foreground {app,role,name} target with opt-in Accessibility. The native target follows window movement and hides when evidence is lost; followTarget:false opts out. If a different Agent already owns the screen, returns busy; do not retry blindly.',
     inputSchema: presentation, annotations: { readOnlyHint: false }
   }, safe(args => broker.present('handoff', args)));
   server.registerTool('visual_scene_update', {

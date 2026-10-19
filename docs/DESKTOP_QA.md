@@ -35,3 +35,14 @@ Redacted screenshots/videos, environment versions, checklist pass/fail, reproduc
 8. Verify click-through, window focus retention, overlay and panel never block the target; test ability to reopen hidden panel using tray menu.
 9. On Windows compare UIA physical pixels to DIP; test mixed 100% / 150% DPI with different primary monitor. On macOS test multiple Spaces, full-screen applications and Accessibility helper permissions after reinstall.
 10. Save redacted evidence and versions. CI validates build structure, not any of steps 1–9.
+
+## Live anchored target validation (v0.14)
+
+On macOS and Windows with explicit Accessibility opt-in, verify each with the **actual foreground application**:
+
+1. Request an exact-match `target` using `handoff_request`, then move the window. The highlighted target should follow within one polling interval (nominal 2.5s), without opening a new handoff or changing its deadline.
+2. Hide the target or switch to a different foreground application. The overlay must remove the stale highlight; the user decision panel must remain and must not claim task completion.
+3. Bring the original target back. The mark should reappear only after a successful fresh native observation.
+4. Rearrange or hot-unplug a monitor. The old mark must disappear immediately when the new layout reaches the Broker; require a new location result before showing marks.
+5. Repeat on mixed DPI Windows monitors and macOS multiple Spaces. Denied OS permissions, `followTarget:false`, expired and superseded sessions must be tested separately.
+6. Record screen video and measured drift/latency on a **non-sensitive mock application**. Synthetic Node tests do not establish real UI performance.

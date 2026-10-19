@@ -2,8 +2,8 @@
 let active=null,busy=false;
 const $=id=>document.getElementById(id);
 const UI=Object.freeze({
- 'zh-CN':{remaining:n=>`剩余 ${n} 秒`,guide:'操作指引',handoff:'需要你操作',done:'我已完成',ack:'知道了',decline:'拒绝',cancel:'取消',sending:'正在提交…',note:'请在原始窗口核对内容，完成后再确认。',phase:'AGENT → HUMAN'},
- 'en-US':{remaining:n=>`${n}s remaining`,guide:'Guidance',handoff:'Your turn',done:'I completed this',ack:'Got it',decline:'Decline',cancel:'Cancel',sending:'Sending…',note:'Review the original window before confirming.',phase:'AGENT → HUMAN'}
+ 'zh-CN':{remaining:n=>`剩余 ${n} 秒`,guide:'操作指引',handoff:'需要你操作',done:'我已完成',ack:'知道了',decline:'拒绝',cancel:'取消',sending:'正在提交…',note:'请在原始窗口核对内容，完成后再确认。',lost:'目标位置已变化，请在原始窗口核对后操作。',phase:'AGENT → HUMAN'},
+ 'en-US':{remaining:n=>`${n}s remaining`,guide:'Guidance',handoff:'Your turn',done:'I completed this',ack:'Got it',decline:'Decline',cancel:'Cancel',sending:'Sending…',note:'Review the original window before confirming.',lost:'The target is no longer reliably located. Check the original window.',phase:'AGENT → HUMAN'}
 });
 function copyFor(session){return UI[session?.locale]||UI['zh-CN'];}
 function updateTimer(){if(!active)return;const seconds=Math.max(0,Math.ceil((active.timeoutAt-Date.now())/1000));$('timer').textContent=copyFor(active).remaining(seconds);}
@@ -21,7 +21,7 @@ function render(session){
  $('message').textContent=session.message;
  $('doneLabel').textContent=session.mode==='guide'?copy.ack:copy.done;
  $('decline').textContent=copy.decline;$('decline').hidden=session.mode==='guide';
- $('cancel').textContent=copy.cancel;$('note').textContent=copy.note;
+ $('cancel').textContent=copy.cancel;$('note').textContent=(session.targetTracking && session.targetTracking.status!=='tracking')?copy.lost:copy.note;
  updateTimer();
 }
 window.handoffglass.onRender(render);

@@ -1,3 +1,12 @@
+## v0.14.0 — Live anchored native UI targets
+
+- Exact foreground Accessibility/UIA targets can now follow window movement locally without new model calls.
+- Missing, ambiguous, stale or unmappable targets remove the old visual annotation; the user-controlled handoff remains open.
+- Display-layout updates invalidate existing location evidence before the next successful observation.
+- Existing guide/handoff deadlines and ownership stay unchanged; manual scene edits stop automatic following.
+- `followTarget:false` disables tracking, and `targetTracking.status` reports evidence state (not action success).
+- New movement, lost/recovered target, race, template revision and owner-scoped integration regression tests.
+
 ## v0.13.0 — on-device host activity and geometry rechecks
 
 - Attribute *observed* authenticated MCP tool calls to the caller-declared host configuration. No host enrollment, identity authentication or persisted task log is implied. Evidence expires after fifteen minutes.

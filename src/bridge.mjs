@@ -6,6 +6,7 @@ import { compileBlueprint, BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { locateNative, validateTarget } from './native/locator.mjs';
 import { HostActivity } from './local/host-activity.mjs';
 import { layoutSignature, compareObservation } from './native/calibration.mjs';
+import { NativeAnchorTracker } from './native/anchor-tracker.mjs';
 
 function sendJson(res, code, data) {
   if (res.destroyed || res.writableEnded) return;
@@ -60,6 +61,8 @@ export class LocalBridge {
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
     this.waiters = new Set();
+    this.anchors = new NativeAnchorTracker({manager,locator:(target, displays)=>this.locator(target,displays),
+      getDisplays:()=>this.displays,desktopReady:()=>this.headless || this.connected});
     this.onManagerChange = () => this.#publish();
     manager.on('show', this.onManagerChange);
     manager.on('change', this.onManagerChange);
@@ -87,6 +90,7 @@ export class LocalBridge {
     } catch (error) { this.server = null; throw error; }
   }
   async stop() {
+    this.anchors.close();
     for (const respond of [...this.waiters]) respond(this.snapshot());
     if (this.server) {
       await new Promise(resolve => this.server.close(resolve));
@@ -125,12 +129,14 @@ export class LocalBridge {
       if (!Array.isArray(body.displays) || body.displays.length > 16 || !body.displays.every(validDisplay)) {
         return sendJson(res, 400, { error: 'Invalid display metadata' });
       }
+      const formerLayout = layoutSignature(this.displays);
       this.displays = body.displays.map(d => ({
         id: d.id, x: d.x, y: d.y, width: d.width,
         height: d.height, scaleFactor: Number.isFinite(d.scaleFactor) ? d.scaleFactor : 1,
         ...(d.physicalBounds ? { physicalBounds: d.physicalBounds } : {})
       }));
       this.lastPoll = Date.now();
+      if (formerLayout !== layoutSignature(this.displays)) this.anchors.invalidate();
       return sendJson(res, 200, { ok: true, ...this.snapshot() });
     }
     if (req.method === 'GET' && pathname === '/health') {
@@ -189,6 +195,11 @@ export class LocalBridge {
         const body = await readJson(req);
         const original = JSON.stringify(body);
         const hadTarget = body.target !== undefined;
+        const followTarget = body.followTarget !== false;
+        if (!hadTarget && body.followTarget !== undefined) return sendJson(res,400,{error:'followTarget requires a native target',code:'invalid_follow'});
+        if (body.followTarget !== undefined && typeof body.followTarget !== 'boolean') return sendJson(res,400,{error:'followTarget must be boolean',code:'invalid_follow'});
+        delete body.followTarget;
+        let anchoredQuery=null, anchoredHit=null;
         const retryKey = typeof body.requestId === 'string' ? JSON.stringify([owner,body.requestId]) : null;
         const previous = retryKey && this.resolvedTargets.get(retryKey);
         if (previous) {
@@ -206,6 +217,7 @@ export class LocalBridge {
           await this.prepare();
           if (!this.headless && !this.connected) return sendJson(res, 503, { error: 'Desktop unavailable', code: 'no_desktop' });
           const hit = await this.locator(target, this.displays);
+          anchoredQuery=target;anchoredHit=hit;
           delete body.target;
           body.x = hit.x; body.y = hit.y; body.width = hit.width; body.height = hit.height;
         }
@@ -234,11 +246,12 @@ export class LocalBridge {
         }
         const session = this.manager.show(body, owner);
         if (session.error) return sendJson(res, 409, { error: 'A different Agent already owns the active handoff', code: 'busy' });
+        if (anchoredQuery && followTarget) this.anchors.track(session.id,anchoredQuery,anchoredHit);
         if (retryKey && !previous && hadTarget) {
           this.resolvedTargets.set(retryKey,{original,resolved:structuredClone(body)});
           if(this.resolvedTargets.size > 128) this.resolvedTargets.delete(this.resolvedTargets.keys().next().value);
         }
-        return sendJson(res, 200, { session, visible: !this.headless,
+        return sendJson(res, 200, { session: this.manager.get(session.id), visible: !this.headless,
           coordinateSystem: 'global_DIP',
           instruction: 'User-reported completion is not verification. Recheck the target application.' });
       }
@@ -273,6 +286,8 @@ export class LocalBridge {
           return sendJson(res, 422, { error: 'Scene target outside display', code: 'outside_display' });
         }
         const result = this.manager.updateScene(body.sessionId, owner, body.expectedRevision, body.operations);
+        // Manual edits take ownership of the scene and stop automatic target following.
+        if (!result.error) this.anchors.clearFor(body.sessionId);
         return sendJson(res, result.error ? 409 : 200, result);
       }
       if (req.method === 'POST' && pathname === '/agent/cancel') {

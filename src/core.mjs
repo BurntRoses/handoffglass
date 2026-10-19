@@ -164,6 +164,24 @@ export class HandoffManager extends EventEmitter {
     this.emit('show', copySession(session));
     return { session: copySession(session) };
   }
+  /** Broker-owned ephemeral location refresh. Does not extend TTL or report completion. */
+  setAnchorState(id, {status, annotations, scene, observedAt, signature, reason}) {
+    const session=this.sessions.get(id);
+    if(!session || this.activeId!==id || TERMINAL.has(session.status))return {error:'not_active'};
+    if(!['tracking','lost','layout_changed','desktop_unavailable'].includes(status))throw new TypeError('Invalid anchor state');
+    const previous=session.targetTracking;
+    const changed=!previous || previous.status!==status ||
+      previous.signature!==signature || JSON.stringify(session.annotations)!==JSON.stringify(annotations);
+    if(!changed)return {session:copySession(session),changed:false};
+    session.annotations=annotations.map(a=>({...a}));
+    if(scene && session.scene && JSON.stringify(scene)!==JSON.stringify(session.scene)) {
+      session.scene=scene;session.sceneRevision++;
+    }
+    session.targetTracking={status,observedAt,signature,...(reason?{reason}:{})};
+    session.updatedAt=this.clock();
+    this.emit('show',copySession(session));
+    return {session:copySession(session),changed:true};
+  }
   #finish(session, status) {
     if (TERMINAL.has(session.status)) return;
     const timer = this.timers.get(session.id);
