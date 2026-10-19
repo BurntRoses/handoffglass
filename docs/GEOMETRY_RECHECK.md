@@ -19,7 +19,7 @@ With read-only native UI lookup explicitly enabled, `ui_locate` accepts the same
 }
 ```
 
-The earlier coordinates and layout signature should be taken from a previous `ui_locate` response; the hexadecimal value above is only a format example. The response includes new grounded coordinates, a current `layoutSignature`, and a `comparison` with `state` of `unchanged`, `moved`, `display_changed` or `unavailable`. It always states `locationVerified:false` because comparison is **not** proof a human action succeeded.
+The earlier coordinates and layout signature should be taken from a previous `ui_locate` response; the hexadecimal value above is only a format example. The response includes new grounded coordinates, a current `layoutSignature`, and a `comparison` with `state` of `unchanged`, `moved`, `display_changed`, `layout_unknown` or `unavailable`. It always states `actionVerified:false` because comparison is **not** proof a human action succeeded. A missing previous layout signature returns `layout_unknown`, not a false assurance of stability.
 
 If the display layout changes or the control moves, refresh the observation and decide whether to update a live scene. The runtime never automatically clicks or grants a permission. It will not silently animate an old target onto a new location without a grounded recheck.
 

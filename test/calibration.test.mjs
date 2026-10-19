@@ -24,10 +24,11 @@ test('deterministic layout revision independent of monitor ordering',()=>{
 test('explicit reobservation always reports nonverified outcomes',()=>{
   const prior={x:100,y:200,width:80,height:24,layoutSignature:layoutSignature(displays)};
   const current={x:102,y:201,width:80,height:24};
-  assert.deepEqual(compareObservation(prior,current,prior.layoutSignature),{state:'unchanged',deltaDip:2.2,locationVerified:false});
+  assert.deepEqual(compareObservation(prior,current,prior.layoutSignature),{state:'unchanged',deltaDip:2.2,actionVerified:false});
   assert.equal(compareObservation(prior,{...current,x:200},prior.layoutSignature).state,'moved');
   assert.equal(compareObservation(prior,current,'ffffffffffffffff').state,'display_changed');
   assert.equal(compareObservation(null,current,prior.layoutSignature).state,'unavailable');
+  assert.equal(compareObservation({...prior,layoutSignature:undefined},current,prior.layoutSignature).state,'layout_unknown');
 });
 test('ui_locate may compare a prior point without clicking or rewriting the earlier observation',async()=>{
   const manager=new HandoffManager(); const bridge=new LocalBridge(manager,{headless:true,locator:async()=>({x:100,y:80,width:50,height:20,source:'mock',observedAt:Date.now()})});
@@ -39,7 +40,7 @@ test('ui_locate may compare a prior point without clicking or rewriting the earl
     const r=await fetch(`http://127.0.0.1:${bridge.port}/agent/locate`,{method:'POST',headers,body:JSON.stringify(body)});
     assert.equal(r.status,200); const data=await r.json();
     assert.equal(data.comparison.state,'unchanged');
-    assert.equal(data.comparison.locationVerified,false);
+    assert.equal(data.comparison.actionVerified,false);
     assert.equal(data.target.layoutSignature,layoutSignature(displays));
     assert.match(data.warning,/not permission/);
   }finally{await bridge.stop();manager.close();}

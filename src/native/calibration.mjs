@@ -39,10 +39,11 @@ export function inspectLayout(displays, platform = process.platform) {
 export function compareObservation(previous,current,currentSignature,{toleranceDip=4}={}) {
   if(!previous || !current || ![previous.x,previous.y,previous.width,previous.height,current.x,current.y,current.width,current.height].every(Number.isFinite))
     return {state:'unavailable'};
-  if(previous.layoutSignature && currentSignature && previous.layoutSignature !== currentSignature)
-    return {state:'display_changed',locationVerified:false};
+  if(!previous.layoutSignature || !currentSignature) return {state:'layout_unknown',actionVerified:false};
+  if(previous.layoutSignature !== currentSignature)
+    return {state:'display_changed',actionVerified:false};
   const delta=Math.hypot(current.x-previous.x,current.y-previous.y);
   const sizeDelta=Math.max(Math.abs(current.width-previous.width),Math.abs(current.height-previous.height));
-  if(delta>toleranceDip || sizeDelta>toleranceDip) return {state:'moved',deltaDip:Math.round(delta*10)/10,locationVerified:false};
-  return {state:'unchanged',deltaDip:Math.round(delta*10)/10,locationVerified:false};
+  if(delta>toleranceDip || sizeDelta>toleranceDip) return {state:'moved',deltaDip:Math.round(delta*10)/10,actionVerified:false};
+  return {state:'unchanged',deltaDip:Math.round(delta*10)/10,actionVerified:false};
 }
