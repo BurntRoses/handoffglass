@@ -40,7 +40,7 @@ npm run verify
 npm run configure
 ```
 
-`npm run desktop:demo` 打开桌面交接演示，`npm run gallery` 浏览视觉模板。
+`npm run visual:trial` 试用六组动态笔触与真实 Agent 交接，`npm run gallery` 比较 13 种标注。详见 [Agent 视觉试用](docs/AGENT_VISUAL_TRIAL.md)。
 
 **让 Codex 在本机继续开发？** 直接发送 [Codex 接手指南](docs/CODEX_HANDOFF.md)。Codex 自行获取仓库、配置环境、运行程序、测试、修改代码并提交 PR。
 

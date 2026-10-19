@@ -20,11 +20,14 @@
       "properties": {
         "id": {"$ref": "#/$defs/id"},
         "x": {"$ref": "#/$defs/coordinate"}, "y": {"$ref": "#/$defs/coordinate"},
-        "shape": {"enum": ["arrow", "ring", "box", "spotlight", "badge", "underline", "crosshair"]},
+        "shape": {"enum": ["arrow", "ring", "box", "spotlight", "badge", "underline", "crosshair", "highlight", "bracket", "check", "scribble", "halo", "cursor"]},
         "tone": {"enum": ["accent", "info", "success", "caution", "danger", "neutral"]},
         "color": {"type": "string", "pattern": "^#[0-9a-fA-F]{6}$"},
         "width": {"$ref": "#/$defs/positiveSize"}, "height": {"$ref": "#/$defs/positiveSize"},
-        "label": {"type": "string", "maxLength": 64}, "opacity": {"$ref": "#/$defs/unit"}
+        "label": {"type": "string", "maxLength": 64}, "opacity": {"$ref": "#/$defs/unit"},
+        "effect": {"enum": ["draw", "pulse", "flow", "still"]},
+        "delayMs": {"type": "number", "minimum": 0, "maximum": 5000},
+        "durationMs": {"type": "number", "minimum": 200, "maximum": 4000}
       }
     },
     "layer": {

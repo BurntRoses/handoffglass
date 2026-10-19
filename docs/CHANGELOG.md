@@ -1,3 +1,11 @@
+## Unreleased — expressive visual guidance
+
+- Reworked production SVG strokes, labels and feathered spotlight masking; added marker ink, corner brackets, check glyph, overlapping pen loops, halo and vector pointer (13 marks / 9 templates).
+- Added local draw, flow, pulse and still effects with bounded per-mark delay/duration and staggered sequence templates.
+- Preserved drawing progress across snapshot and geometry updates; kept reduced-motion strokes fully visible and opacity intact.
+- Rebuilt the shared-renderer visual atelier and added a real MCP/Electron interactive trial, with measured fixture coordinates and downstream state checks.
+- Added structural, protocol and real desktop regressions, including new styles through native Accessibility tracking.
+
 ## Unreleased — macOS desktop validation
 
 - Fixed Electron ESM startup deadlocks in both desktop entrypoints and GUI launches inherited from Electron's Node mode.

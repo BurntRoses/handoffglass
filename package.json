@@ -61,7 +61,9 @@
     "connection:check": "node scripts/connection-check.mjs",
     "check:syntax": "node scripts/check-syntax.mjs && node scripts/build-overlay.mjs --check",
     "check:repo": "node scripts/check-repo.mjs",
-    "handoff:check": "npm run verify && npm run scene:lint"
+    "handoff:check": "npm run verify && npm run scene:lint",
+    "visual:trial": "node scripts/visual-trial.mjs",
+    "test:visual": "node scripts/visual-trial.mjs --smoke"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

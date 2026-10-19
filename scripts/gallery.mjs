@@ -7,6 +7,7 @@ import { resolve, dirname } from 'node:path';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const files = new Map([
   ['/', ['examples/scene-gallery.html', 'text/html']],
+  ['/examples/scene-gallery.css', ['examples/scene-gallery.css', 'text/css']],
   ['/examples/scene-gallery.js', ['examples/scene-gallery.js', 'text/javascript']],
   ['/src/visual/scene.mjs', ['src/visual/scene.mjs', 'text/javascript']],
   ['/src/desktop/overlay-renderer.mjs', ['src/desktop/overlay-renderer.mjs', 'text/javascript']],

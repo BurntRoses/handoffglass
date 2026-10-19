@@ -50,7 +50,7 @@ try {
       const started = performance.now();
       if (phase === 'initial') {
         const shown = await broker.present('guide', { title: 'HandoffGlass native QA',
-          message: 'Measured native fixture; no click required', target, timeoutSeconds: 30 });
+          message: 'Measured native fixture; no click required', target, template: 'sketch', timeoutSeconds: 30 });
         assert.equal(shown.visible, true);
         sessionId = shown.session.id;
       }
@@ -58,6 +58,7 @@ try {
       while (performance.now() - started < 3000) {
         const { session } = await broker.status(sessionId);
         const a = session.annotations[0];
+        if(a){assert.equal(a.shape,'scribble');assert.equal(a.effect,'draw');assert.equal(a.durationMs,1100);}
         centerError = a ? Math.max(Math.abs(a.x - (b.x + b.width / 2)), Math.abs(a.y - (b.y + b.height / 2))) : null;
         sizeError = a ? Math.max(Math.abs(a.width - b.width), Math.abs(a.height - b.height)) : null;
         if (phase === 'hidden' ? session.targetTracking?.status === 'lost' && !a :
