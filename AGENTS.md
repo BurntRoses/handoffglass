@@ -73,3 +73,9 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 ## v0.13 activity and geometry invariants
 - Host activity shows authenticated *tool invocations* with caller-declared host labels; not signed host identity or a live socket count. Never persist requests, prompts, paths, passwords or raw owner IDs.
 - A rechecked UI target may move or the display signature may change. Fail closed on cross-screen physical rectangles. `locationVerified` must never be treated as a downstream action success.
+
+## v0.14 anchored UI guidance
+- Native-target presentations track the foreground control locally by default; preserve `followTarget:false` for one-shot use.
+- A failed native check must clear stale visible annotations, never reuse a guessed position. Do not reset handoff TTL or set `verified:true` when a target is observed.
+- Respect display-layout invalidation, terminal sessions and in-flight stale native results. New scene mutations must stop auto-tracking or explicitly reconcile tracking and revision ownership.
+- Real macOS AX / Windows UIA timings, focus behavior and click-through still require a physical desktop QA run.

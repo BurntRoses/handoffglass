@@ -9,7 +9,7 @@ function overlaps(a,b) {
 }
 export function layoutSignature(displays) {
   if(!Array.isArray(displays) || !displays.length || displays.length>16) return null;
-  const entries=displays.map(d=>({id:String(d.id),dip:rectFields.map(k=>d[k]),
+  const entries=displays.map(d=>({id:String(d.id),scale:Number.isFinite(d.scaleFactor)?d.scaleFactor:null,dip:rectFields.map(k=>d[k]),
     physical:d.physicalBounds ? rectFields.map(k=>d.physicalBounds[k]) : null}));
   if(entries.some(e=>e.dip.some(v=>!Number.isFinite(v)) || e.physical?.some(v=>!Number.isFinite(v)))) return null;
   entries.sort((a,b)=>a.id.localeCompare(b.id));

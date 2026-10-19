@@ -105,6 +105,10 @@ npm run preferences -- set visualStyle=handdrawn
 
 User preferences take precedence over an agent's presentation choices. Native element lookup is opt-in. The overlay doesn't click or approve anything on your behalf.
 
+## Live native targeting
+
+With read-only Accessibility enabled, exact foreground UI targets follow the application as its window moves. If the target disappears or the display layout changes, the old highlight is removed rather than left in place. The human remains in control; re-observation never verifies a completed action. Add `followTarget: false` for a one-shot location. [Native UI behavior](docs/NATIVE_RUNTIME.md) · [Desktop QA](docs/DESKTOP_QA.md).
+
 ## Documentation
 
 | Explore | Build | Integrate |
