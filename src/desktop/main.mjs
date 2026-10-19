@@ -61,7 +61,7 @@ function createOverlay(display) {
 }
 function createPanel() {
   const win = new BrowserWindow({
-    width: 440, height: 334, minWidth: 440, minHeight: 334,
+    width: 440, height: 342, minWidth: 440, minHeight: 342,
     show: false, skipTaskbar: true, frame: false, transparent: false,
     alwaysOnTop: true, resizable: false, backgroundColor: '#101923',
     webPreferences: {
@@ -106,7 +106,7 @@ function updateUI(next) {
   const target = current.annotations?.[0];
   const placeLeft = target && target.x > area.x + area.width * 0.55;
   const x = placeLeft ? area.x + 12 : area.x + Math.max(8, area.width - 456);
-  panel.setPosition(Math.round(x), Math.round(area.y + Math.max(8, area.height - 350)));
+  panel.setPosition(Math.round(x), Math.round(area.y + Math.max(8, area.height - 358)));
   if (!panel.webContents.isLoading()) panel.webContents.send('hg:render', current);
   panel.showInactive();
   panel.moveTop();

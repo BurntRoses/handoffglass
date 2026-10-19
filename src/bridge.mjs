@@ -191,6 +191,7 @@ export class LocalBridge {
         const preference = await loadPreferences();
         body.locale = preference.locale;
         body.density = preference.density;
+        body.theme = preference.theme;
         if (await hasUserPreferences()) {
           // Persistent, explicitly user-chosen preferences outrank the Agent's cosmetic hints.
           body.visualStyle = preference.visualStyle;

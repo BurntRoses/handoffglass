@@ -92,3 +92,13 @@
 - Add offline compact MCP response byte benchmark (avoids unsupported token-saving claims).
 
 - Packaging regression follow-up: explicitly terminate the isolated headless Broker spawned by the packaged MCP test before removing its runtime directory. Merely retrying EBUSY was insufficient (see Actions run 39146346211).
+
+## Unreleased — visual cohesion and first-run usability
+
+- Rebuilt the local setup window with a calm dual-surface layout and responsive vector illustration.
+- Added a read-only, host-specific MCP configuration preview with safe concurrent selection handling.
+- Fixed source-mode Electron's stdio MCP launch config by explicitly setting `ELECTRON_RUN_AS_NODE=1`.
+- Unified first-run and handoff panel color/typography tokens, with system/dark/light appearance preferences.
+- Refined decision layout, keyboard focus, high-contrast and reduced-motion behavior.
+- Added a scalable, reusable Agent → Human → Agent infographic to all three README languages.
+- Added UI contract tests and `docs/INTERFACE_SYSTEM.md`.

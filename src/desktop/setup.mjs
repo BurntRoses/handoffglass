@@ -11,14 +11,14 @@ let window=null;
 const asBoolean = v => v === true;
 function connection(host) {
   const entry=app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
-  return hostConfig(host,{command:app.isPackaged?process.execPath:process.execPath,entry,compact:true,
-    envOverrides:app.isPackaged?{ELECTRON_RUN_AS_NODE:'1'}:{}});
+  return hostConfig(host,{command:process.execPath,entry,compact:true,
+    envOverrides:{ELECTRON_RUN_AS_NODE:'1'}});
 }
 function fromWindow(event){return window&&!window.isDestroyed()&&event.sender===window.webContents;}
 export async function showSetup({firstRun=false}={}){
   if(window&&!window.isDestroyed()){window.show();window.focus();return window;}
   window=new BrowserWindow({
-    width:890,height:670,minWidth:680,minHeight:570,show:false,backgroundColor:'#0d141e',
+    width:1000,height:730,minWidth:740,minHeight:620,show:false,backgroundColor:'#0b141a',
     title:'HandoffGlass · Setup',autoHideMenuBar:true,
     webPreferences:{preload:join(here,'setup-preload.cjs'),sandbox:true,contextIsolation:true,
       nodeIntegration:false,webSecurity:true}
@@ -41,12 +41,16 @@ export function registerSetupIPC(){
     if(!fromWindow(event)||!input||typeof input!=='object'||Array.isArray(input))return {ok:false,error:'Invalid setup'};
     // A deliberate click from the local settings window is required; all values are strictly validated.
     try {
-      const {visualStyle,motion,locale,density,accessibility}=input;
+      const {visualStyle,motion,locale,density,theme,accessibility}=input;
       if(typeof accessibility!=='boolean')return {ok:false,error:'Invalid accessibility choice'};
-      const preferences=await savePreferences({visualStyle,motion,locale,density});
+      const preferences=await savePreferences({visualStyle,motion,locale,density,theme});
       await setAccessibilityConsent(accessibility);
       return {ok:true,preferences};
     } catch(error){return {ok:false,error:error.message};}
+  });
+  ipcMain.handle('hg:setup:preview',async(event,host)=>{
+    if(!fromWindow(event)||!HOST_ALLOWLIST.has(host))return {ok:false,error:'Unknown host'};
+    try{return {ok:true,content:connection(host)};}catch(error){return {ok:false,error:error.message};}
   });
   ipcMain.handle('hg:setup:copy',async(event,host)=>{
     if(!fromWindow(event)||!HOST_ALLOWLIST.has(host))return {ok:false,error:'Unknown host'};

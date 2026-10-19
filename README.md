@@ -18,9 +18,9 @@ A local interaction layer for AI agents. Point to the next step, bring a human i
 
 [Installation & setup guide](site/getting-started.html)
 
-[First-run desktop guide](docs/ONBOARDING.md)
+[First-run desktop guide](docs/ONBOARDING.md) · [Interface system](docs/INTERFACE_SYSTEM.md)
 
-[Brand & app icons](docs/BRAND.md)
+[Brand & app icons](docs/BRAND.md) · [Interface system](docs/INTERFACE_SYSTEM.md)
 
 ## A better moment between agent and human
 
@@ -34,6 +34,9 @@ Agents can work for hours. Sometimes the next step is yours: sign in, review acc
 | **Stay local** | Shared on-device broker, opt-in native UI targeting and locally stored visual preferences. |
 
 ## See it in action
+
+<img src="assets/interaction-flow.svg" alt="Agent, human and agent handoff flow" width="100%" />
+
 
 ```text
 Agent                     HandoffGlass                         You

@@ -58,3 +58,9 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - The optional `handoff_assess` tool is pure and read-only; never silently enable all extras on small-context hosts.
 - Run `npm run readiness -- --json` to collect an environment readiness report, not a GUI acceptance certificate.
 - The Windows packaged MCP smoke may need bounded cleanup retries after the Electron child exits. Do not bypass smoke failure assertions.
+
+## Shared UI tokens and appearance
+- Desktop setup and handoff panel share `src/desktop/ui-tokens.css`; adjust tokens instead of adding unbounded duplicated colors.
+- Local preference `theme: system | dark | light` is user-owned, with backward-compatible defaults.
+- Use safe textContent and localized copy; never render host-supplied HTML. Test dark/light/reduced-motion/forced-colors before UI claims.
+- See `docs/INTERFACE_SYSTEM.md` for design and IPC rules.
