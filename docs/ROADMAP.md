@@ -1,41 +1,22 @@
-# HandoffGlass roadmap
+# Roadmap
 
-## v0.3 — multi-Agent runtime (implemented in source)
+HandoffGlass is currently a **private, unsigned engineering preview (0.15.x)**. The local MCP Broker, owner-scoped handoff state, opt-in native targeting, incremental events, scenes, Control Center and host config generators exist in source. Headless CI and packaged MCP tests are not substitutes for real desktop validation.
 
-- [x] Single local Broker shared across MCP clients; startup lock and recovery from stale manifest.
-- [x] Separate Agent and desktop bearer tokens; owner-scoped status/wait/cancel.
-- [x] Reject cross-Agent superseding (`busy`) without asking a person to handle two simultaneous prompts.
-- [x] Broker CLI status/stop, state recovery tests, dual-host MCP SDK integration script.
-- [x] Electron display-change debounce and fresh desktop handshake on renderer restart.
-- [ ] Cross-platform GUI desktop acceptance on macOS and Windows real interactive sessions.
-- [x] npm lockfile with cross-platform deterministic CI install.
-- [ ] Signed installer, hardened macOS app, verified Windows installer and notarization.
-- [ ] Stable public multi-runtime protocol (currently private v0.3 design, subject to change).
+## P0 — finish the actual user workflow
 
-## v0.4 — authoritative UI targets
+- [ ] [#1 macOS / Windows desktop acceptance](https://github.com/BurntRoses/handoffglass/issues/1): show overlay on installed app, click-through, panel focus, display changes, full-screen and crash recovery. Record device evidence.
+- [ ] [#3 native target accuracy](https://github.com/BurntRoses/handoffglass/issues/3): exact AX/UIA foreground targeting, permission denial, occlusion and drift under window movement and mixed-DPI multi-monitor setups. Fail closed.
+- [ ] [#9 real Agent adoption](https://github.com/BurntRoses/handoffglass/issues/9): end-to-end Codex first, then DeepSeek Harness, WorkBuddy and Trae. Require actual tool invocation and task continuation, not config-shape checks.
 
-- [ ] macOS AXUIElement and Windows UI Automation adapters with a permission-gated capability surface.
-- [ ] Browser DOM adapter, stale-target revalidation, ambiguous-match errors and visibility/occlusion checks.
-- [ ] Privacy-safe sampling, bounding box proofs and explicit trust labeling.
-- [ ] Optional screenshot/vision fallback only after opt-in and a data retention policy.
+## P1 — ready to distribute
 
-## v0.5 — richer human/Agent collaboration
+- [ ] [#4 distribution](https://github.com/BurntRoses/handoffglass/issues/4): clean install/upgrade/uninstall, broker startup without external Node, OS permission UX, signed macOS/Windows installers after field tests.
+- [ ] Safe abandoned-session recovery design if demanded by real hosts; no cross-owner session claiming without authentic, OS-local authorization.
+- [ ] Close UX defects found in actual user journeys; keep the default tool surface minimal.
 
-- [ ] Multi-step guides, per-step outcome confirmations, explicit dismiss/decline policy and independent verification hooks.
-- [ ] Keyboard-accessible screen reader semantics and internationalized visual layer.
-- [ ] Chrome/cloud-browser overlays and optional speech events, avoiding a mandatory video stream.
-- [ ] Agent-host extension samples; realistic task benchmark measuring success, time, human load and token cost.
+## P2 — evidence of impact
 
-## Deferred or unsupported
+- [ ] [#10 effectiveness](https://github.com/BurntRoses/handoffglass/issues/10): real model tokens, correct-target rate, time to resume, user refusals and task success; compare text-only/static/tracked handoffs.
+- [ ] Native accessibility and visual quality improvements, guided by measured desktop results rather than effect count.
 
-No automatic CAPTCHA solving, bypassing OS secure surfaces, guaranteed control of permission dialogs, automatic privileged approval or blanket claim of “production ready”.
-
-## v0.4 completed (2026-10-18)
-
-- Single core is now independent of optional desktop Electron installation; GitHub CI tests MCP-only.
-- Host configs: Claude, Codex, Cursor, VS Code, Copilot, Gemini, Zed (generator + JSON/TOML tests).
-- Idempotency and overload protection; ambiguous POST replay is not automatic; compact results for token-sensitive agents.
-- Panel decision acknowledgements and non-blocking guide overlay; annotated shapes can span displays.
-- Explicit compatibility tiers and model invocation playbook added.
-
-Remaining critical path: **Issue #1** real GUI acceptance, **Issue #4** installer build and smoke testing, **Issue #3** opt-in grounded accessibility. Synthetic tests are not physical device acceptance.
+**Do not use this file as evidence that a checkbox passed.** Test data belongs in a linked PR/Issue, with the exact build SHA, OS and reproduction steps. Start at [Codex handoff](CODEX_HANDOFF.md).

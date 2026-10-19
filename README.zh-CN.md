@@ -37,22 +37,9 @@
 
 从托盘打开 **Control Center**，可查看本地服务状态、复制各 Agent 的 MCP 配置、调整外观与动效、管理只读定位权限，并运行不含隐私内容的诊断。近期 MCP 请求不等于某个宿主已经完成连接。详见 [设置中心文档](docs/CONTROL_CENTER.md)。
 
-
 ## 交接如何发生
 
 <img src="assets/interaction-flow.svg" alt="Agent, human and agent handoff flow" width="100%" />
-
-
-```text
-Agent                       HandoffGlass                     用户
-  │                               │                            │
-  ├── 定位目标 / 显示指引 ────────►│  高亮目标                  │
-  ├── 请求人工接管 ───────────────►│  展示操作面板 ─────────────►│
-  │                               │◄────── 已完成 / 拒绝 ──────┤
-  │◄── 返回会话结果 ──────────────┤                            │
-  ├── 核验真实结果                │                            │
-  └── 继续执行任务                │                            │
-```
 
 运行 `npm run gallery` 查看 [场景模板实验室](examples/scene-gallery.html)，或运行 `npm run site:preview` 体验[多语言产品展示页](site/index.html)。
 
@@ -84,6 +71,8 @@ npm run configure
 ```
 
 不同宿主的格式由配置生成器处理。要直接测试真实桌面遮罩，运行 `npm run desktop:demo`；安装包与平台说明见[桌面运行时](docs/NATIVE_RUNTIME.md)。
+
+**准备在本地继续开发？** 阅读 [Codex 交接与实机验收](docs/CODEX_HANDOFF.md) 和 [文档导航](docs/INDEX.md)。
 
 ## Agent 接入
 
@@ -117,6 +106,3 @@ npm run preferences -- set visualStyle=handdrawn
 
 连接证据与安全校验：[本地宿主活动](docs/HOST_ACTIVITY.md) · [显示器定位复核](docs/GEOMETRY_RECHECK.md)。
 
-### 交接事件流（v0.15）
-
-使用 `handoff_events` 按游标读取控件移动、定位失效与恢复、用户决定等本地事件，并获取下一步建议；用户报告“完成”后仍需独立核验真实结果。设置中心以不含任务内容的时间线展示相同状态。[事件协议说明](docs/INTERACTION_EVENTS.md)。

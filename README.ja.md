@@ -39,7 +39,6 @@ AI エージェントのためのローカル対話レイヤー。操作する�
 
 トレイの **Control Center** から、ローカルサービスの状態、各エージェント用 MCP 設定、表示設定、読み取り専用 UI 検索の許可、簡潔な診断を確認できます。API の利用履歴は、特定のクライアントが接続済みであることを保証しません。[詳細](docs/CONTROL_CENTER.md)。
 
-
 ローカル接続チェック：`npm run connection:check` · [接続診断ガイド](docs/CONNECTION_DIAGNOSTICS.md)。
 
 ## はじめる
@@ -97,3 +96,5 @@ npm run preferences -- set visualStyle=handdrawn
 ### ハンドオフイベント（v0.15）
 
 `handoff_events` はローカルの位置変更・追跡失敗・復帰・ユーザーの判断をカーソル方式で返します。完了の自己申告は操作の検証ではありません。[イベント仕様](docs/INTERACTION_EVENTS.md)。
+
+ローカル開発：[Codex 引き継ぎガイド](docs/CODEX_HANDOFF.md) · [ドキュメント一覧](docs/INDEX.md)。

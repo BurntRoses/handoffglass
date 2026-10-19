@@ -16,7 +16,7 @@ A local interaction layer for AI agents. Point to the next step, bring a human i
 
 </div>
 
-[Installation & setup guide](site/getting-started.html)
+[Installation & setup guide](site/getting-started.html) · [Codex local development handoff](docs/CODEX_HANDOFF.md)
 
 [First-run desktop guide](docs/ONBOARDING.md) · [Interface system](docs/INTERFACE_SYSTEM.md)
 
@@ -37,22 +37,9 @@ Agents can work for hours. Sometimes the next step is yours: sign in, review acc
 
 The tray **Control Center** brings together live broker/desktop status, local MCP configuration for each supported host, appearance preferences and read-only diagnostics. It does not report a host as connected merely because the broker is running. [Control Center guide](docs/CONTROL_CENTER.md).
 
-
 ## See it in action
 
 <img src="assets/interaction-flow.svg" alt="Agent, human and agent handoff flow" width="100%" />
-
-
-```text
-Agent                     HandoffGlass                         You
-  │                            │                               │
-  ├── locate + guide ──────────►│  draw a focus / point         │
-  ├── request handoff ─────────►│  show a separate decision UI ─►│
-  │                            │◄──────── complete / decline ──┤
-  │◄── session outcome ────────┤                               │
-  ├── verify the actual result │                               │
-  └── continue the task        │                               │
-```
 
 Try the [interactive scene gallery](examples/scene-gallery.html) with `npm run gallery`, or open the [multilingual product preview](site/index.html) with `npm run site:preview`.
 
@@ -85,6 +72,8 @@ Add the printed configuration to your agent, or connect a local stdio MCP server
 
 Configuration varies by host. The generator handles Claude, Codex, Cursor, VS Code, Gemini CLI, Trae and others. For the installed desktop preview, see [Native runtime](docs/NATIVE_RUNTIME.md). To inspect the visual overlay on your own computer, run `npm run desktop:demo`.
 
+**Working on the code locally?** Start with the [Codex handoff](docs/CODEX_HANDOFF.md) and [document map](docs/INDEX.md).
+
 ## Integrations
 
 **One protocol. Multiple agents.** The MCP server and the local broker are shared; host adapters handle the differences.
@@ -114,11 +103,8 @@ With read-only Accessibility enabled, exact foreground UI targets follow the app
 | Explore | Build | Integrate |
 |:--|:--|:--|
 | [Visual language](docs/VISUAL_LANGUAGE.md) | [Architecture](docs/ARCHITECTURE.md) | [Host compatibility](docs/COMPATIBILITY.md) |
-| [Scene protocol](docs/SCENE_PROTOCOL.md) | [MCP + Skill](skills/visual-handoff/SKILL.md) | [Native runtime](docs/NATIVE_RUNTIME.md) |
+| [Scene protocol](docs/SCENE_PROTOCOL.md) | [Codex handoff](docs/CODEX_HANDOFF.md) | [Native runtime](docs/NATIVE_RUNTIME.md) |
 | [Motion & interaction](docs/VISUAL_MOTION.md) | [Agent development guide](AGENTS.md) | [Security & privacy](docs/SECURITY.md) |
 
 <sub>Private engineering preview · Windows and macOS installers are unsigned preview builds. GitHub Actions verifies packages and MCP startup; desktop interaction still needs on-device acceptance. Repository license: UNLICENSED.</sub>
 
-### Handoff event stream (v0.15)
-
-Use `handoff_events` with a session ID and incremental cursor to inspect local target-loss, recovery and human-decision transitions. It returns a concise recommended next action; it never claims to verify a downstream task. The setting center displays the same events without task content. [Protocol and safety details](docs/INTERACTION_EVENTS.md).

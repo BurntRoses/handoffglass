@@ -1,87 +1,40 @@
-# Instructions for autonomous coding agents
+# HandoffGlass — instructions for coding agents
 
-Work on this repo as an MCP desktop handoff infrastructure project, **not** a GUI-clicking automation bot. Read `docs/AGENT_HANDOFF.md` before modifying source.
+Start with [the Codex handoff](docs/CODEX_HANDOFF.md), then [the architecture map](docs/ARCHITECTURE.md). `docs/INDEX.md` links the rest. Treat the current code, tests and actual desktop observations as authoritative over old prose.
 
-## Non-negotiable invariants
-1. Never invent UI coordinates, grant a permission, solve a challenge, or approve a payment on the user's behalf. The human makes sensitive decisions.
-2. A human pressing *completed* reports an action; it does not prove downstream success (`verified` remains false).
-3. Keep the local broker bound to loopback, require scoped bearer credentials, forbid browser origins, and preserve owner-scoped status/cancel.
-4. Do not introduce screen capture, OCR, accessibility enumeration, telemetry or cloud calls silently; obtain explicit consent and define retention/redaction before implementation.
-5. On GUI loss, return a clear error rather than claiming the visual overlay appeared.
-6. Preserve MCP tool names and response fields or document and version any breaking changes.
-7. No modifying real user settings, login/payment/security prompts in test automation.
+## Goal
 
-## Before changing code
-- Inspect `src/core.mjs` (authoritative state machine), `src/bridge.mjs` (loopback transport), `src/runtime.mjs` (broker discovery/ownership), `src/mcp.mjs` (public tools), and `src/desktop/` (Electron UI).
-- Run `npm ci`, `npm run verify`, `npm run test:integration` (Node 22+). CI matrix must pass on Ubuntu, macOS, Windows.
-- Prefer an isolated branch/PR for nontrivial changes; include regression tests and state what was not tested.
-- Do not close desktop acceptance issues using only headless CI results.
+Make the existing **local** human↔agent visual handoff reliable on real macOS and Windows desktops. Fix failures, run acceptance scenarios, improve the UX, and document evidence. Do not build a new assistant, browser automation bot, parallel broker, or platform-specific copy of the core.
 
-## Definition of done
-- New behavior has success, refusal, timeout, cancellation and stale-state tests where applicable.
-- Platform limitations, privacy/security implications and manual steps are documented.
-- No secrets, screenshot captures or user-specific file paths are committed.
-- All passing claims cite exact commands and CI runs; failed tests are not hidden.
+## Invariants
 
-## v0.4 cross-platform rules
-- Use `src/config.mjs` and `scripts/configure.mjs` for all MCP host configuration variants. Do not add a new runtime just for another AI model.
-- Maintain `requestId` and the default MCP output structure. Compact mode is opt-in and must retain status and `verified`.
-- Electron is optional. Core/headless CI must run under `npm ci --omit=optional`.
-- Panel acknowledgements must come from the broker, not from timeouts or arbitrary renderer state.
-- See `docs/COMPATIBILITY.md` and `docs/MODEL_PLAYBOOK.md` for tested vs documented host integrations.
-- Keep `scripts/install-host.mjs` dry-run by default, conservatively merge existing JSON config and never automatically alter a host's TOML/JSONC. Use explicit `--apply` and backup for file mutations.
+1. Humans make sensitive decisions. Never auto-approve permissions, bypass MFA, click a payment/consent control or invent a target location.
+2. `completed` is a **user report** (`verified: false`); independently verify the downstream result. Refusals, cancellations and timeouts are final.
+3. Keep the per-user Broker loopback-only with separate agent/desktop bearer credentials, bounded requests, owner isolation and a single active session. Never recover an old session just from a public ID.
+4. Accessibility inspection requires explicit opt-in and exact foreground evidence. On ambiguous, stale, unavailable or cross-display targets: **remove guidance rather than guess**.
+5. No hidden screenshots, recording, OCR, telemetry, external calls, long-term task history or Agent writes to user preferences. Follow OS reduced-motion settings.
+6. A GUI crash or missing desktop must not be reported as a displayed overlay. Do not conflate headless CI, packaged MCP handshake and native desktop acceptance.
+7. Preserve public MCP tool names and response contracts. Keep optional schema-heavy tools behind `HANDOFFGLASS_EXTRAS=1`.
+8. Keep Electron optional for headless MCP. Native or renderer edits require macOS/Windows regression scenarios, not just Node tests.
 
-## Scene v1 (v0.5+)
-- Read `docs/SCENE_PROTOCOL.md`, `docs/VISUAL_LANGUAGE.md` and `docs/PRODUCT_INTERACTIONS.md` before touching annotations or desktop overlay.
-- Pure scene semantics and templates belong in `src/visual/scene.mjs`. Do not duplicate rules in each MCP harness or DOM renderer.
-- Gallery (`npm run gallery`) imports the **production** SVG renderer. Update both the protocol tests and gallery when adding marks or templates.
-- Preserve owner-scoped optimistic `visual_scene_update` with no TTL reset or user-decision spoofing. Legacy six tool names remain stable.
-- Every new scene shape needs renderer tests, schema changes, documentation and an actual screen-oriented QA scenario.
+## Change workflow
 
-## v0.6 platform rules
-- Desktop GUI packaged entry: `src/desktop/app.mjs`; source MCP client: `src/mcp.mjs`; native locator: `src/native/locator.mjs` and `native/{macos,windows}`.
-- Native targeting **requires explicit user opt-in**; never bypass accessibility permissions or fake a UI location.
-- macOS AX is global logical desktop coordinates; Windows UIA uses physical pixels and must use explicit monitor evidence for conversion to global DIP.
-- Do not claim packaged binaries work on a user desktop until `docs/DESKTOP_QA.md` has genuine evidence. CI-only structural packaging is not GUI acceptance.
-- Linux/Wayland and remote host/container sessions are not automatically supported. Prefer coordinate-free human handoff when no reliable locator is available.
+- Work from a fresh branch, inspect the affected module and its adjacent tests first; keep changes scoped. Do not change unrelated user settings or rewrite history.
+- Baseline: `npm ci`, `npm run verify`, `npm run test:integration`, `npm run connection:check`, `npm run test:extras` (Node 22+). If installation is unavailable, run dependency-free checks and state the missing verification.
+- For GUI work: `npm run desktop:demo` and `docs/DESKTOP_QA.md` on an **actual** interactive desktop. Record OS version, display layout/scaling, permissions, reproduction steps, expected/actual result and redacted evidence.
+- For packaging: `npm run build:icons`, `npm run native:macos` on macOS, then `npm run dist:desktop`. Inspect `electron-builder.config.cjs`; CI creates **unsigned engineering previews**, not a signed release.
+- For scene/visual changes: run `npm run gallery`, `npm run scene:lint` and update the *production* renderer, schema, preview and tests together.
+- Every PR: explain behavior, commands/results, evidence, remaining risk and any new permissions. Do not mark GitHub Issues #1, #3, #4, #9 or #10 complete without their stated real-world evidence.
 
-## v0.7 local-first and native harness integration
-- Read `docs/LOCAL_FIRST_MEMORY.md`, `docs/VISUAL_MOTION.md` and `docs/CHINA_HARNESS_INTEGRATION.md`.
-- WorkBuddy connector source is `integrations/workbuddy/`; generator must resolve absolute local paths only at installation, never commit developer-specific paths or publish machine-local connectors.
-- DeepSeek Harness Cordis adapter is `integrations/deepseek-harness/src/plugin.ts`, loaded from a real cloned DSH checkout with `scripts/prepare-deepseek.mjs`. Treat it as *developer preview* until tested on DSH; do not assert full runtime acceptance based on shape tests.
-- The user manages preferences. An Agent cannot write to long-term memory, capture history, grant permissions, or override OS reduced-motion requirements.
-- Do not add MCP tools by default that expand the model schema. Optional local context/blueprints are behind `HANDOFFGLASS_EXTRAS=1`.
-- Strong visual design is subject to accessibility: never hide a risk/decline action behind animation, blur or spotlights.
+## Code ownership map
 
-## Autonomous policy & readiness (next)
-- Read `docs/AGENT_AUTONOMY.md` before integrating or advertising automatic handoff tool use. Avoid overlay spam; trigger only when ordinary action fails or a human decision is needed.
-- The optional `handoff_assess` tool is pure and read-only; never silently enable all extras on small-context hosts.
-- Run `npm run readiness -- --json` to collect an environment readiness report, not a GUI acceptance certificate.
-- The Windows packaged MCP smoke may need bounded cleanup retries after the Electron child exits. Do not bypass smoke failure assertions.
+| Change | Files to read first |
+|---|---|
+| Session/state/ownership | `src/core.mjs`, `src/local/interaction-journal.mjs`, `test/core.test.mjs` |
+| MCP/host registration | `src/mcp.mjs`, `src/config.mjs`, `src/host-install.mjs` |
+| Broker, launch, security | `src/runtime.mjs`, `src/broker.mjs`, `src/bridge.mjs` |
+| Native AX/UIA and tracking | `src/native/`, `native/`, `test/native-locator.test.mjs`, `test/anchor-tracker.test.mjs` |
+| On-screen presentation | `src/desktop/`, `src/visual/`, `docs/SCENE_PROTOCOL.md` |
+| Packaging/installation | `electron-builder.config.cjs`, `.github/workflows/desktop-packages.yml`, `scripts/verify-package.mjs` |
 
-## Shared UI tokens and appearance
-- Desktop setup and handoff panel share `src/desktop/ui-tokens.css`; adjust tokens instead of adding unbounded duplicated colors.
-- Local preference `theme: system | dark | light` is user-owned, with backward-compatible defaults.
-- Use safe textContent and localized copy; never render host-supplied HTML. Test dark/light/reduced-motion/forced-colors before UI claims.
-- See `docs/INTERFACE_SYSTEM.md` for design and IPC rules.
-
-## v0.12 self-test and support-report contract
-- `npm run connection:check` launches an isolated, headless MCP child and sends initialize/tools/list/screen_displays only; it never validates that an external host registered a tool.
-- Control Center IPC for connection test, display geometry and support report must remain sender-bound; no caller-provided command execution or sensitive data in a report.
-- Keep `docs/CONNECTION_DIAGNOSTICS.md` and `test/mcp-probe.test.mjs` up to date.
-
-## v0.13 activity and geometry invariants
-- Host activity shows authenticated *tool invocations* with caller-declared host labels; not signed host identity or a live socket count. Never persist requests, prompts, paths, passwords or raw owner IDs.
-- A rechecked UI target may move or the display signature may change. Fail closed on cross-screen physical rectangles. `locationVerified` must never be treated as a downstream action success.
-
-## v0.14 anchored UI guidance
-- Native-target presentations track the foreground control locally by default; preserve `followTarget:false` for one-shot use.
-- A failed native check must clear stale visible annotations, never reuse a guessed position. Do not reset handoff TTL or set `verified:true` when a target is observed.
-- Respect display-layout invalidation, terminal sessions and in-flight stale native results. New scene mutations must stop auto-tracking or explicitly reconcile tracking and revision ownership.
-- Real macOS AX / Windows UIA timings, focus behavior and click-through still require a physical desktop QA run.
-
-## v0.15 event recovery
-- `handoff_events(sessionId, after, limit)` is owner-scoped, memory-only and incremental; never include screen data or secrets in journal entries.
-- `recovery=verify_downstream` is required after user-reported completion. Do not invent task success.
-- Never auto-claim sessions owned by disconnected MCP clients. Per-process owner isolation is an explicit security boundary.
-- Reject scene edits while a native target is missing; do not re-display stale positions.
+If you encounter a mismatch between documentation and code, validate the code path, fix the description, and add a regression test where appropriate. Avoid expanding the default tool schema or runtime dependencies without a measured benefit.
