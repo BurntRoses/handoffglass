@@ -1,4 +1,4 @@
-# Harness compatibility matrix (2026-10-18)
+# Harness compatibility matrix
 
 **One server, multiple adapters.** The HandoffGlass MCP server remains stdio; each host starts the same Node.js entry path. This matrix documents config shapes, not a claim of physical compatibility with every release of each host.
 

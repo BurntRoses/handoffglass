@@ -1,4 +1,4 @@
-# Native Desktop / UI Locator Integration (v0.6 engineering preview)
+# Native desktop and UI locator integration
 
 ## The two independent runtime tracks
 

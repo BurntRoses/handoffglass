@@ -8,8 +8,6 @@ dist/
 *.log
 .tmp/
 
-dist/
-native/macos/hg-locate
-
-# Deterministically generated during desktop packaging
+# Generated packaging artifacts and native helpers
 build/icons/
+native/macos/hg-locate

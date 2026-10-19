@@ -1,4 +1,4 @@
-# Security model and boundaries — v0.3
+# Security model and boundaries
 
 ## User consent is nondelegable
 

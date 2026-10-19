@@ -1,4 +1,4 @@
-# 中国 Agent/Harness 适配（v0.7）
+# 中国 Agent / Harness 适配
 
 The **harness** is the integration boundary, not the model name. A model served through DeepSeek API, 豆包/火山方舟 or Kimi does **not** by itself make a desktop app expose external tools.
 
