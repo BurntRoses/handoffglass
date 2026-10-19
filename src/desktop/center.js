@@ -8,7 +8,7 @@ const lex = {
  }
 };
 const $=id=>document.getElementById(id);
-let prefs=null,currentPage='overview',busy=false,serial=0;
+let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false;
 const translateKey=key=>(lex[prefs?.locale]||lex['zh-CN'])[key]||key;
 function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});renderLocal();}
 function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=page.toUpperCase();if(page==='connections')void preview();if(page==='diagnostics'||page==='overview')void refresh();}
@@ -29,13 +29,20 @@ function showState(d){
 }
 let toastTimeout;
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('visible'),2800);}
-async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}if(!prefs){prefs={...r.preferences,accessibility:r.accessibility};for(const name of ['visualStyle','motion','theme','locale','density'])$(name).value=prefs[name];$('accessibility').checked=prefs.accessibility;applyLocale();}else{prefs.accessibility=r.accessibility;renderLocal();}showState(r.diagnostics);}catch{if(id===serial)value('refreshed',translateKey('unavailable'));}}
+async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}if(!prefs||(!settingsDirty&&!busy)){
+      prefs={...r.preferences,accessibility:r.accessibility};
+      for(const name of ['visualStyle','motion','theme','locale','density'])$(name).value=prefs[name];
+      $('accessibility').checked=prefs.accessibility;
+      applyLocale();
+    }
+    showState(r.diagnostics);}catch{if(id===serial)value('refreshed',translateKey('unavailable'));}}
 async function preview(){const id=++preview.seq;const host=$('host').value;value('config',translateKey('loading'));value('configFormat',host==='codex'?'TOML / MCP':'JSON / MCP');try{const r=await window.hgCenter.preview(host);if(id!==preview.seq)return;value('config',r?.ok?r.content:translateKey('na'));$('copy').disabled=!r?.ok;}catch{if(id===preview.seq){value('config',translateKey('na'));$('copy').disabled=true;}}}
 preview.seq=0;
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>showPage(button.dataset.page)));
 $('refresh').addEventListener('click',refresh);$('host').addEventListener('change',preview);
 $('copy').addEventListener('click',async()=>{try{const r=await window.hgCenter.copy($('host').value);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}});
 $('permission').addEventListener('click',async()=>{try{const r=await window.hgCenter.permission();if(!r?.ok)toast(r?.error||translateKey('failed'));}catch{toast(translateKey('failed'));}});
-$('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};applyLocale();toast(translateKey('saved'));}catch{toast(translateKey('failed'));}finally{busy=false;$('save').disabled=false;}});
+$('preferences').addEventListener('change',()=>{settingsDirty=true;});
+$('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};settingsDirty=false;applyLocale();toast(translateKey('saved'));}catch{toast(translateKey('failed'));}finally{busy=false;$('save').disabled=false;}});
 window.addEventListener('focus',refresh);
 void refresh();setInterval(()=>{if(document.visibilityState==='visible'&&['overview','diagnostics'].includes(currentPage))void refresh();},8000);

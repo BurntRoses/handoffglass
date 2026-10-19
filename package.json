@@ -1,6 +1,6 @@
 {
   "name": "handoffglass",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "description": "Single-instance visual handoff broker for MCP agents with owned human decisions and safe desktop overlays",
   "type": "module",

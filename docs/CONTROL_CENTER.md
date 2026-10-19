@@ -37,3 +37,5 @@ npm run desktop:demo
 For a real desktop integration review, inspect `src/desktop/center.{html,css,js,mjs}`, `src/desktop/center-preload.cjs`, and `src/desktop/center-model.mjs`. The desktop status endpoint is `GET /desktop/diagnostics` in `src/bridge.mjs`.
 
 See `docs/DESKTOP_QA.md` for real-device window, DPI, permissions and accessibility validation. A browser preview with mocked desktop state is useful for layout checks, **not** a physical desktop acceptance test.
+
+When settings are being edited, periodic refresh does not overwrite the form. Once saved, the next refresh reflects any changes made from the tray or another settings window.
