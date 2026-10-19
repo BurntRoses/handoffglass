@@ -2,6 +2,12 @@
 
 由 Codex 在本机组织、执行并记录。每项附系统版本、显示器布局、构建提交、观察结果和对应修复。
 
+先执行 `npm run test:desktop`：在隔离的临时运行目录中启动真实 Electron，分别验证普通 Node MCP、独立桌面、Electron Node 模式 MCP 的启动、双客户端复用 Broker、显示器连接与引导取消。随后核对覆盖窗口的全屏 DIP 边界、焦点保持和显示器变化后的重建。需要图形桌面与 Electron；模拟布局事件不代表通过物理外接屏验收。
+
+macOS 执行 `npm run test:native:macos`：编译独立 AppKit 测试窗口，通过真实 Broker、原生 helper 和覆盖窗口验证移动、隐藏、恢复及缩放。约 20 秒内保持测试窗口前台且无遮挡；需要 Xcode 命令行工具和 helper 已有的系统 Accessibility 权限。检查只在临时 Broker 中启用只读定位，不修改用户偏好或系统授权。分别报告中心误差、尺寸误差和更新耗时；圆角按钮 AX 边框可比视图边框每侧多 1 DIP。
+
+打包后执行 `npm run test:packaged` 和 `npm run test:desktop:packaged`：分别检查包内 headless MCP/原生 helper 路径，以及真实独立桌面和包内 MCP 自动唤起桌面。后者需要图形桌面，不能由前者替代。
+
 ## 启动与安装
 
 - [ ] 从安装包启动 HandoffGlass；打开首次启动向导与设置中心。
