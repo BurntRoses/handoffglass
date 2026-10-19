@@ -2,6 +2,8 @@
 
 **本地继续开发：** [Codex 接手指南](CODEX_HANDOFF.md) · [工程规则](../AGENTS.md)
 
+**实机记录：** [2026-10-19 macOS 接手与验收](qa/2026-10-19-macos.md)
+
 | 方向 | 文档 |
 |---|---|
 | 任务与验收 | [路线图](ROADMAP.md) · [桌面验收](DESKTOP_QA.md) |
