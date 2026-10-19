@@ -1,60 +1,35 @@
-# Harness compatibility matrix
+# Agent 接入
 
-**One server, multiple adapters.** The HandoffGlass MCP server remains stdio; each host starts the same Node.js entry path. This matrix documents config shapes, not a claim of physical compatibility with every release of each host.
+HandoffGlass 使用统一的本地 stdio MCP 服务，不同 Harness 通过各自的配置接入。
 
-| Host | Generator | Placement / shape | Basis |
-| --- | --- | --- | --- |
-| Claude Desktop | `node scripts/configure.mjs claude` | existing Claude desktop `mcpServers` JSON | Claude documentation |
-| Claude Code | `node scripts/configure.mjs claude` | `claude mcp add` or `.mcp.json`, `mcpServers` | Claude Code MCP documentation |
-| OpenAI Codex CLI / IDE | `node scripts/configure.mjs codex` | `~/.codex/config.toml`, `[mcp_servers.handoffglass]` | OpenAI Codex configuration |
-| Cursor | `node scripts/configure.mjs cursor` | `~/.cursor/mcp.json` or `.cursor/mcp.json`, `mcpServers` | Cursor official MCP docs |
-| VS Code | `node scripts/configure.mjs vscode` | `.vscode/mcp.json`, `servers` + `type: stdio` | VS Code MCP config reference |
-| GitHub Copilot CLI / Agent harness | `node scripts/configure.mjs copilot` | portable `.mcp.json`, `mcpServers` | VS Code portable Copilot reference |
-| Gemini CLI | `node scripts/configure.mjs gemini` | `~/.gemini/settings.json`, `mcpServers` | Gemini CLI official docs |
-| Zed | `node scripts/configure.mjs zed` | settings.json, `context_servers` | Zed official docs |
+| Host | 生成配置 | 入口 |
+|---|---|---|
+| Codex CLI / IDE | `node scripts/configure.mjs codex` | `~/.codex/config.toml` |
+| Claude Desktop / Code | `node scripts/configure.mjs claude` | `mcpServers` |
+| Cursor | `node scripts/configure.mjs cursor` | `.cursor/mcp.json` |
+| VS Code | `node scripts/configure.mjs vscode` | `.vscode/mcp.json` |
+| Gemini CLI | `node scripts/configure.mjs gemini` | `~/.gemini/settings.json` |
+| OpenCode | `node scripts/configure.mjs opencode` | `mcp.local.command` |
+| Cline | `node scripts/configure.mjs cline` | 本地 stdio MCP |
+| Windsurf | `node scripts/configure.mjs windsurf` | 本地 stdio MCP |
+| Zed | `node scripts/configure.mjs zed` | `context_servers` |
+| Trae | `node scripts/configure.mjs trae` | 本地 stdio MCP |
+| WorkBuddy | `npm run connector:workbuddy` | MCP + Skill |
+| DeepSeek Harness | `npm run harness:deepseek` | Cordis 插件 / MCP |
 
-Official documentation:
-- https://code.visualstudio.com/docs/agents/reference/mcp-configuration
-- https://code.visualstudio.com/docs/agent-customization/mcp-servers
-- https://prod.cursor.com/docs/mcp
-- https://geminicli.com/docs/tools/mcp-server/
-- https://zed.dev/docs/ai/mcp
-- https://developers.openai.com/zh-Hans/docs/config-file/config-basic
-- https://code.claude.com/docs/en/mcp
+## Codex 从 GitHub 接手
 
-## Installation profiles
+直接将 [Codex 接手指南](CODEX_HANDOFF.md) 交给 Codex。它会自行克隆或更新仓库、安装依赖、生成 MCP 配置并完成真实调用测试。
 
-### MCP-only (CI / agent sandbox)
+## 本地验证
 
 ```bash
-npm ci --omit=optional
 npm run verify
 npm run test:integration
+npm run connection:check
+npm run host:matrix
 ```
 
-**MCP-only does not show a local overlay.** A remote/sandboxed Agent cannot make the local user's screen display annotations by configuration alone. In a headless environment you may set `HANDOFFGLASS_HEADLESS=1` for protocol tests, but do not imply the user saw a message.
+集成验证依次覆盖：**生成配置 → MCP 初始化 → 宿主实际调用 → 桌面交接 → Agent 核验与继续任务**。
 
-### Local desktop
-
-```bash
-npm ci
-npm run doctor
-npm run desktop:demo
-```
-
-Electron is optional in the package metadata to keep headless installation small. You must have a graphical session on the same machine. Some protected OS dialogs cannot be overlaid.
-
-## Compatibility test levels
-
-1. **Config-generated:** local JSON/TOML shapes were unit-tested.
-2. **Protocol-tested:** MCP SDK v2 dual-client stdio handshake in GitHub Actions (Windows/macOS/Linux).
-3. **Host-tested:** start from a specific Claude/Codex/Cursor/etc binary and verify MCP discovery, approval settings and call latency (not yet complete).
-4. **GUI-tested:** real local desktop verifies click-through, focus, monitors and handoff decision (not yet complete).
-
-Do not conflate these levels. Approval and tool permission behavior is owned by each host and should not be bypassed. Gemini `trust:false` is the safer default; HandoffGlass does not insert blanket trust settings.
-
-## Opt-in installation (JSON configurations only)
-
-`node scripts/install-host.mjs cursor` is dry-run by default. Add `--apply` for an explicit JSON merge with a timestamped 0600 backup; add `--replace` only if deliberately updating an existing HandoffGlass entry. It supports Cursor, Gemini, Copilot, Zed, VS Code workspace and Claude Desktop on macOS/Windows. It **refuses to rewrite JSONC/comments or malformed JSON**, since stripping comments or damaging host settings is worse than a manual copy-paste. For Codex's TOML configuration, use `node scripts/configure.mjs codex`.
-
-Do not run an automatic host installer on a machine other than the user's own authorized local environment. Generated host configs contain **no API keys or access tokens**.
+[宿主集成细节](INTEGRATIONS.md) · [国产 Harness 插件](CHINA_HARNESS_INTEGRATION.md) · [桌面验收](DESKTOP_QA.md)。
