@@ -26,16 +26,18 @@ export function validateTarget(target) {
 export function physicalRectToDIP(rect, displays) {
   if (!rect || ![rect.x,rect.y,rect.width,rect.height].every(Number.isFinite) || rect.width <= 0 || rect.height <= 0)
     fail('invalid_bounds', 'Physical bounds must be finite and nonempty');
-  const px = rect.x + rect.width / 2, py = rect.y + rect.height / 2;
   const matches = displays.filter(d => {
     const p = d.physicalBounds;
+    // A single linear transformation cannot safely map a control spanning
+    // monitors with different DPI. Require the WHOLE UIA rectangle in one monitor.
     return p && [p.x,p.y,p.width,p.height].every(Number.isFinite) && p.width > 0 && p.height > 0 &&
-      px >= p.x && px < p.x + p.width && py >= p.y && py < p.y + p.height;
+      rect.x >= p.x && rect.y >= p.y && rect.x+rect.width <= p.x+p.width &&
+      rect.y+rect.height <= p.y+p.height;
   });
   if (matches.length !== 1) fail('display_mapping', 'No unambiguous physical-to-DIP display mapping');
   const d = matches[0], p = d.physicalBounds;
   const scaleX = d.width / p.width, scaleY = d.height / p.height;
-  if (!(scaleX > 0 && scaleY > 0) || scaleX > 4 || scaleY > 4) fail('display_mapping', 'Invalid display scale');
+  if (!(scaleX > 0 && scaleY > 0) || scaleX > 4 || scaleY > 4 || Math.abs(scaleX-scaleY)>0.02) fail('display_mapping', 'Invalid display scale');
   return { x: d.x + (rect.x - p.x) * scaleX, y: d.y + (rect.y - p.y) * scaleY,
     width: rect.width * scaleX, height: rect.height * scaleY };
 }

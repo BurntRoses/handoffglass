@@ -42,6 +42,11 @@
           <p class="selftest-result" id="testResult" role="status" aria-live="polite"></p>
           <p class="selftest-hint" id="testHint"></p>
         </div>
+        <div class="card host-evidence" aria-labelledby="observedHostsTitle">
+          <div class="evidence-top"><div><strong id="observedHostsTitle" data-i="observedHostsTitle">实际调用记录</strong><p data-i="observedHostsDesc">只有 Agent 真正发起 MCP 请求后才会出现在这里。</p></div><span class="evidence-live" data-i="evidenceLive">本机 · 临时记录</span></div>
+          <div id="hostEvidence" class="evidence-list" role="list" aria-live="polite"></div>
+          <p class="evidence-disclaimer" data-i="evidenceDisclaimer">宿主名称来自启动配置声明，不构成客户端身份认证。记录只保留十五分钟，不包含操作内容。</p>
+        </div>
         <p class="subtle" data-i="connectNote">这里只能观测本机 MCP 请求；无法直接验证外部宿主是否已加载工具。请在 Agent 中确认工具列表。</p>
       </section>
       <section data-view="appearance" class="view" hidden>
@@ -57,7 +62,7 @@
         <div class="card display-card" aria-labelledby="displayTitle">
           <div class="display-header"><strong id="displayTitle" data-i="displayTitle">显示器布局</strong><span data-i="displaySubtitle">全局 DIP 坐标 · 无截图</span></div>
           <svg id="displayMap" role="img" aria-label="Relative monitor layout" viewBox="0 0 700 260"></svg>
-          <p class="display-note" id="displayNote"></p>
+          <p class="display-note" id="displayNote"></p><div class="layout-health" id="layoutHealth" role="status" aria-live="polite"></div>
         </div>
         <div class="card report-card"><div><strong data-i="reportTitle">脱敏诊断报告</strong><p data-i="reportDesc">复制本机协议检查结果，不包含密钥、任务或屏幕内容。</p></div><button type="button" class="quiet-button" id="copyReport" data-i="reportCopy">复制报告</button></div>
         <div class="info-note"><span class="info-glyph">i</span><p data-i="healthFoot">此页不能证明某个宿主客户端已经成功安装，也不能替代真实桌面的鼠标穿透与多显示器验收。</p></div>

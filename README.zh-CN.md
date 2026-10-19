@@ -114,3 +114,5 @@ npm run preferences -- set visualStyle=handdrawn
 | [动态效果](docs/VISUAL_MOTION.md) | [开发指南](AGENTS.md) | [安全与隐私](docs/SECURITY.md) |
 
 <sub>私有工程预览版。Windows / macOS 安装程序尚未签名；CI 已验证构建与 MCP 启动，桌面交互仍需实机验收。当前仓库未开放使用许可（UNLICENSED）。</sub>
+
+连接证据与安全校验：[本地宿主活动](docs/HOST_ACTIVITY.md) · [显示器定位复核](docs/GEOMETRY_RECHECK.md)。

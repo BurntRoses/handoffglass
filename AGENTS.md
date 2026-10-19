@@ -69,3 +69,7 @@ Work on this repo as an MCP desktop handoff infrastructure project, **not** a GU
 - `npm run connection:check` launches an isolated, headless MCP child and sends initialize/tools/list/screen_displays only; it never validates that an external host registered a tool.
 - Control Center IPC for connection test, display geometry and support report must remain sender-bound; no caller-provided command execution or sensitive data in a report.
 - Keep `docs/CONNECTION_DIAGNOSTICS.md` and `test/mcp-probe.test.mjs` up to date.
+
+## v0.13 activity and geometry invariants
+- Host activity shows authenticated *tool invocations* with caller-declared host labels; not signed host identity or a live socket count. Never persist requests, prompts, paths, passwords or raw owner IDs.
+- A rechecked UI target may move or the display signature may change. Fail closed on cross-screen physical rectangles. `locationVerified` must never be treated as a downstream action success.

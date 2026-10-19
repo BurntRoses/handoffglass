@@ -12,7 +12,7 @@ npm run connection:check
 npm run readiness -- --json
 ```
 
-The check returns `hostVerified:false`, even on success. A working local MCP executable does not prove that Claude, Codex, DeepSeek Harness, WorkBuddy or another host has installed its configuration. In the host, refresh tool discovery and confirm `screen_displays` and `handoff_request` appear; then call `screen_displays` once. No sensitive action is needed.
+The check returns `hostVerified:false`, even on success. The Control Center also records actual authenticated MCP tool calls, labeled only by the launch configuration and kept in memory for fifteen minutes; see [Host activity](HOST_ACTIVITY.md). A working local MCP executable does not prove that Claude, Codex, DeepSeek Harness, WorkBuddy or another host has installed its configuration. In the host, refresh tool discovery and confirm `screen_displays` and `handoff_request` appear; then call `screen_displays` once. No sensitive action is needed.
 
 ## Error recovery
 
@@ -29,7 +29,7 @@ Do not copy Broker tokens, task logs, screenshot files or personal paths into bu
 
 ## Display map
 
-Control Center → Diagnostics shows local display rectangles in a common **device-independent pixel (DIP)** coordinate space. Negative origins and each screen's scale factor are displayed. This map is intended to troubleshoot geometry; it is not a live screenshot, an accessibility tree or proof that a marked control has been grounded.
+Control Center → Diagnostics shows local display rectangles in a common **device-independent pixel (DIP)** coordinate space. Negative origins and each screen's scale factor are displayed. The desktop separately checks whether display metadata is internally consistent. This check is **not** a calibration against a physical pointer or window. This map is intended to troubleshoot geometry; it is not a live screenshot, an accessibility tree or proof that a marked control has been grounded.
 
 The native UI locator must still revalidate the foreground application, exact match, visibility, obstruction and coordinate conversion immediately before a real annotation. On unsupported desktops use coordinate-free handoff rather than estimating the target position.
 

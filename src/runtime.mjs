@@ -108,14 +108,18 @@ export function safeBrokerRetry(path, method, body) {
     (path === '/agent/cancel' && method === 'POST' && typeof body?.sessionId === 'string');
 }
 export class BrokerClient {
-  constructor(options = {}) { this.options = options; this.ownerId = randomUUID(); }
+  constructor(options = {}) {
+    this.options = options; this.ownerId = randomUUID();
+    const env = options.env || process.env;
+    this.declaredHost = typeof env.HANDOFFGLASS_HOST_ID === 'string' ? env.HANDOFFGLASS_HOST_ID : '';
+  }
   async request(path, { method = 'GET', body, timeoutMs = 34000 } = {}) {
     let info = await ensureBroker(this.options);
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const response = await fetch(`http://127.0.0.1:${info.port}${path}`, {
           method, headers: {
-            authorization: `Bearer ${info.token}`, 'x-handoffglass-owner': this.ownerId,
+            authorization: `Bearer ${info.token}`, 'x-handoffglass-owner': this.ownerId, 'x-handoffglass-host': this.declaredHost,
             ...(body === undefined ? {} : { 'content-type': 'application/json' })
           }, body: body === undefined ? undefined : JSON.stringify(body),
           signal: AbortSignal.timeout(timeoutMs)
@@ -140,6 +144,6 @@ export class BrokerClient {
   async updateScene(sessionId, expectedRevision, operations) {
     return this.request('/agent/scene', { method: 'POST', body: { sessionId, expectedRevision, operations } });
   }
-  async locate(target) { return this.request('/agent/locate', { method: 'POST', body: { target } }); }
+  async locate(target,previous) { return this.request('/agent/locate', { method: 'POST', body: { target, ...(previous ? {previous} : {}) } }); }
   async cancel(sessionId) { return this.request('/agent/cancel', { method: 'POST', body: { sessionId } }); }
 }

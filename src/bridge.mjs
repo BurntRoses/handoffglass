@@ -4,6 +4,8 @@ import { validDisplay, canLocateAll } from './geometry.mjs';
 import { loadPreferences, hasUserPreferences } from './local/preferences.mjs';
 import { compileBlueprint, BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { locateNative, validateTarget } from './native/locator.mjs';
+import { HostActivity } from './local/host-activity.mjs';
+import { layoutSignature, compareObservation } from './native/calibration.mjs';
 
 function sendJson(res, code, data) {
   if (res.destroyed || res.writableEnded) return;
@@ -53,6 +55,7 @@ export class LocalBridge {
     this.port = null;
     this.lastPoll = 0;
     this.lastAgentRequestAt = null;
+    this.hostActivity = new HostActivity();
     this.displays = [];
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
@@ -139,7 +142,8 @@ export class LocalBridge {
         schemaVersion: 1, broker: 'running', desktopConnected: this.connected,
         lastAgentActivityAt: this.lastAgentRequestAt,
         displays: this.displays.length, pendingPolls: this.waiters.size,
-        handoff: active ? { status: active.status, mode: active.mode, timeoutAt: active.timeoutAt } : null
+        handoff: active ? { status: active.status, mode: active.mode, timeoutAt: active.timeoutAt } : null,
+        hostActivity: this.hostActivity.snapshot()
       });
     }
     if (req.method === 'GET' && pathname === '/state') {
@@ -151,6 +155,7 @@ export class LocalBridge {
         return sendJson(res, 403, { error: 'Agent identity is required', code: 'invalid_owner' });
       }
       this.lastAgentRequestAt = Date.now();
+      this.hostActivity.record(req.headers['x-handoffglass-host'], pathname);
       if (req.method === 'GET' && pathname === '/agent/displays') {
         await this.prepare();
         return sendJson(res, 200, { displays: this.displays, connected: this.connected, headless: this.headless });
@@ -171,7 +176,13 @@ export class LocalBridge {
         await this.prepare();
         if (!this.headless && !this.connected) return sendJson(res, 503, { error: 'Desktop unavailable', code: 'no_desktop' });
         const located = await this.locator(target, this.displays);
-        return sendJson(res, 200, { target: located, coordinateSystem: 'global_DIP',
+        // Only compare against a caller-provided previous observation; never
+        // mistake a locally observed position for proof the user clicked it.
+        const signature = layoutSignature(this.displays);
+        const previous = body.previous;
+        const comparison = previous === undefined ? null : compareObservation(previous, located, signature);
+        return sendJson(res, 200, { target: {...located, layoutSignature:signature},
+          ...(comparison ? { comparison } : {}), coordinateSystem: 'global_DIP',
           warning: 'This is an observation, not permission to click or approve. Revalidate after UI changes.' });
       }
       if (req.method === 'POST' && pathname === '/agent/show') {
