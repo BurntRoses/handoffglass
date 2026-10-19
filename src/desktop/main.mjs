@@ -1,6 +1,7 @@
 import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage, shell, dialog, clipboard } from 'electron';
 import { hostConfig } from '../config.mjs';
 import { showSetup, registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
+import { showControlCenter, registerCenterIPC } from './center.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
 import { loadPreferences, savePreferences, VISUAL_STYLES, MOTION_MODES } from '../local/preferences.mjs';
 import { dirname, join } from 'node:path';
@@ -171,7 +172,8 @@ async function setupTrayAndMenu() {
     click:async()=>{try{await savePreferences({density:value});}catch(error){dialog.showErrorBox('Density preference',error.message);}}
   }));
   const context = Menu.buildFromTemplate([
-    { label: 'Setup & Agent connections…', click: () => void showSetup() },
+    { label: 'Control Center…', click: () => void showControlCenter() },
+    { label: 'First-run setup…', click: () => void showSetup() },
     { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
     item,
     { label: 'Visual style (next handoff)', submenu: styleOptions },
@@ -198,10 +200,11 @@ async function setupTrayAndMenu() {
   Menu.setApplicationMenu(context);
   try {
     const icon = nativeImage.createFromPath(join(here,'assets','tray.png'));
-    if (!icon.isEmpty()) { tray = new Tray(icon); tray.setToolTip('HandoffGlass'); tray.setContextMenu(context); tray.on('double-click', () => { if (current?.mode === 'handoff') panel.showInactive(); }); }
+    if (!icon.isEmpty()) { tray = new Tray(icon); tray.setToolTip('HandoffGlass'); tray.setContextMenu(context); tray.on('double-click', () => { if (current?.mode === 'handoff') panel.showInactive(); else void showControlCenter(); }); }
   } catch (error) { console.warn('Tray unavailable:',error.message); }
 }
 registerSetupIPC();
+registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics')});
 await setupTrayAndMenu();
 syncDisplays();
 void maybeShowFirstRun().catch(error => console.error('First-run setup:', error.message));
