@@ -63,7 +63,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.14.0' });
+  const server = new McpServer({ name: 'handoffglass', version: '0.15.0' });
   server.registerPrompt('assist-with-ui-step', {
     title: 'Help with a desktop step',
     description: 'Plan a safe human-guided step in an existing task; use the HandoffGlass tools when appropriate.',
@@ -127,6 +127,13 @@ function makeServer() {
     description: 'A completed decision is a user report, not proof that any permission or downstream action succeeded.',
     inputSchema: z.object({ sessionId: z.string().uuid() }), annotations: { readOnlyHint: true }
   }, safe(({ sessionId }) => broker.status(sessionId)));
+  server.registerTool('handoff_events', {
+    title: 'Read incremental handoff events and recovery guidance',
+    description: 'Bounded local event cursor for an owned handoff: target moved/lost/recovered, scene changed, user decision. Returns the next safe action; never proves a downstream operation succeeded.',
+    inputSchema: z.object({sessionId:z.string().uuid(),after:z.number().int().nonnegative().default(0),
+      limit:z.number().int().min(1).max(32).default(20)}),
+    annotations: {readOnlyHint:true}
+  }, safe(({sessionId,after,limit})=>broker.events(sessionId,after,limit)));
   server.registerTool('handoff_wait', {
     title: 'Await human response',
     description: 'Wait up to 30 seconds. If pending, poll again; never infer success from no response.',

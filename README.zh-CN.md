@@ -116,3 +116,7 @@ npm run preferences -- set visualStyle=handdrawn
 <sub>私有工程预览版。Windows / macOS 安装程序尚未签名；CI 已验证构建与 MCP 启动，桌面交互仍需实机验收。当前仓库未开放使用许可（UNLICENSED）。</sub>
 
 连接证据与安全校验：[本地宿主活动](docs/HOST_ACTIVITY.md) · [显示器定位复核](docs/GEOMETRY_RECHECK.md)。
+
+### 交接事件流（v0.15）
+
+使用 `handoff_events` 按游标读取控件移动、定位失效与恢复、用户决定等本地事件，并获取下一步建议；用户报告“完成”后仍需独立核验真实结果。设置中心以不含任务内容的时间线展示相同状态。[事件协议说明](docs/INTERACTION_EVENTS.md)。

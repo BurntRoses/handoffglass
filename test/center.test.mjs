@@ -12,7 +12,7 @@ const state=(patch={})=>({schemaVersion:1,broker:'running',desktopConnected:true
 test('center readout distinguishes a running broker from an authenticated host connection',()=>{
   assert.deepEqual(summarizeDiagnostics(state(),now), {
     broker:'running',desktop:'present',agentActivity:'not_observed',displays:2,
-    session:{state:'idle'},hosts:[],observation:'authenticated_tool_call_host_label_unverified'
+    session:{state:'idle'},hosts:[],timeline:[],observation:'authenticated_tool_call_host_label_unverified'
   });
   assert.equal(summarizeDiagnostics(state({lastAgentActivityAt:now-119999}),now).agentActivity,'recent');
   assert.equal(summarizeDiagnostics(state({lastAgentActivityAt:now-120001}),now).agentActivity,'not_observed');

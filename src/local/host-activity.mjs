@@ -12,7 +12,7 @@ export function classifyHost(value) {
 export class HostActivity {
   constructor({ now = () => Date.now() } = {}) { this.now = now; this.hosts = new Map(); }
   record(declaredHost, endpoint) {
-    if (typeof endpoint !== 'string' || !/^\/agent\/(displays|show|locate|status|wait|cancel|scene|context|blueprint)$/.test(endpoint)) return;
+    if (typeof endpoint !== 'string' || !/^\/agent\/(displays|show|locate|status|wait|events|cancel|scene|context|blueprint)$/.test(endpoint)) return;
     const host = classifyHost(declaredHost), at = this.now();
     this.#prune(at);
     const previous = this.hosts.get(host);
