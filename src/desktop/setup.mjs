@@ -18,8 +18,8 @@ function fromWindow(event){return window&&!window.isDestroyed()&&event.sender===
 export async function showSetup({firstRun=false}={}){
   if(window&&!window.isDestroyed()){window.show();window.focus();return window;}
   window=new BrowserWindow({
-    width:1000,height:730,minWidth:740,minHeight:620,show:false,backgroundColor:'#0b141a',
-    title:'HandoffGlass · Setup',autoHideMenuBar:true,
+    width:580,height:730,minWidth:520,minHeight:650,show:false,backgroundColor:'#20211f',
+    title:'HandoffGlass',autoHideMenuBar:true,
     webPreferences:{preload:join(here,'setup-preload.cjs'),sandbox:true,contextIsolation:true,
       nodeIntegration:false,webSecurity:true}
   });
@@ -45,6 +45,7 @@ export function registerSetupIPC(){
       if(typeof accessibility!=='boolean')return {ok:false,error:'Invalid accessibility choice'};
       const preferences=await savePreferences({visualStyle,motion,locale,density,theme});
       await setAccessibilityConsent(accessibility);
+      app.emit('hg:preferences-changed');
       return {ok:true,preferences};
     } catch(error){return {ok:false,error:error.message};}
   });

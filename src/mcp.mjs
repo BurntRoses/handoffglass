@@ -69,7 +69,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.15.0' });
+  const server = new McpServer({ name: 'handoffglass', version: '0.16.0' });
   server.registerPrompt('assist-with-ui-step', {
     title: 'Help with a desktop step',
     description: 'Plan a safe human-guided step in an existing task; use the HandoffGlass tools when appropriate.',

@@ -13,7 +13,7 @@ test('renderer supports three visual styles and finite SVG geometry',()=>{
  }finally{globalThis.document=original;}
 });
 test('desktop renderer explicitly respects OS reduced motion and system focus',async()=>{
- const css=await readFile(new URL('../src/desktop/overlay.css',import.meta.url),'utf8');
+ const css=await readFile(new URL('../src/desktop/marks.css',import.meta.url),'utf8');
  const panel=await readFile(new URL('../src/desktop/panel.css',import.meta.url),'utf8');
  assert.match(css,/prefers-reduced-motion:reduce/);assert.match(css,/data-motion=off/);
  assert.match(css,/hg-handwrite/);assert.match(panel,/prefers-reduced-motion:reduce/);

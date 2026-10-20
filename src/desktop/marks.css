@@ -1,0 +1,27 @@
+.hg-mark{filter:drop-shadow(0 1px 1px #07131c44);animation:hg-mark-arrive 240ms ease-out var(--hg-delay,0ms) both}
+.hg-trace{stroke-dasharray:1;stroke-dashoffset:0;animation:hg-handwrite var(--hg-duration,760ms) cubic-bezier(.25,.1,.2,1) var(--hg-delay,0ms) both}
+.hg-second-stroke{animation-delay:calc(var(--hg-delay,0ms) + 160ms)}
+.hg-arrow-head{animation-duration:250ms;animation-delay:calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)*.72)}
+.hg-label{animation:hg-arrive 220ms ease-out calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)*.55) both;filter:drop-shadow(0 3px 8px #07131c22)}
+.hg-aura,.hg-beacon{transform-box:fill-box;transform-origin:center;animation:hg-breathe 3s ease-in-out calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)) infinite}
+.hg-beacon-outer{animation-delay:calc(var(--hg-delay,0ms) + var(--hg-duration,760ms) + 420ms)}
+.hg-flow{stroke-dasharray:.045 .955;stroke-dashoffset:1;animation:hg-flow 2400ms linear calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)) infinite;opacity:0;pointer-events:none}
+.hg-veil{animation:hg-veil 400ms ease-out both}
+.hg-mark[data-effect=pulse] .hg-trace{animation:hg-handwrite var(--hg-duration,760ms) ease-out var(--hg-delay,0ms) both,hg-emphasis 2800ms ease-in-out calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)) infinite}
+svg[data-style=handdrawn] .hg-trace{stroke-linecap:round}
+svg[data-style=minimal] .hg-mark,svg[data-style=handdrawn] .hg-mark{filter:none}
+svg[data-style=minimal] .hg-aura,svg[data-style=minimal] .hg-edge-light{display:none}
+svg[data-motion=expressive] .hg-flow{animation-duration:1700ms}
+svg[data-motion=expressive] .hg-beacon{animation-name:hg-ripple;animation-duration:2400ms}
+svg[data-motion=off] *,svg .hg-mark[data-effect=still],svg .hg-mark[data-effect=still] *{animation:none!important;transition:none!important;stroke-dashoffset:0!important}
+svg[data-motion=off] .hg-flow,svg .hg-mark[data-effect=still] .hg-flow{display:none}
+@keyframes hg-handwrite{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes hg-mark-arrive{from{opacity:0}to{opacity:var(--hg-opacity,1)}}
+@keyframes hg-arrive{from{opacity:0}to{opacity:1}}
+@keyframes hg-veil{from{opacity:0}to{opacity:1}}
+@keyframes hg-flow{0%{stroke-dashoffset:1;opacity:0}12%,75%{opacity:.85}100%{stroke-dashoffset:0;opacity:0}}
+@keyframes hg-breathe{0%,100%{opacity:.18}50%{opacity:.55}}
+@keyframes hg-emphasis{0%,100%{stroke-opacity:.72}50%{stroke-opacity:1}}
+@keyframes hg-ripple{0%{opacity:.5;transform:scale(.93)}100%{opacity:0;transform:scale(1.26)}}
+@media(prefers-reduced-motion:reduce){svg *,svg *::before,svg *::after{animation:none!important;transition:none!important;stroke-dashoffset:0!important}.hg-flow{display:none}}
+@media(forced-colors:active){.hg-aura,.hg-edge-light,.hg-veil{display:none}.hg-trace{stroke:Highlight}.hg-label rect{fill:Canvas;stroke:CanvasText}.hg-label text{fill:CanvasText}}

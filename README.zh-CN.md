@@ -16,6 +16,8 @@
 
 </div>
 
+[在 Codex 中使用 · 废纸篓引导提示词](docs/USE_WITH_CODEX.zh-CN.md)
+
 ## Agent 负责推进，关键一步交给你
 
 登录、授权、选账户或确认设置。HandoffGlass 在真实桌面上指出操作位置，接收用户的决定，再把结果送回原来的 Agent。

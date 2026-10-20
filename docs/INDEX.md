@@ -14,3 +14,7 @@
 | 视觉设计 | [视觉语言](VISUAL_LANGUAGE.md) · [动态系统](VISUAL_MOTION.md) · [界面规范](INTERFACE_SYSTEM.md) · [品牌](BRAND.md) |
 | 协议与本地逻辑 | [场景协议](SCENE_PROTOCOL.md) · [Agent 工作流](AGENT_AUTONOMY.md) · [偏好记忆](LOCAL_FIRST_MEMORY.md) |
 | 产品 | [产品定义](PRODUCT.md) · [更新日志](CHANGELOG.md) |
+
+[在 Codex 中使用与废纸篓引导提示词](USE_WITH_CODEX.zh-CN.md)
+
+[0.16 桌面界面验收与截图](qa/2026-10-20-release-interface.md)

@@ -1,5 +1,14 @@
 ## Unreleased — expressive visual guidance
 
+## 0.16.0 · 2026-10-20
+
+- 重做桌面界面、首次设置、操作浮窗和原生菜单，删除宣传文案、常驻配置与重复说明。
+- 导航改用 SVG；统一应用图标，修复开发模式 Dock 图标和 macOS 菜单栏模板图标。
+- 新安装默认使用极简标注，保留已保存的用户偏好。
+- 外观预览复用生产渲染器；定位授权开关即时保存；诊断按需展开。
+- 补充真实窗口回归、截图和 Codex 废纸篓引导提示词。
+
+
 - Reworked production SVG strokes, labels and feathered spotlight masking; added marker ink, corner brackets, check glyph, overlapping pen loops, halo and vector pointer (13 marks / 9 templates).
 - Added local draw, flow, pulse and still effects with bounded per-mark delay/duration and staggered sequence templates.
 - Preserved drawing progress across snapshot and geometry updates; kept reduced-motion strokes fully visible and opacity intact.

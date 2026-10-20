@@ -17,7 +17,7 @@ test('local visual preferences survive restart with user-only file permissions',
   assert.equal((await loadPreferences(dir)).motion,'off');
   const contents=await readFile(join(dir,'preferences.json'),'utf8');
   assert.equal(contents.includes('password'),false);
-  assert.equal((await resetPreferences(dir)).visualStyle,'luminous');
+  assert.equal((await resetPreferences(dir)).visualStyle,'minimal');
   assert.equal(await hasUserPreferences(dir),false);
 }));
 test('memory layer rejects unknown data fields to avoid storing session content',()=>{
