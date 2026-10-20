@@ -2,7 +2,7 @@
 
 HandoffGlass uses a real, isolated MCP check to answer one narrow question: **can the current local installation start the stdio server, negotiate MCP, expose its expected tools and perform a headless display query?**
 
-Open **Control Center → Agent connections → Run self-test**. An independent headless MCP process uses a temporary private runtime directory and is terminated after the check. It cannot see your current handoff, approve a dialog or access the native UI locator. The check uses only `initialize`, `tools/list` and `screen_displays`.
+Open **HandoffGlass → Help → Check**. An independent headless MCP process uses a temporary private runtime directory and is terminated after the check. It cannot see your current handoff, approve a dialog or access the native UI locator. The check uses only `initialize`, `tools/list` and `screen_displays`.
 
 For a source checkout:
 
@@ -25,11 +25,11 @@ The check returns `hostVerified:false`, even on success. The Control Center also
 | `protocol_mismatch` | Malformed or incompatible response | Upgrade/repair the local installation; inspect Node version |
 | `handshake_failed` | Another protocol error | Run `npm run test:integration` in source checkout |
 
-Do not copy Broker tokens, task logs, screenshot files or personal paths into bug reports. **Diagnostics → Copy report** produces an allowlisted, path-free JSON summary suitable for reporting. No automated repair modifies any MCP host configuration.
+Do not copy Broker tokens, task logs, screenshot files or personal paths into bug reports. **Help → Details → Copy diagnostics** produces an allowlisted, path-free JSON summary suitable for reporting. No automated repair modifies any MCP host configuration.
 
 ## Display map
 
-Control Center → Diagnostics shows local display rectangles in a common **device-independent pixel (DIP)** coordinate space. Negative origins and each screen's scale factor are displayed. The desktop separately checks whether display metadata is internally consistent. This check is **not** a calibration against a physical pointer or window. This map is intended to troubleshoot geometry; it is not a live screenshot, an accessibility tree or proof that a marked control has been grounded.
+Help → Details shows local display rectangles in a common **device-independent pixel (DIP)** coordinate space. Negative origins and each screen's scale factor are displayed. The desktop separately checks whether display metadata is internally consistent. This check is **not** a calibration against a physical pointer or window. This map is intended to troubleshoot geometry; it is not a live screenshot, an accessibility tree or proof that a marked control has been grounded.
 
 The native UI locator must still revalidate the foreground application, exact match, visibility, obstruction and coordinate conversion immediately before a real annotation. On unsupported desktops use coordinate-free handoff rather than estimating the target position.
 

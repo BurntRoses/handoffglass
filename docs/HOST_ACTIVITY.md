@@ -4,7 +4,7 @@ The Control Center shows a short-lived trace **only when a local MCP process act
 
 ## Prove a local call
 
-1. Run the HandoffGlass desktop app, open **Control Center → Agent connections**.
+1. Run the HandoffGlass desktop app, open **HandoffGlass → Connections**.
 2. Generate a fresh MCP configuration for your host. The generated `env` includes `HANDOFFGLASS_HOST_ID`, a simple host label (`claude`, `codex`, `workbuddy`, `deepseek`, `trae`, etc.).
 3. Install the configuration in the host and reload its MCP tools.
 4. Ask the host to call **`screen_displays`**. No screen capture or sensitive data is needed.
