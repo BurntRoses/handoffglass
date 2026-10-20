@@ -16,7 +16,7 @@ Codex MCP 配置字段参见 [OpenAI 官方文档](https://developers.openai.com
 ## 可直接发送的提示词
 
 ```text
-请按照 https://github.com/BurntRoses/handoffglass 的 README 和 AGENTS.md，安装并运行 HandoffGlass，接入我本机的 Codex。已有安装就复用，将 MCP 配置合并到现有配置，不覆盖其他服务。用实际工具调用确认连接；如果当前聊天尚未加载新工具，告诉我具体如何重新连接。
+请按照 https://github.com/BurntRoses/handoffglass 的 README 和 AGENTS.md，使用 codex/release-interface 分支（0.16.0）安装并运行 HandoffGlass，接入我本机的 Codex。已有安装先核对版本，再复用或更新；将 MCP 配置合并到现有配置，不覆盖其他服务。用实际工具调用确认连接；如果当前聊天尚未加载新工具，告诉我具体如何重新连接。
 
 连接后，用 HandoffGlass 一步一步指导我清空 macOS 废纸篓：先打开废纸篓，让我查看文件；再引导我找到清空入口。能可靠定位时，用圈画或箭头指示；无法定位就给简短文字，不猜坐标。需要系统授权时，打开对应设置，由我授权。
 
