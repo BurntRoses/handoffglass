@@ -1,0 +1,48 @@
+:root{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#284435;background:#f5f4ef;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0}
+button{font:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid #337c5e;outline-offset:4px}
+header{height:78px;padding:0 38px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #dfe5d7}
+.brand{font-size:22px;font-weight:650;letter-spacing:-.8px}
+.brand i{font:italic 21px Georgia,serif;font-weight:400;color:#8a9a80;margin-left:10px;padding-left:15px;border-left:1px solid #c0ccb5}
+.connection{font-size:11px;color:#698061}
+.connection::before{content:'';display:inline-block;width:5px;height:5px;background:#568966;border-radius:50%;margin-right:8px}
+main{display:grid;grid-template-columns:300px 1fr;min-height:600px}
+aside{padding:43px 32px;border-right:1px solid #dfe5d7}
+.eyebrow{font-size:9px;letter-spacing:1.8px;color:#93a287;margin:0 0 18px}
+h1{font-size:30px;line-height:1.5;letter-spacing:-1px;font-weight:500;margin:0 0 14px}
+.intro{font-size:11px;line-height:2;color:#8b9c7e;margin-bottom:25px}
+#presets{display:grid;gap:5px}
+#presets button{background:transparent;border:0;border-radius:7px;padding:10px 13px;text-align:left;font-size:12px;color:#889d7b}
+#presets button[aria-pressed=true]{background:#e3ebd9;color:#3e6745}
+.replay{margin-top:16px;background:transparent;border:1px solid #bdcdb1;border-radius:7px;padding:10px 16px;font-size:11px;color:#608051}
+.small{font-size:10px;line-height:1.9;color:#a0ac95;margin-top:26px}
+.workspace{position:relative;max-width:760px;padding:39px 46px 30px;background:#fcfcf8}
+.breadcrumb{font-size:9px;color:#95a48a;margin-bottom:35px;letter-spacing:.6px}
+.breadcrumb span{margin:0 10px;color:#c6cfba}
+.workspace .eyebrow{margin-bottom:12px}
+.workspace h2{font-size:38px;line-height:1.42;font-weight:500;letter-spacing:-1.5px;margin:0 0 29px}
+.file{display:flex;align-items:center;gap:16px;padding:20px 16px;border:1px solid #e0e7d8;border-radius:10px;background:#f9fbf4}
+.file-icon{font-size:32px;color:#8ca279;width:48px;height:52px;border-radius:8px;display:grid;place-items:center;background:#ebf0e1}
+.file strong{font-size:13px;font-weight:550}
+.file p{font-size:10px;color:#9bab8e;margin:6px 0 0}
+.chip{font-size:9px;color:#8da578;background:#eaf1e1;padding:5px 8px;border-radius:5px;margin-left:auto}
+dl{display:grid;grid-template-columns:75px 1fr;gap:14px;font-size:11px;margin:24px 0 28px}
+dt{color:#9ba98d}
+dd{margin:0;justify-self:start;color:#798f6b}
+.actions{display:flex;gap:10px;justify-content:flex-end}
+.actions button{background:#fcfdf9;border:1px solid #d7e0cd;border-radius:7px;color:#7b926b;padding:13px 19px;font-size:12px}
+.actions .primary{background:#426948;color:#f2f7ed;border-color:#426948;min-width:134px}
+.primary span{margin-left:16px}
+.actions .primary:hover{background:#345b3b}
+.result{font-size:10px;color:#9caa90;text-align:right;margin-top:18px;line-height:1.8}
+.verification{margin-top:24px;border-top:1px solid #e7ecdf;padding-top:15px;font-size:10px;line-height:1.8;color:#718a63}
+footer{height:50px;display:flex;justify-content:space-between;align-items:center;padding:0 38px;border-top:1px solid #dfe5d7;font-size:8px;letter-spacing:1px;color:#9daa92}
+@media(max-width:900px){main{grid-template-columns:250px 1fr}
+aside{padding:35px 25px}
+.workspace{padding:35px 30px}
+.workspace h2{font-size:32px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}
+}

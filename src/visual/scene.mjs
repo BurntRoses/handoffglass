@@ -4,12 +4,14 @@
 export const SCENE_VERSION = 1;
 export const MAX_LAYERS = 12;
 export const MAX_MARKS = 24;
-export const SHAPES = Object.freeze(['arrow', 'ring', 'box', 'spotlight', 'badge', 'underline', 'crosshair']);
+export const SHAPES = Object.freeze(['arrow', 'ring', 'box', 'spotlight', 'badge', 'underline', 'crosshair',
+  'highlight', 'bracket', 'check', 'scribble', 'halo', 'cursor']);
+export const EFFECTS = Object.freeze(['draw', 'pulse', 'flow', 'still']);
 export const TONES = Object.freeze({
   accent: '#50dbb4', info: '#75b9ff', success: '#5bd5a0',
   caution: '#ffc16e', danger: '#ff8585', neutral: '#d1d9e5'
 });
-export const TEMPLATE_NAMES = Object.freeze(['focus', 'point', 'inspect', 'caution', 'sequence', 'verify']);
+export const TEMPLATE_NAMES = Object.freeze(['focus', 'point', 'inspect', 'caution', 'sequence', 'verify', 'sketch', 'highlight', 'bracket']);
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const ID = /^[A-Za-z][A-Za-z0-9_-]{0,47}$/;
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -40,6 +42,12 @@ export function normalizeAnnotation(input) {
   if (input.id !== undefined) result.id = identifier(input.id, 'annotation id');
   if (input.tone !== undefined) result.tone = tone;
   if (input.opacity !== undefined) result.opacity = number(input.opacity, 'opacity', 0, 1);
+  if (input.effect !== undefined) {
+    if (!EFFECTS.includes(input.effect)) throw new TypeError('Unknown annotation effect');
+    result.effect = input.effect;
+  }
+  if (input.delayMs !== undefined) result.delayMs = number(input.delayMs, 'delayMs', 0, 5000);
+  if (input.durationMs !== undefined) result.durationMs = number(input.durationMs, 'durationMs', 200, 4000);
   return result;
 }
 function normalizeLayer(layer) {
@@ -139,12 +147,19 @@ export function composeTemplate(name, targets) {
       primary.push({ ...base, shape:'box', tone:'neutral' });
     } else if (name === 'caution') {
       primary.push({ ...base, shape:'box', tone:'caution' });
-      supporting.push({x:t.x,y:t.y, shape:'badge', tone:'caution', id:`badge_${i+1}`, label:'!'});
+      supporting.push({...base, shape:'badge', tone:'caution', id:`badge_${i+1}`, label:'!'});
     } else if (name === 'sequence') {
-      primary.push({ ...base, shape:'ring', tone:'info', label:'' });
-      supporting.push({x:t.x,y:t.y, shape:'badge', tone:'info', id:`badge_${i+1}`, label:String(i+1)});
+      const shape = t.width && t.height && t.width / t.height > 5 ? 'bracket' : 'ring';
+      primary.push({ ...base, shape, tone:'info', delayMs:i*420, effect:'draw' });
+      supporting.push({...base, shape:'badge', tone:'info', id:`badge_${i+1}`, label:String(i+1), delayMs:i*420+180});
     } else if (name === 'verify') {
       primary.push({ ...base, shape:'crosshair', tone:'success' });
+    } else if (name === 'sketch') {
+      primary.push({ ...base, shape:'scribble', tone:'accent', effect:'draw', durationMs:1100 });
+    } else if (name === 'highlight') {
+      primary.push({ ...base, shape:'highlight', tone:'caution', durationMs:850 });
+    } else if (name === 'bracket') {
+      primary.push({ ...base, shape:'bracket', tone:'info', effect:'pulse' });
     }
   }
   return normalizeScene({ version:1, layers: [

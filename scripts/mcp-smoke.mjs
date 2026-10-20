@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { SHAPES, EFFECTS } from '../src/visual/scene.mjs';
 import { readManifest } from '../src/runtime.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -77,8 +78,15 @@ try {
   assert.notEqual(id, second.session.id);
   assert.equal((await invoke(b, 'handoff_cancel', { sessionId: second.session.id })).session.status, 'cancelled');
   const painted = await invoke(a, 'visual_show', { title:'Visual scene', message:'Review the highlight',
-    scene:{version:1,layers:[{id:'focus',annotations:[{id:'highlight',x:10,y:20,shape:'ring',tone:'info'}]}]}});
+    scene:{version:1,layers:[{id:'focus',annotations:SHAPES.map((shape,i)=>({id:`mark_${i}`,x:10+i*20,y:20,shape,tone:'info',effect:EFFECTS[i%EFFECTS.length],delayMs:i*120,durationMs:1100}))}]}});
   assert.equal(painted.session.sceneRevision,1);
+  assert.deepEqual(painted.session.annotations.map(a=>a.shape),SHAPES);
+  assert.equal(painted.session.annotations[3].effect,'still');
+  assert.equal(painted.session.annotations[3].delayMs,360);
+  assert.equal(painted.session.annotations[3].durationMs,1100);
+  const invalidEffect=await a.callTool({name:'visual_show',arguments:{title:'Invalid',message:'Invalid effect must fail',annotations:[{x:10,y:20,effect:'spin'}]}});
+  assert.equal(invalidEffect.isError,true);
+  assert.equal((await invoke(a,'handoff_status',{sessionId:painted.session.id})).session.sceneRevision,1);
   const mutating = {sessionId:painted.session.id,expectedRevision:1,
     operations:[{op:'set_layer',layerId:'focus',visible:false}]};
   const otherHost = await b.callTool({name:'visual_scene_update',arguments:mutating});

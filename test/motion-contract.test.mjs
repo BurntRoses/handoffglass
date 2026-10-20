@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {renderOverlay} from '../src/desktop/overlay-renderer.mjs';
-class Stub {constructor(tag){this.tag=tag;this.children=[];this.attrs={};}append(...n){this.children.push(...n);}setAttribute(k,v){this.attrs[k]=v;}replaceChildren(){this.children=[];}}
+import { SvgNode as Stub, documentStub } from './helpers/svg-dom.mjs';
 test('renderer supports three visual styles and finite SVG geometry',()=>{
  const original=globalThis.document;
- try{globalThis.document={createElementNS:(_ns,tag)=>new Stub(tag)};
+ try{globalThis.document=documentStub;
   for(const style of ['minimal','luminous','handdrawn']){
    const svg=new Stub('svg');renderOverlay(svg,{visualStyle:style,motion:'off',annotations:[{x:20,y:30,shape:'ring',color:'#55ddaa'}]},{width:300,height:200});
    assert.equal(svg.attrs['data-style'],style);assert.equal(svg.attrs['data-motion'],'off');assert.ok(svg.children.length>0);

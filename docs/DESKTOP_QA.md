@@ -8,6 +8,8 @@ macOS 执行 `npm run test:native:macos`：编译独立 AppKit 测试窗口，�
 
 打包后执行 `npm run test:packaged` 和 `npm run test:desktop:packaged`：分别检查包内 headless MCP/原生 helper 路径，以及真实独立桌面和包内 MCP 自动唤起桌面。后者需要图形桌面，不能由前者替代。
 
+先运行 `npm run visual:trial` 完成 [六组笔触与 Agent 交接试用](AGENT_VISUAL_TRIAL.md)。`npm run test:visual -- --output=.tmp/visual-qa` 为真实 Electron 的合成操作回归，检查描绘进度、坐标更新后不重播、减少动态效果、焦点和 MCP 事件；人工视觉感受另行记录。
+
 ## 启动与安装
 
 - [ ] 从安装包启动 HandoffGlass；打开首次启动向导与设置中心。

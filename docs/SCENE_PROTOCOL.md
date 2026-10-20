@@ -6,7 +6,7 @@ Keep HandoffGlass small: no second process, no new database, no image models. On
 
 ## Creation — existing tools, backward compatible
 
-The six legacy MCP tool names continue to operate as before. `visual_show` and `handoff_request` can now additionally accept either `template` or `scene`. The following are mutually exclusive: `scene`, `template + (x/y or annotations)`, legacy `x/y`, legacy `annotations`.
+Existing MCP tool names continue to operate as before. `visual_show` and `handoff_request` can now additionally accept either `template` or `scene`. The following are mutually exclusive: `scene`, `template + (x/y or annotations)`, legacy `x/y`, legacy `annotations`.
 
 ### Smallest semantic request
 
@@ -80,3 +80,11 @@ Semantics:
 All coordinates are **global device-independent pixels (DIP)**, not screenshot pixels. Use grounded bounds from another tool, not model hallucinations. No UI automation, authorization approval, screen capture, OCR, credential reading, or protected desktop access is implied by a visual scene. User-reported `completed` is not independent verification.
 
 JSON Schema: [`schemas/scene-v1.schema.json`](../schemas/scene-v1.schema.json); executable validators remain in `src/visual/scene.mjs`. Fixtures live in `examples/scenes/`.
+
+## 描绘参数与稳定播放
+
+Annotation 可选 `effect:draw|pulse|flow|still`、`delayMs:0..5000` 和 `durationMs:200..4000`。旧场景继续使用默认效果。顶层 `x/y` 简写也支持这三个参数；模板使用自己的编排默认值，定制参数请发送完整 scene。新增形状和模板见 [视觉语言](VISUAL_LANGUAGE.md)。
+
+稳定的图层 ID、标记 ID 和 shape 在同一会话内保留播放起点。几何更新不会反复起笔；新增 ID 或新会话重新播放。隐藏后恢复的标记重新描绘。系统减少动态效果与用户偏好优先。`check` 形状、`verify` 模板及任何动画都不修改 `verified`。
+
+[Agent 试用与调用示例](AGENT_VISUAL_TRIAL.md)

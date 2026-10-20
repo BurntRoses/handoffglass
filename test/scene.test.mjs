@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HandoffManager, normalizeRequest } from '../src/core.mjs';
-import { SCENE_VERSION, SHAPES, TONES, TEMPLATE_NAMES, composeTemplate, normalizeScene, flattenScene, patchScene } from '../src/visual/scene.mjs';
+import { SCENE_VERSION, EFFECTS, normalizeAnnotation, SHAPES, TONES, TEMPLATE_NAMES, composeTemplate, normalizeScene, flattenScene, patchScene } from '../src/visual/scene.mjs';
 const target = { x: -250, y: 340, width: 124, height: 42, label: 'Review permissions' };
 const basic = { title:'Sample',message:'User controls target'};
 const source = () => ({ version:1,layers:[
@@ -10,8 +10,8 @@ const source = () => ({ version:1,layers:[
 ]});
 test('template catalogue renders meaningful, strictly bounded reusable marks', () => {
   assert.equal(SCENE_VERSION, 1);
-  assert.equal(TEMPLATE_NAMES.length,6);
-  assert.equal(SHAPES.length,7);
+  assert.equal(TEMPLATE_NAMES.length,9);
+  assert.equal(SHAPES.length,13);
   for (const name of TEMPLATE_NAMES) {
     const s=composeTemplate(name,[target]);
     assert.equal(s.version,1);
@@ -21,6 +21,7 @@ test('template catalogue renders meaningful, strictly bounded reusable marks', (
   const multi=composeTemplate('sequence',[target,{...target,x:300,label:'Step two'}]);
   assert.equal(flattenScene(multi).filter(m=>m.shape==='badge').map(m=>m.label).join(','),'1,2');
   assert.equal(flattenScene(composeTemplate('caution',[target]))[0].color,TONES.caution);
+  assert.equal(flattenScene(composeTemplate('sequence',[{...target,width:600,height:40}]))[0].shape,'bracket');
   assert.throws(()=>composeTemplate('focus',[]),/1–8/);
   assert.throws(()=>composeTemplate('unknown',[target]),/Unknown/);
 });
@@ -87,4 +88,19 @@ test('legacy sessions are not silently converted to mutable scenes',()=>{
   const manager=new HandoffManager();const s=manager.show({...basic,mode:'guide',x:10,y:15});
   assert.equal(manager.updateScene(s.id,'local',1,[{op:'set_layer',layerId:'foo',visible:false}]).error,'scene_not_enabled');
   manager.close();
+});
+
+test('animation hints survive normalization, flattening and atomic updates with bounded timing',()=>{
+  for(const effect of EFFECTS){
+    const a=normalizeAnnotation({...target,shape:'scribble',effect,delayMs:420,durationMs:1100});
+    const scene={version:1,layers:[{id:'ink',annotations:[{...a,id:'mark'}]}]};
+    const updated=patchScene(scene,[{op:'upsert_annotation',layerId:'ink',annotation:{...a,id:'mark',x:75}}]);
+    assert.deepEqual(flattenScene(updated)[0],{...a,id:'mark',x:75,layerId:'ink',zIndex:0,opacity:1});
+    assert.equal(flattenScene(scene)[0].x,target.x);
+  }
+  for(const props of [{effect:'spin'},{delayMs:-1},{delayMs:5001},{durationMs:199},{durationMs:4001},{durationMs:Infinity}])
+    assert.throws(()=>normalizeAnnotation({...target,...props}),/effect|delayMs|durationMs/);
+  const steps=flattenScene(composeTemplate('sequence',[target,{...target,x:300}]));
+  assert.deepEqual(steps.filter(a=>a.shape==='ring').map(a=>a.delayMs),[0,420]);
+  assert.deepEqual(steps.filter(a=>a.shape==='badge').map(a=>[a.width,a.height]),[[124,42],[124,42]]);
 });

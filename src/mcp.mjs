@@ -8,7 +8,7 @@ import { formatToolResult } from './output.mjs';
 import { VISUAL_STYLES, MOTION_MODES } from './local/preferences.mjs';
 import { BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { assessHandoff, GROUNDING_EVIDENCE } from './local/policy.mjs';
-import { SHAPES, TONES, TEMPLATE_NAMES } from './visual/scene.mjs';
+import { SHAPES, TONES, TEMPLATE_NAMES, EFFECTS } from './visual/scene.mjs';
 
 const broker = new BrokerClient();
 const annotation = z.object({
@@ -21,7 +21,10 @@ const annotation = z.object({
   height: z.number().positive().max(5000).optional(),
   id: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),
   tone: z.enum(Object.keys(TONES)).optional(),
-  opacity: z.number().min(0).max(1).optional()
+  opacity: z.number().min(0).max(1).optional(),
+  effect: z.enum(EFFECTS).optional(),
+  delayMs: z.number().min(0).max(5000).optional(),
+  durationMs: z.number().min(200).max(4000).optional()
 });
 const layer = z.object({
   id: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/),
@@ -48,6 +51,9 @@ const presentation = z.object({
   y: z.number().finite().min(-100000).max(100000).optional(),
   shape: z.enum(SHAPES).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  effect: z.enum(EFFECTS).optional(),
+  delayMs: z.number().min(0).max(5000).optional(),
+  durationMs: z.number().min(200).max(4000).optional(),
   annotations: z.array(annotation).max(8).optional(),
   scene: scene.optional(),
   template: z.enum(TEMPLATE_NAMES).optional(),
@@ -108,7 +114,7 @@ function makeServer() {
   }, safe(({ target, previous }) => broker.locate(target, previous)));
   server.registerTool('visual_show', {
     title: 'Show on-screen guidance',
-    description: 'Draw grounded global DIP targets or exact foreground {app,role,name} target (with explicit accessibility opt-in). Native targets are followed while visible (followTarget:false disables), optionally with template focus|point|inspect|caution|sequence|verify or an explicit layered scene v1. Never guess coordinates.',
+    description: 'Draw grounded global DIP targets or an exact foreground native target. Templates: focus, point, inspect, caution, sequence, verify, sketch, highlight, bracket. Marks support draw/pulse/flow/still, delayMs and durationMs; sequence staggers locally. Animation never proves an action succeeded. Native targets auto-follow; never guess coordinates.',
     inputSchema: presentation, annotations: { readOnlyHint: false }
   }, safe(args => broker.present('guide', args)));
   server.registerTool('handoff_request', {

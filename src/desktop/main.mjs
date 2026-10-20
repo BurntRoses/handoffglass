@@ -87,8 +87,9 @@ function draw(win, display) {
   if (win.isDestroyed() || win.webContents.isLoading()) return;
   const b = { id: String(display.id), x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height };
   const annotations = current ? localAnnotations(b, current.annotations) : [];
+  // Clear the renderer's playback cache when a target is lost, even while hidden.
+  win.webContents.send('hg:render', { sessionId: current?.id, annotations, visualStyle: current?.visualStyle, motion: current?.motion });
   if (!annotations.length) { win.hide(); return; }
-  win.webContents.send('hg:render', { annotations, visualStyle: current?.visualStyle, motion: current?.motion });
   win.showInactive();
 }
 function findTargetDisplay(active) {
