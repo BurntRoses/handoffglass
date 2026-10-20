@@ -1,6 +1,6 @@
 # Desktop interface · 0.16.0
 
-macOS 26.6 / Apple Silicon / Electron 44.8.0 / one real display. Screenshots below are production windows captured through Electron; fixture text and decisions use an isolated temporary runtime. No files were deleted.
+macOS 26.6.2 / Apple Silicon / Electron 44.8.0 / one real display. Screenshots below are production windows captured through Electron; fixture text and decisions use an isolated temporary runtime. No files were deleted.
 
 ## Changes
 
