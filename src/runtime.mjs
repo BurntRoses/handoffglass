@@ -137,6 +137,13 @@ export class BrokerClient {
   async blueprint(blueprint, locale) { return this.request('/agent/blueprint', { method: 'POST', body: { blueprint, locale } }); }
   async present(mode, args) { return this.request('/agent/show', { method: 'POST', body: { ...args, mode } }); }
   async displays() { return this.request('/agent/displays'); }
+  async inspect() {
+    try { return await this.request('/agent/inspect'); }
+    catch(error) {
+      if(error.httpCode === 404) throw Object.assign(new Error('Restart HandoffGlass to load UI inspection, then retry.'),{code:'broker_upgrade_required'});
+      throw error;
+    }
+  }
   async status(sessionId) { return this.request(`/agent/status?sessionId=${encodeURIComponent(sessionId)}`); }
   async events(sessionId,after=0,limit=20) { return this.request(`/agent/events?sessionId=${encodeURIComponent(sessionId)}&after=${after}&limit=${limit}`); }
   async wait(sessionId, maxWaitSeconds) {

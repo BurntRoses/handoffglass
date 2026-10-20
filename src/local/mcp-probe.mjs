@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readManifest } from '../runtime.mjs';
 
-export const REQUIRED_TOOLS = Object.freeze(['screen_displays','visual_show','handoff_request','handoff_status','handoff_wait','handoff_cancel']);
+export const REQUIRED_TOOLS = Object.freeze(['screen_displays','ui_inspect','ui_locate','visual_show','handoff_request','handoff_status','handoff_wait','handoff_cancel']);
 const MAX_OUTPUT = 256 * 1024;
 const nap = ms => new Promise(resolve => setTimeout(resolve,ms));
 

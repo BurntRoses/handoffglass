@@ -1,6 +1,6 @@
 /** Real local renderer checks and screenshots. Runs in a disposable runtime. */
 import assert from 'node:assert/strict';
-import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
+import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {app} from 'electron';
@@ -13,6 +13,8 @@ async function until(check,message){for(let i=0;i<100;i++){if(await check())retu
 void app.whenReady().then(async()=>{
  const dir=await mkdtemp(join(tmpdir(),'handoffglass-release-ui-')),output=resolve('.tmp/release-ui');
  process.env.HANDOFFGLASS_RUNTIME_DIR=dir;
+ process.env.CODEX_HOME=join(dir,'codex');
+ app.setPath('home',dir);
  delete process.env.HANDOFFGLASS_ENABLE_ACCESSIBILITY;
  const manager=new HandoffManager(),bridge=new LocalBridge(manager),errors=[];
  let center,setup;
@@ -33,6 +35,11 @@ void app.whenReady().then(async()=>{
   assert.equal(await js('document.querySelector("#host").value'),'codex');
   assert.equal(await js('document.querySelector(".connection-card details").open'),false);
   assert.ok((await js('document.querySelector("#config").textContent')).includes('[mcp_servers.handoffglass]'));
+  assert.equal(await js('document.querySelector("#copy").textContent'),'连接');
+  await js('document.querySelector("#copy").click()');
+  await until(async()=>await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent.includes("重启 Codex")'),'Codex connection did not complete');
+  assert.match(await readFile(join(dir,'codex','config.toml'),'utf8'),/\[mcp_servers.handoffglass\]/);
+  assert.match(await readFile(join(dir,'.agents','skills','visual-handoff','SKILL.md'),'utf8'),/教我清空废纸篓/);
   await capture('connections-light');
   await page('appearance');await until(async()=>await js('document.querySelectorAll("#stylePreview .hg-mark").length===1'),'Shared preview did not render');
   await set('visualStyle','handdrawn');
@@ -71,6 +78,6 @@ void app.whenReady().then(async()=>{
   await panel.webContents.executeJavaScript('document.querySelector("#decline").click()');
   await until(()=>manager.get(session.id).status==='declined','Decline did not reach broker');
   assert.deepEqual(errors,[],'Renderer errors');
-  console.log(`PASS release UI: live shared preview, saved/unsaved preferences, language, permission persistence, collapsed details, narrow window, setup, real panel decline. Screenshots: ${output}`);
+  console.log(`PASS release UI: real Codex connection and skill install in disposable home, live preview, preferences, language, permission, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
  }finally{setup?.close();center?.close();manager.close();await bridge.stop();await rm(dir,{recursive:true,force:true});}
 }).then(()=>app.exit(0),error=>{console.error(error);app.exit(1);});

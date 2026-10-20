@@ -17,6 +17,22 @@ async function fixture(fn) {
   finally { await bridge.stop(); manager.close(); }
 }
 const basic = { title: 'Read permissions', message: 'Make your own decision', mode: 'handoff' };
+test('foreground inspection requires agent capability and owner, with no result in diagnostics',async()=>fixture(async({bridge,request})=>{
+  bridge.headless=true;
+  const observation={app:'Fixture',controls:[{app:'Fixture',role:'button',name:'Private control'}]};
+  let count=0;
+  bridge.inspector=async()=>{count++;return observation;};
+  assert.equal((await request('/agent/inspect')).status,401);
+  const auth={authorization:`Bearer ${bridge.agentToken}`};
+  assert.equal((await request('/agent/inspect',{headers:auth})).status,403);
+  const headers={...auth,'x-handoffglass-owner':'11111111-1111-4111-8111-111111111111'};
+  const response=await request('/agent/inspect',{headers});
+  assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),observation);
+  assert.equal(count,1);
+  const diagnostics=await (await request('/desktop/diagnostics')).text();
+  assert.equal(diagnostics.includes('Private control'),false);
+}));
 
 test('native failures retain actionable codes across the authenticated bridge', async () => fixture(async ({ bridge, request }) => {
   bridge.headless = true;

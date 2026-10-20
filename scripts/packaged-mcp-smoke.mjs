@@ -48,8 +48,16 @@ try{
     ELECTRON_RUN_AS_NODE:'1',HANDOFFGLASS_HEADLESS:'1',HANDOFFGLASS_RUNTIME_DIR:dir},stderr:'pipe'});
   await Promise.race([client.connect(transport),new Promise((_r,reject)=>setTimeout(()=>reject(new Error('Packaged MCP connection timeout')),15000))]);
   const {tools}=await client.listTools();
+  assert.ok((client.getInstructions() || '').length <= 512);
+  assert.match(client.getInstructions() || '',/agent's hand/);
   assert.ok(tools.some(t=>t.name==='handoff_request'));
   assert.ok(tools.some(t=>t.name==='ui_locate'));
+  assert.ok(tools.some(t=>t.name==='ui_inspect'));
+  const installURL=pathToFileURL(join(dirname(entry),'codex-install.mjs')).href;
+  await promisify(execFile)(appBinary,['--input-type=module','-e',
+    `const {installCodex}=await import(${JSON.stringify(installURL)}); await installCodex({userHome:${JSON.stringify(dir)},codexHome:${JSON.stringify(join(dir,'codex'))},apply:true});`],
+    {env:nativeEnv,timeout:15000});
+  console.log('Packaged Codex installer and bundled guidance skill verified');
   const status=await client.callTool({name:'screen_displays',arguments:{}});
   assert.ok(!status.isError); // headless fixture returns a valid empty-display status
   console.log('Packaged ELECTRON_RUN_AS_NODE MCP handshake complete:',tools.length,'tools');

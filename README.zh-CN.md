@@ -16,11 +16,11 @@
 
 </div>
 
-[在 Codex 中使用 · 废纸篓引导提示词](docs/USE_WITH_CODEX.zh-CN.md)
+[连接 Codex](docs/USE_WITH_CODEX.zh-CN.md)
 
 ## Agent 负责推进，关键一步交给你
 
-登录、授权、选账户或确认设置。HandoffGlass 在真实桌面上指出操作位置，接收用户的决定，再把结果送回原来的 Agent。
+告诉 Agent 你想做什么，例如“教我清空废纸篓”。Agent 自己查看界面、指出下一步、等待你操作，再检查结果并继续。登录、授权或确认设置也可以在任务中自然交接。
 
 <img src="assets/interaction-flow.svg" alt="Agent 与用户交接流程" width="100%" />
 

@@ -1,28 +1,29 @@
 # 在 Codex 中使用
 
-HandoffGlass 在桌面显示圈画、箭头、高亮和聚焦遮罩。你完成原应用中的操作后，它将反馈交回 Codex，由 Codex 检查结果并继续。
+HandoffGlass 是 Codex 的屏幕交接工具：Codex 判断任务需要你操作电脑时，自行选择定位、指示、等待和继续。它不替你点击，也不把一张截图当成完成证明。
 
 ## 连接
 
-1. 打开 HandoffGlass，进入「连接」，选择 Codex，复制配置。
-2. 将 `handoffglass` 条目合并到 `~/.codex/config.toml`，保留已有配置。
-3. 在 Codex 中重新连接 MCP；若当前聊天没有新工具，重新打开本地聊天。
-4. 请 Codex 调用 `screen_displays` 检查桌面连接。
+1. 打开 HandoffGlass，进入「连接」，选择 Codex。
+2. 点「连接」。它会合并 MCP 配置并安装引导技能，保留其他设置。源码安装也可运行 `node scripts/install-host.mjs codex --apply`。
+3. 重启 Codex，让它重新读取 MCP。升级已有安装时，也重启 HandoffGlass。
 
 「帮助」中的连接检查只检测本地服务；Codex 成功调用工具后，「最近连接」才会出现请求记录。需要圈出原生控件时，在「帮助」允许定位，并完成 macOS 辅助功能授权；无法定位时仍可使用文字引导。
 
 Codex MCP 配置字段参见 [OpenAI 官方文档](https://developers.openai.com/codex/mcp/)；实际本机路径以应用生成的配置为准。
 
-## 可直接发送的提示词
+## 日常使用
+
+安装完成后，不需要告诉 Codex 工具名、坐标或操作顺序。直接说：
 
 ```text
-请按照 https://github.com/BurntRoses/handoffglass 的 README 和 AGENTS.md，使用 codex/release-interface 分支（0.16.0）安装并运行 HandoffGlass，接入我本机的 Codex。已有安装先核对版本，再复用或更新；将 MCP 配置合并到现有配置，不覆盖其他服务。用实际工具调用确认连接；如果当前聊天尚未加载新工具，告诉我具体如何重新连接。
-
-连接后，用 HandoffGlass 一步一步指导我清空 macOS 废纸篓：先打开废纸篓，让我查看文件；再引导我找到清空入口。能可靠定位时，用圈画或箭头指示；无法定位就给简短文字，不猜坐标。需要系统授权时，打开对应设置，由我授权。
-
-清空及最终删除确认由我在 Finder 中点击，不使用终端或脚本删除。每一步等待我操作，再检查实际状态；点击“我已完成”本身不代表删除成功。遇到拒绝、取消或超时就停下。确认废纸篓为空后再告诉我完成。
-
-文案简短，一次只呈现当前一步。
+教我清空废纸篓。
 ```
 
-仓库为私有项目，需要当前 GitHub 账户具有读取权限。软件本身不操作鼠标、不截屏、不删除文件。界面操作与结果核验需要 Codex 可用的电脑操作能力；缺少该能力时应如实说明，并由你检查。
+若尚未安装，可先说：
+
+```text
+请根据 https://github.com/BurntRoses/handoffglass 的 codex/release-interface 分支安装 HandoffGlass 并接入本机 Codex，然后教我清空废纸篓。
+```
+
+Codex 应自己查看当前界面、指示下一步、等待你操作，再检查原应用。屏幕提示只保留当前一步。控件查看有范围限制，无法独立核验时应如实说明。软件不点击、不截屏、不删除文件；涉及删除、授权或登录时，由你在原应用中决定。

@@ -8,6 +8,10 @@ const translations = Object.freeze({
   "host": "应用",
   "configTitle": "查看配置",
   "copy": "复制配置",
+  "connect": "连接",
+  "connecting": "正在连接…",
+  "connectedRestart": "已添加，请重启 Codex。",
+  "connectFailed": "未能连接，请手动添加配置。",
   "hostNote": "将配置添加到应用，重新连接工具。",
   "visual": "外观",
   "style": "标注",
@@ -18,7 +22,7 @@ const translations = Object.freeze({
   "inspect": "允许定位屏幕控件",
   "permission": "辅助功能设置",
   "done": "设置已保存",
-  "doneDesc": "返回应用，重新连接 HandoffGlass 工具。",
+  "doneDesc": "重启已连接的应用，告诉它你想做什么。",
   "back": "返回",
   "next": "继续",
   "finish": "完成",
@@ -47,6 +51,10 @@ const translations = Object.freeze({
   "host": "App",
   "configTitle": "View configuration",
   "copy": "Copy configuration",
+  "connect": "Connect",
+  "connecting": "Connecting…",
+  "connectedRestart": "Added. Restart Codex.",
+  "connectFailed": "Could not connect. Add the configuration manually.",
   "hostNote": "Add the configuration to your app, then reconnect its tools.",
   "visual": "Appearance",
   "style": "Marks",
@@ -57,7 +65,7 @@ const translations = Object.freeze({
   "inspect": "Allow screen element lookup",
   "permission": "Accessibility settings",
   "done": "Settings saved",
-  "doneDesc": "Return to your app and reconnect HandoffGlass tools.",
+  "doneDesc": "Restart your connected app, then tell it what you want to do.",
   "back": "Back",
   "next": "Continue",
   "finish": "Done",
@@ -81,7 +89,7 @@ const translations = Object.freeze({
 });
 const $=id=>document.getElementById(id);
 const safeLocale=value=>Object.hasOwn(translations,value)?value:'en-US';
-let locale='zh-CN',step=0,platform='',statusReady=false,previewSerial=0;
+let locale='zh-CN',step=0,platform='',statusReady=false,previewSerial=0,connectBusy=false,connectResult='';
 const feedback=$('feedback');
 function t(key){return translations[locale]?.[key] || translations['en-US'][key] || key;}
 function report(message,isError=false){feedback.textContent=message;feedback.classList.toggle('is-error',isError);}
@@ -91,18 +99,26 @@ function translate(){
   $('next').querySelector('span').textContent=t(step===2?'finish':'next');
   document.querySelectorAll('[data-o]').forEach(el=>el.textContent=t(el.dataset.o));
   $('permission').hidden=platform!=='darwin';
+  connectionLabels();
 }
+function connectionLabels(){const codex=$('host').value==='codex';$('copy').textContent=t(connectBusy?'connecting':codex?'connect':'copy');document.querySelector('[data-t="hostNote"]').textContent=codex?(connectResult?t(connectResult):''):t('hostNote');}
 function showStep(index){step=Math.max(0,Math.min(2,index));document.querySelectorAll('[data-screen]').forEach(el=>{el.hidden=Number(el.dataset.screen)!==step});document.querySelectorAll('[data-step]').forEach(el=>{const position=Number(el.dataset.step);el.classList.toggle('is-active',position===step);el.classList.toggle('is-done',position<step);position===step?el.setAttribute('aria-current','step'):el.removeAttribute('aria-current')});$('back').disabled=step===0;report('');translate();}
 function applyTheme(value){document.documentElement.dataset.theme=value==='light'?'light':value==='dark'?'dark':'system';}
 async function updatePreview(){
- const serial=++previewSerial;const host=$('host').value;$('format').textContent=host==='codex'?'TOML':'JSON';$('configPreview').textContent=t('loading');
+ const serial=++previewSerial;const host=$('host').value;connectionLabels();$('format').textContent=host==='codex'?'TOML':'JSON';$('configPreview').textContent=t('loading');
  try{const response=await window.hgSetup.preview(host);if(serial!==previewSerial)return;$('configPreview').textContent=response?.ok?response.content:t('configUnavailable');$('copy').disabled=!response?.ok;}
  catch{if(serial===previewSerial){$('configPreview').textContent=t('configUnavailable');$('copy').disabled=true;}}
 }
 $('host').addEventListener('change',updatePreview);
 $('copy').addEventListener('click',async()=>{
+ if($('host').value==='codex'){
+  if(connectBusy)return;connectBusy=true;$('copy').disabled=true;connectionLabels();
+  try{const result=await window.hgSetup.connect();connectResult=result?.ok?'connectedRestart':'connectFailed';}catch{connectResult='connectFailed';}
+  finally{connectBusy=false;$('copy').disabled=false;connectionLabels();}return;
+ }
  try{const result=await window.hgSetup.copy($('host').value);report(result?.ok?t('copied'):t('error'),!result?.ok);}catch{report(t('error'),true);}
 });
+$('copyManual').addEventListener('click',async()=>{try{const result=await window.hgSetup.copy($('host').value);report(result?.ok?t('copied'):t('error'),!result?.ok);}catch{report(t('error'),true);}});
 $('permission').addEventListener('click',async()=>{try{const response=await window.hgSetup.permission();if(!response?.ok)report(t('error'),true);}catch{report(t('error'),true);}});
 $('theme').addEventListener('change',()=>applyTheme($('theme').value));
 $('locale').addEventListener('change',()=>{locale=safeLocale($('locale').value);translate();});

@@ -2,7 +2,7 @@
 import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { connection } from './setup.mjs';
+import { connection, connectCodex } from './setup.mjs';
 import { HOSTS } from '../config.mjs';
 import { loadPreferences, savePreferences } from '../local/preferences.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
@@ -58,6 +58,10 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
     if(!authorized(event)||typeof host!=='string'||!HOSTS_SET.has(host))return {ok:false,error:'Unknown host'};
     try {clipboard.writeText(connection(host));return {ok:true};}
     catch {return {ok:false,error:'Cannot generate this host configuration'};}
+  });
+  ipcMain.handle('hg:center:connect',async event=>{
+    if(!authorized(event))return {ok:false,code:'unauthorized'};
+    return connectCodex();
   });
   ipcMain.handle('hg:center:preview',async(event,host)=>{
     if(!authorized(event)||typeof host!=='string'||!HOSTS_SET.has(host))return {ok:false,error:'Unknown host'};

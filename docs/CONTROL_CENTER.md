@@ -9,7 +9,7 @@ Open the app, or choose **Open HandoffGlass** from the menu bar. Double-clicking
 | Page | What it does | How information is obtained |
 | --- | --- | --- |
 | Guidance | Desktop readiness, current step and recent requests | Authenticated loopback read-only diagnostics |
-| Connections | MCP configuration copy; collapsed preview; recent calls | Current executable, temporary headless runtime, no host modification |
+| Connections | Connect Codex; collapsed configuration preview; recent calls | Merges one MCP server and installs the guidance skill after a click; other hosts use configuration copy |
 | Appearance | Live drawing preview, theme, locale, style, motion and spacing | Private local preferences; explicit user save |
 | Help | Immediate lookup opt-in, connection check; collapsed diagnostics, displays and support report | Desktop runtime display geometry; no screen pixels or task content |
 

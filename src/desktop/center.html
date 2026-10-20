@@ -35,7 +35,7 @@
         <div class="card connection-card">
           <label class="field"><span data-i="host">应用</span><select id="host"><option value="codex">Codex</option><option value="claude">Claude</option><option value="cursor">Cursor</option><option value="vscode">VS Code</option><option value="trae">TRAE</option><option value="workbuddy">WorkBuddy</option><option value="deepseek">DeepSeek Harness</option><option value="gemini">Gemini CLI</option><option value="opencode">OpenCode</option><option value="cline">Cline</option><option value="windsurf">Windsurf</option><option value="zed">Zed</option></select></label>
           <div class="connection-actions"><p data-i="connectDesc">将配置添加到应用，重新连接工具。</p><button type="button" class="primary" id="copy" data-i="copy" disabled>复制配置</button></div>
-          <details class="disclosure"><summary data-i="localConfig">查看配置</summary><div class="code-caption"><span id="configFormat">TOML</span></div><pre id="config" class="code" tabindex="0" aria-label="MCP configuration"></pre></details>
+          <details class="disclosure"><summary data-i="localConfig">查看配置</summary><div class="code-caption"><span id="configFormat">TOML</span></div><pre id="config" class="code" tabindex="0" aria-label="MCP configuration"></pre><button type="button" class="quiet-button" id="copyManual" data-i="copy">复制配置</button></details>
         </div>
         <h2 id="observedHostsTitle" data-i="observedHostsTitle">最近连接</h2>
         <div id="hostEvidence" class="evidence-list" role="list" aria-live="polite"></div>

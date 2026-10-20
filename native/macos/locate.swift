@@ -3,7 +3,7 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-struct Target: Decodable { let app: String; let role: String; let name: String }
+struct Target: Decodable { let mode: String?; let app: String?; let role: String?; let name: String? }
 func reply(_ code: String, _ message: String) -> Never {
   let obj: [String:Any] = ["code": code, "error": message]
   if let data = try? JSONSerialization.data(withJSONObject: obj), let line = String(data: data, encoding: .utf8) { print(line) }
@@ -39,9 +39,11 @@ func hitIsInside(_ element: AXUIElement, _ bounds: CGRect) -> Bool {
 }
 let input = FileHandle.standardInput.readDataToEndOfFile()
 guard let target = try? JSONDecoder().decode(Target.self, from: input) else { reply("invalid_query", "Invalid input") }
+let inspect = target.mode == "inspect"
+guard inspect || (target.app != nil && target.role != nil && target.name != nil) else { reply("invalid_query", "Exact target required") }
 guard AXIsProcessTrusted() else { reply("permission_denied", "Allow Accessibility access for the locator executable in System Settings") }
 guard let app = NSWorkspace.shared.frontmostApplication, let appName = app.localizedName,
-      appName.caseInsensitiveCompare(target.app) == .orderedSame else {
+      inspect || appName.caseInsensitiveCompare(target.app!) == .orderedSame else {
   reply("app_not_frontmost", "The requested application must be the active foreground app")
 }
 let root = AXUIElementCreateApplication(app.processIdentifier)
@@ -50,14 +52,16 @@ var queue: [(AXUIElement,Int)] = [(root,0)]
 var inspected = 0
 var candidates: [[String:Any]] = []
 let observedAt = Int(Date().timeIntervalSince1970 * 1000)
-while !queue.isEmpty && inspected < 600 && candidates.count < 65 {
+let inspectRoles: Set<String> = ["button","menubaritem","menuitem","checkbox","radiobutton","popupbutton","tab","disclosuretriangle","link","switch","slider","splitbutton","tabitem"]
+while !queue.isEmpty && inspected < 600 && candidates.count < (inspect ? 48 : 65) {
   let (element, depth) = queue.removeFirst(); inspected += 1
   if let role = stringAttr(element, kAXRoleAttribute as CFString) {
     let roleName = role.hasPrefix("AX") ? String(role.dropFirst(2)).lowercased() : role.lowercased()
     let name = stringAttr(element, kAXTitleAttribute as CFString) ?? stringAttr(element, kAXDescriptionAttribute as CFString) ?? ""
-    if roleName == target.role.lowercased() && name == target.name, let b = rect(element) {
+    let matches = inspect ? inspectRoles.contains(roleName) && !name.isEmpty && name.count <= 256 : roleName == target.role!.lowercased() && name == target.name!
+    if matches, let b = rect(element) {
       candidates.append([
-        "app":target.app,"role":target.role,"name":target.name,
+        "app":inspect ? appName : target.app!,"role":inspect ? roleName : target.role!,"name":name,
         "bounds":["x":Double(b.minX),"y":Double(b.minY),"width":Double(b.width),"height":Double(b.height)],
         "observedAt":observedAt,"enabled":boolAttr(element, kAXEnabledAttribute as CFString) == true,
         "visible":true,"occluded":!hitIsInside(element,b)
@@ -68,5 +72,6 @@ while !queue.isEmpty && inspected < 600 && candidates.count < 65 {
     for child in children.prefix(120) { queue.append((child,depth+1)) }
   }
 }
-let answer: [String:Any] = ["candidates":candidates]
+guard NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier else { reply("app_changed", "Foreground app changed during observation; inspect again") }
+let answer: [String:Any] = inspect ? ["app":appName,"candidates":candidates,"truncated": !queue.isEmpty] : ["candidates":candidates]
 if let data = try? JSONSerialization.data(withJSONObject: answer), let line = String(data: data, encoding: .utf8) { print(line) }

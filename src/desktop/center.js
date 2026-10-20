@@ -18,6 +18,10 @@ const lex = {
   "host": "应用",
   "localConfig": "查看配置",
   "copy": "复制配置",
+  "connect": "连接",
+  "connecting": "正在连接…",
+  "connectedRestart": "已添加，请重启 Codex。",
+  "connectFailed": "未能连接，请手动添加配置。",
   "styleTitle": "外观",
   "visual": "标注",
   "motion": "动态",
@@ -128,6 +132,10 @@ const lex = {
   "host": "App",
   "localConfig": "View configuration",
   "copy": "Copy configuration",
+  "connect": "Connect",
+  "connecting": "Connecting…",
+  "connectedRestart": "Added. Restart Codex.",
+  "connectFailed": "Could not connect. Add the configuration manually.",
   "styleTitle": "Appearance",
   "visual": "Marks",
   "motion": "Motion",
@@ -225,7 +233,7 @@ const lex = {
 const $=id=>document.getElementById(id);
 let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false,testBusy=false,testLast=null;
 const translateKey=key=>(lex[prefs?.locale]||lex['zh-CN'])[key]||key;
-function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);renderLocal();}
+function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);connectionLabels();renderLocal();}
 function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=translateKey(page);if(page==='connections'){void preview();void refresh();}if(page==='diagnostics'||page==='overview')void refresh();if(page==='diagnostics')void refreshDisplays();if(page==='appearance')requestAnimationFrame(renderPreview);}
 function value(id,text){$(id).textContent=text;}
 let observedHosts=[];
@@ -281,11 +289,19 @@ async function refresh(){const id=++serial;try{const r=await window.hgCenter.rea
       applyLocale();
     }
     showState(r.diagnostics);}catch{if(id===serial)value('refreshed',translateKey('unavailable'));}}
-async function preview(){const id=++preview.seq;const host=$('host').value;value('config',translateKey('loading'));value('configFormat',host==='codex'?'TOML':'JSON');try{const r=await window.hgCenter.preview(host);if(id!==preview.seq)return;value('config',r?.ok?r.content:translateKey('na'));$('copy').disabled=!r?.ok;}catch{if(id===preview.seq){value('config',translateKey('na'));$('copy').disabled=true;}}}
+let connectBusy=false,connectResult='';
+function connectionLabels(){const codex=$('host').value==='codex';$('copy').textContent=translateKey(connectBusy?'connecting':codex?'connect':'copy');document.querySelector('[data-i="connectDesc"]').textContent=codex?(connectResult?translateKey(connectResult):''):translateKey('connectDesc');}
+async function preview(){const id=++preview.seq;const host=$('host').value;connectionLabels();value('config',translateKey('loading'));value('configFormat',host==='codex'?'TOML':'JSON');try{const r=await window.hgCenter.preview(host);if(id!==preview.seq)return;value('config',r?.ok?r.content:translateKey('na'));$('copy').disabled=connectBusy||!r?.ok;}catch{if(id===preview.seq){value('config',translateKey('na'));$('copy').disabled=true;}}}
 preview.seq=0;
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>showPage(button.dataset.page)));
 $('refresh').addEventListener('click',refresh);$('host').addEventListener('change',preview);
-$('copy').addEventListener('click',async()=>{try{const r=await window.hgCenter.copy($('host').value);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}});
+$('copy').addEventListener('click',async()=>{
+ if($('host').value!=='codex'){try{const r=await window.hgCenter.copy($('host').value);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}return;}
+ if(connectBusy)return;connectBusy=true;$('copy').disabled=true;connectionLabels();
+ try{const r=await window.hgCenter.connect();connectResult=r?.ok?'connectedRestart':'connectFailed';}catch{connectResult='connectFailed';}
+ finally{connectBusy=false;$('copy').disabled=false;connectionLabels();}
+});
+$('copyManual').addEventListener('click',async()=>{try{const r=await window.hgCenter.copy($('host').value);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}});
 $('permission').addEventListener('click',async()=>{try{const r=await window.hgCenter.permission();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
 $('preferences').addEventListener('change',()=>{settingsDirty=true;document.documentElement.dataset.theme=$('theme').value;renderPreview();});
 $('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};settingsDirty=false;applyLocale();toast(translateKey('saved'));}catch{toast(translateKey('failed'));}finally{busy=false;$('save').disabled=false;}});
