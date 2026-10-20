@@ -54,7 +54,10 @@ export function normalizeNativeOutput(raw, target, displays, platform = process.
   return { ...located, app: query.app, role: query.role, name: query.name, matches: 1 };
 }
 export function nativeCommand(platform = process.platform, env = process.env) {
-  const resource = env.HANDOFFGLASS_NATIVE_RESOURCE_DIR;
+  // In packaged MCP Node mode app.mjs never runs, so resolve extraResources
+  // from Electron directly rather than looking for Swift sources inside ASAR.
+  const resource = env.HANDOFFGLASS_NATIVE_RESOURCE_DIR ||
+    (ROOT.endsWith('.asar') && process.resourcesPath ? join(process.resourcesPath, 'native') : undefined);
   if (platform === 'darwin') {
     const executable = resource ? join(resource, 'hg-locate') : join(ROOT, 'native/macos/hg-locate');
     if (existsSync(executable)) return { command: executable, args: [] };

@@ -1,3 +1,13 @@
+## Unreleased — macOS desktop validation
+
+- Fixed Electron ESM startup deadlocks in both desktop entrypoints and GUI launches inherited from Electron's Node mode.
+- Fixed packaged MCP-to-GUI attachment and native helper resolution outside ASAR; added a real packaged desktop regression.
+- Kept macOS overlays aligned with full display bounds and restored visible annotations after display-window rebuilds.
+- Reduced local native-anchor polling to 500 ms after each completed query, without overlapping queries or model calls.
+- Preserved actionable native-locator error codes across the Broker/MCP boundary.
+- Made diagnostic and Control Center versions follow package metadata.
+- Added real Electron startup/window regressions and a measured AppKit Accessibility fixture; recorded macOS evidence and outstanding physical-device QA.
+
 ## 0.15.0 — Incremental handoff recovery
 
 - Added an owner-scoped `handoff_events` MCP tool for bounded cursor-based transitions and deterministic recovery guidance.

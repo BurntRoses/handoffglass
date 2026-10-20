@@ -20,7 +20,7 @@ const shiftScene = (scene, origin, located) => scene ? {
 
 export class NativeAnchorTracker {
   constructor({ manager, locator, getDisplays, desktopReady = () => true,
-    intervalMs = 2500, now = () => Date.now() }) {
+    intervalMs = 500, now = () => Date.now() }) {
     this.manager=manager; this.locator=locator; this.getDisplays=getDisplays;
     this.desktopReady=desktopReady; this.intervalMs=Math.max(500, intervalMs);
     this.now=now; this.current=null; this.timer=null; this.inflight=false; this.generation=0;

@@ -24,11 +24,14 @@ async function launchDesktop(bridge) {
       bridge.lastPoll = 0; // Require a fresh /hello from the replacement renderer.
       let executable = process.env.HANDOFFGLASS_ELECTRON;
       if (!executable) {
-        try { executable = (await import('electron')).default; }
+        try { executable = process.versions.electron ? process.execPath : (await import('electron')).default; }
         catch { throw new Error('Electron is not installed: run npm install'); }
       }
+      // MCP and its Broker use Electron's Node mode; the GUI must leave it.
+      const desktopEnv = { ...process.env, HANDOFFGLASS_PORT: String(bridge.port), HANDOFFGLASS_SECRET: bridge.token };
+      delete desktopEnv.ELECTRON_RUN_AS_NODE;
       desktop = spawn(executable, [resolve(root, 'src/desktop/main.mjs')], {
-        env: { ...process.env, HANDOFFGLASS_PORT: String(bridge.port), HANDOFFGLASS_SECRET: bridge.token },
+        env: desktopEnv,
         stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true
       });
       desktop.stderr?.on('data', chunk => process.stderr.write(`[handoffglass desktop] ${String(chunk).slice(0, 1500)}`));

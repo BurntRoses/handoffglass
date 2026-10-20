@@ -47,6 +47,9 @@ function createOverlay(display) {
     frame: false, transparent: true, backgroundColor: '#00000000',
     hasShadow: false, show: false, skipTaskbar: true, resizable: false,
     focusable: false, alwaysOnTop: true,
+    // macOS otherwise constrains this window to the work area on first show,
+    // shifting global-DIP annotations below the menu bar (and sometimes right).
+    enableLargerThanScreen: true,
     webPreferences: {
       preload: join(here, 'preload.cjs'), contextIsolation: true,
       sandbox: true, nodeIntegration: false, webSecurity: true
@@ -57,7 +60,9 @@ function createOverlay(display) {
   if (process.platform === 'darwin') win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   lockDown(win);
   void win.loadFile(join(here, 'overlay.html'));
-  win.webContents.on('did-finish-load', () => draw(win, display));
+  // isLoading() can still be true during did-finish-load. Rebuilt overlays need
+  // a redraw after loading stops even when no new session revision arrives.
+  win.webContents.on('did-stop-loading', () => draw(win, display));
   return { win, display };
 }
 function createPanel() {
@@ -141,100 +146,108 @@ async function runLoop() {
   }
   app.quit();
 }
-await app.whenReady();
-session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
-app.on('window-all-closed', () => {});
-app.on('before-quit', () => { closing = true; });
-panel = createPanel();
-async function setupTrayAndMenu() {
-  const visualPrefs = await loadPreferences();
-  const styleOptions = VISUAL_STYLES.map(value => ({
-    label: `Visual: ${value}`, type: 'radio', checked: visualPrefs.visualStyle === value,
-    click: async () => { try { await savePreferences({visualStyle: value}); }
-      catch(error) { dialog.showErrorBox('Visual preference', error.message); } }
-  }));
-  const motionOptions = MOTION_MODES.map(value => ({
-    label: `Motion: ${value}`, type: 'radio', checked: visualPrefs.motion === value,
-    click: async () => { try { await savePreferences({motion: value}); }
-      catch(error) { dialog.showErrorBox('Motion preference', error.message); } }
-  }));
-  const item = { label: 'Enable read-only UI element inspection', type: 'checkbox',
-    checked: await getAccessibilityConsent(), click: async menuItem => {
-      try { await setAccessibilityConsent(menuItem.checked); }
-      catch (error) { dialog.showErrorBox('Accessibility setting failed', error.message); menuItem.checked = !menuItem.checked; }
-    }};
-  const languageOptions = [['zh-CN','简体中文'],['en-US','English']].map(([value,label])=>({
-    label,type:'radio',checked:visualPrefs.locale===value,
-    click:async()=>{try{await savePreferences({locale:value});}catch(error){dialog.showErrorBox('Language preference',error.message);}}
-  }));
-  const densityOptions = [['normal','Comfortable'],['compact','Compact']].map(([value,label])=>({
-    label,type:'radio',checked:visualPrefs.density===value,
-    click:async()=>{try{await savePreferences({density:value});}catch(error){dialog.showErrorBox('Density preference',error.message);}}
-  }));
-  const context = Menu.buildFromTemplate([
-    { label: 'Control Center…', click: () => void showControlCenter() },
-    { label: 'First-run setup…', click: () => void showSetup() },
-    { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
-    item,
-    { label: 'Visual style (next handoff)', submenu: styleOptions },
-    { label: 'Animation level (next handoff)', submenu: motionOptions },
-    { label: 'Language (next handoff)', submenu: languageOptions },
-    { label: 'Information density (next handoff)', submenu: densityOptions },
-    { label: 'Copy MCP configuration (Claude/Cursor/Cline)', click: () => {
-      const entry = app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
-      const config = hostConfig('claude',{command:process.execPath,entry,compact:true,
-        envOverrides:{ ELECTRON_RUN_AS_NODE:'1' }});
-      clipboard.writeText(config);
-      dialog.showMessageBox({type:'info',title:'HandoffGlass MCP configuration copied',
-        message:'Paste this mcpServers entry into your local Agent settings. For Codex, use the TOML equivalent.',
-        detail: process.platform==='win32' ? 'For reliable Agent startup on Windows, install the desktop application to a stable path; portable temp directories may change.' :
-          'Use the same macOS user and this application location. No remote/cloud Agent will automatically see your local screen.'});
-    } },
-    { label: 'Accessibility permission settings', click: () => {
-      if (process.platform === 'darwin') void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
-      else if (process.platform === 'win32') void shell.openExternal('ms-settings:privacy');
-    } },
-    { type: 'separator' },
-    { label: 'Quit HandoffGlass', click: () => app.quit() }
-  ]);
-  Menu.setApplicationMenu(context);
-  try {
-    const icon = nativeImage.createFromPath(join(here,'assets','tray.png'));
-    if (!icon.isEmpty()) { tray = new Tray(icon); tray.setToolTip('HandoffGlass'); tray.setContextMenu(context); tray.on('double-click', () => { if (current?.mode === 'handoff') panel.showInactive(); else void showControlCenter(); }); }
-  } catch (error) { console.warn('Tray unavailable:',error.message); }
-}
-registerSetupIPC();
-registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics'),
-  getDisplayInfo:()=>screen.getAllDisplays().map((d,i)=>({
-    id:String(d.id),bounds:{x:d.bounds.x,y:d.bounds.y,width:d.bounds.width,height:d.bounds.height},
-    scaleFactor:d.scaleFactor,primary:d.id===screen.getPrimaryDisplay().id,
-    ...(process.platform==='win32'?{physicalBounds:screen.dipToScreenRect(null,d.bounds)}:{})
-  }))});
-await setupTrayAndMenu();
-syncDisplays();
-void maybeShowFirstRun().catch(error => console.error('First-run setup:', error.message));
-function requestDisplaySync() {
-  clearTimeout(displayDebounce);
-  displayDebounce = setTimeout(syncDisplays, 140);
-}
-screen.on('display-added', requestDisplaySync);
-screen.on('display-removed', requestDisplaySync);
-screen.on('display-metrics-changed', requestDisplaySync);
-ipcMain.handle('hg:decision', async (event, data) => {
-  if (!panel || event.sender !== panel.webContents || !current) return { ok: false, error: 'Session unavailable' };
-  if (data?.id !== current.id || !['completed', 'declined', 'cancelled'].includes(data.status)) {
-    return { ok: false, error: 'Stale or invalid decision' };
+// Electron emits ready only after its ESM entry finishes loading. Do not await
+// readiness at module scope: both direct and broker-launched entrypoints stall.
+async function startDesktop() {
+  await app.whenReady();
+  session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+  app.on('window-all-closed', () => {});
+  app.on('before-quit', () => { closing = true; });
+  panel = createPanel();
+  async function setupTrayAndMenu() {
+    const visualPrefs = await loadPreferences();
+    const styleOptions = VISUAL_STYLES.map(value => ({
+      label: `Visual: ${value}`, type: 'radio', checked: visualPrefs.visualStyle === value,
+      click: async () => { try { await savePreferences({visualStyle: value}); }
+        catch(error) { dialog.showErrorBox('Visual preference', error.message); } }
+    }));
+    const motionOptions = MOTION_MODES.map(value => ({
+      label: `Motion: ${value}`, type: 'radio', checked: visualPrefs.motion === value,
+      click: async () => { try { await savePreferences({motion: value}); }
+        catch(error) { dialog.showErrorBox('Motion preference', error.message); } }
+    }));
+    const item = { label: 'Enable read-only UI element inspection', type: 'checkbox',
+      checked: await getAccessibilityConsent(), click: async menuItem => {
+        try { await setAccessibilityConsent(menuItem.checked); }
+        catch (error) { dialog.showErrorBox('Accessibility setting failed', error.message); menuItem.checked = !menuItem.checked; }
+      }};
+    const languageOptions = [['zh-CN','简体中文'],['en-US','English']].map(([value,label])=>({
+      label,type:'radio',checked:visualPrefs.locale===value,
+      click:async()=>{try{await savePreferences({locale:value});}catch(error){dialog.showErrorBox('Language preference',error.message);}}
+    }));
+    const densityOptions = [['normal','Comfortable'],['compact','Compact']].map(([value,label])=>({
+      label,type:'radio',checked:visualPrefs.density===value,
+      click:async()=>{try{await savePreferences({density:value});}catch(error){dialog.showErrorBox('Density preference',error.message);}}
+    }));
+    const context = Menu.buildFromTemplate([
+      { label: 'Control Center…', click: () => void showControlCenter() },
+      { label: 'First-run setup…', click: () => void showSetup() },
+      { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
+      item,
+      { label: 'Visual style (next handoff)', submenu: styleOptions },
+      { label: 'Animation level (next handoff)', submenu: motionOptions },
+      { label: 'Language (next handoff)', submenu: languageOptions },
+      { label: 'Information density (next handoff)', submenu: densityOptions },
+      { label: 'Copy MCP configuration (Claude/Cursor/Cline)', click: () => {
+        const entry = app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
+        const config = hostConfig('claude',{command:process.execPath,entry,compact:true,
+          envOverrides:{ ELECTRON_RUN_AS_NODE:'1' }});
+        clipboard.writeText(config);
+        dialog.showMessageBox({type:'info',title:'HandoffGlass MCP configuration copied',
+          message:'Paste this mcpServers entry into your local Agent settings. For Codex, use the TOML equivalent.',
+          detail: process.platform==='win32' ? 'For reliable Agent startup on Windows, install the desktop application to a stable path; portable temp directories may change.' :
+            'Use the same macOS user and this application location. No remote/cloud Agent will automatically see your local screen.'});
+      } },
+      { label: 'Accessibility permission settings', click: () => {
+        if (process.platform === 'darwin') void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
+        else if (process.platform === 'win32') void shell.openExternal('ms-settings:privacy');
+      } },
+      { type: 'separator' },
+      { label: 'Quit HandoffGlass', click: () => app.quit() }
+    ]);
+    Menu.setApplicationMenu(context);
+    try {
+      const icon = nativeImage.createFromPath(join(here,'assets','tray.png'));
+      if (!icon.isEmpty()) { tray = new Tray(icon); tray.setToolTip('HandoffGlass'); tray.setContextMenu(context); tray.on('double-click', () => { if (current?.mode === 'handoff') panel.showInactive(); else void showControlCenter(); }); }
+    } catch (error) { console.warn('Tray unavailable:',error.message); }
   }
-  try {
-    const result = await call('POST', '/decision', { id: current.id, status: data.status });
-    if (result.session?.id !== data.id || result.session.status !== data.status) {
-      return { ok: false, error: 'Session state changed; review before retrying' };
+  registerSetupIPC();
+  registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics'),
+    getDisplayInfo:()=>screen.getAllDisplays().map((d,i)=>({
+      id:String(d.id),bounds:{x:d.bounds.x,y:d.bounds.y,width:d.bounds.width,height:d.bounds.height},
+      scaleFactor:d.scaleFactor,primary:d.id===screen.getPrimaryDisplay().id,
+      ...(process.platform==='win32'?{physicalBounds:screen.dipToScreenRect(null,d.bounds)}:{})
+    }))});
+  await setupTrayAndMenu();
+  syncDisplays();
+  void maybeShowFirstRun().catch(error => console.error('First-run setup:', error.message));
+  function requestDisplaySync() {
+    clearTimeout(displayDebounce);
+    displayDebounce = setTimeout(syncDisplays, 140);
+  }
+  screen.on('display-added', requestDisplaySync);
+  screen.on('display-removed', requestDisplaySync);
+  screen.on('display-metrics-changed', requestDisplaySync);
+  ipcMain.handle('hg:decision', async (event, data) => {
+    if (!panel || event.sender !== panel.webContents || !current) return { ok: false, error: 'Session unavailable' };
+    if (data?.id !== current.id || !['completed', 'declined', 'cancelled'].includes(data.status)) {
+      return { ok: false, error: 'Stale or invalid decision' };
     }
-    if (current?.id === data.id) updateUI(null);
-    return { ok: true, sessionId: data.id, status: data.status };
-  } catch (error) {
-    console.error('[handoffglass] decision failed:', error.message);
-    return { ok: false, error: 'Could not deliver decision; please retry after checking the panel' };
-  }
+    try {
+      const result = await call('POST', '/decision', { id: current.id, status: data.status });
+      if (result.session?.id !== data.id || result.session.status !== data.status) {
+        return { ok: false, error: 'Session state changed; review before retrying' };
+      }
+      if (current?.id === data.id) updateUI(null);
+      return { ok: true, sessionId: data.id, status: data.status };
+    } catch (error) {
+      console.error('[handoffglass] decision failed:', error.message);
+      return { ok: false, error: 'Could not deliver decision; please retry after checking the panel' };
+    }
+  });
+  void runLoop();
+}
+void startDesktop().catch(error => {
+  console.error('[handoffglass] Desktop startup failed:', error);
+  app.exit(1);
 });
-void runLoop();
