@@ -39,7 +39,7 @@ buttonComplete.addEventListener('click',()=>setOutcome('complete'));
 buttonDecline.addEventListener('click',()=>setOutcome('decline'));
 const copyButton=document.getElementById('copy-command');
 copyButton.addEventListener('click',async()=>{
-  const command='git clone https://github.com/BurntRoses/handoffglass.git\ncd handoffglass\nnpm ci\nnpm run configure';
+  const command=document.getElementById('install-command').textContent;
   try {await navigator.clipboard.writeText(command);}
   catch { const ta=document.createElement('textarea');ta.value=command;ta.style.position='fixed';ta.style.opacity='0';document.body.append(ta);ta.select();document.execCommand('copy');ta.remove(); }
   const node=copyButton.querySelector('[data-i18n]');node.textContent=translations[language]['start.copied'];

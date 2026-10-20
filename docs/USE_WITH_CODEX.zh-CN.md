@@ -1,8 +1,29 @@
 # 在 Codex 中使用
 
-HandoffGlass 是 Codex 的屏幕交接工具：Codex 判断任务需要你操作电脑时，自行选择定位、指示、等待和继续。它不替你点击，也不把一张截图当成完成证明。
+需要你操作电脑时，Codex 在屏幕上指引你，等待你完成，再继续任务。
 
-## 连接
+## 安装
+
+发给 Codex：
+
+```text
+请安装 https://github.com/BurntRoses/handoffglass
+```
+
+安装与接入由 Codex 按[项目内的要求](INSTALL_AGENT.md)完成。
+
+## 使用
+
+直接说：
+
+```text
+教我清空废纸篓。
+```
+
+Codex 自己安排步骤。执行其他任务时，需要你亲手操作的地方也可以交接。
+
+<details>
+<summary>手动连接与排查</summary>
 
 1. 打开 HandoffGlass，进入「连接」，选择 Codex。
 2. 点「连接」。它会合并 MCP 配置并安装引导技能，保留其他设置。源码安装也可运行 `node scripts/install-host.mjs codex --apply`。
@@ -12,18 +33,6 @@ HandoffGlass 是 Codex 的屏幕交接工具：Codex 判断任务需要你操作
 
 Codex MCP 配置字段参见 [OpenAI 官方文档](https://developers.openai.com/codex/mcp/)；实际本机路径以应用生成的配置为准。
 
-## 日常使用
-
-安装完成后，不需要告诉 Codex 工具名、坐标或操作顺序。直接说：
-
-```text
-教我清空废纸篓。
-```
-
-若尚未安装，可先说：
-
-```text
-请根据 https://github.com/BurntRoses/handoffglass 的 codex/release-interface 分支安装 HandoffGlass 并接入本机 Codex，然后教我清空废纸篓。
-```
-
 Codex 应自己查看当前界面、指示下一步、等待你操作，再检查原应用。屏幕提示只保留当前一步。控件查看有范围限制，无法独立核验时应如实说明。软件不点击、不截屏、不删除文件；涉及删除、授权或登录时，由你在原应用中决定。
+
+</details>

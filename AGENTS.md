@@ -1,8 +1,13 @@
-# HandoffGlass · Codex 工程规则
+# HandoffGlass · Agent 入口
 
-## 接手入口
+## 先判断用户要安装还是开发
 
-从 [Codex 接手指南](docs/CODEX_HANDOFF.md) 开始。Codex 自行获取 GitHub 私有仓库、建立工作分支、配置环境、运行程序和测试、修复问题、提交 PR。
+- 用户说“请安装 https://github.com/BurntRoses/handoffglass”或要求接入当前 Agent：执行 [安装要求](docs/INSTALL_AGENT.md)。这已授权安装本项目、合并当前宿主配置和安装配套技能；自行完成可执行的步骤。
+- 用户要求修改、修复或继续开发：从 [Codex 接手指南](docs/CODEX_HANDOFF.md) 开始，适用下方工程规则。
+
+安装时不要进入开发流程、创建分支或 PR、启动演示，也不要让用户选择工具、提供坐标或复制配置。仅在确实需要重启、登录或系统授权时，给出必要的一步。日常引导遵循 [引导技能](skills/visual-handoff/SKILL.md)。
+
+以下规则适用于开发。
 
 ## 目标
 
