@@ -6,7 +6,7 @@ This is a **production design contract**, not a mock. The gallery loads the prod
 
 - Prefer **one clear mark per decision**. Never suggest that the user must approve a permission, purchase, login, or security prompt.
 - Default state is ephemeral, click-through and never steals keyboard focus. The independently clickable handoff panel communicates decisions.
-- Every visual mark must have **grounded global DIP coordinates**. If the location is unknown, use coordinate-free `handoff_request`, not an imagined marker.
+- Every visual mark must have **grounded global DIP coordinates**. If the location is unknown, use coordinate-free `session_start`, not an imagined marker.
 - Explain the action in plain language; a marker does not replace a human-readable description or informed decision.
 - Semantic color is contextual, not a claim that an action is safe; `success` means a *visual emphasis*, never verification of an external result.
 

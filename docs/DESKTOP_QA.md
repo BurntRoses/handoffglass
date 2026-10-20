@@ -38,7 +38,7 @@ macOS 执行 `npm run test:native:macos`：编译独立 AppKit 测试窗口，�
 
 - [ ] 分别重启 MCP 客户端、Electron 界面和 Broker。
 - [ ] 另一宿主无法接管或修改已有宿主的会话。
-- [ ] 检查 `handoff_events`、状态游标和 Control Center 时间线。
+- [ ] 检查 `session_wait`、状态游标和 Control Center 时间线。
 - [ ] 对照原应用状态验证用户操作后的任务结果。
 
 ## 验收记录

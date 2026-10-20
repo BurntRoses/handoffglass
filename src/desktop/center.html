@@ -3,7 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'">
 <meta name="color-scheme" content="dark light"><title>HandoffGlass</title>
-<link rel="stylesheet" href="ui-tokens.css"><link rel="stylesheet" href="marks.css"><link rel="stylesheet" href="center.css">
+<link rel="stylesheet" href="ui-tokens.css"><link rel="stylesheet" href="marks.css"><link rel="stylesheet" href="center.css"><link rel="stylesheet" href="choice-controls.css">
 <script src="center.js" type="module"></script>
 </head><body>
 <div class="shell">
@@ -31,12 +31,13 @@
         </div>
       </section>
       <section data-view="connections" class="view" hidden>
-        <h1 data-i="connectTitle">连接</h1>
+        <h1 data-i="connectTitle">连接</h1><label class="master-switch"><span><strong data-i="toolsEnabled">桌面引导</strong><small id="enabledHint"></small></span><input type="checkbox" id="enabled" role="switch"></label>
         <div class="card connection-card">
           <label class="field"><span data-i="host">应用</span><select id="host"><option value="codex">Codex</option><option value="claude">Claude</option><option value="cursor">Cursor</option><option value="vscode">VS Code</option><option value="trae">TRAE</option><option value="workbuddy">WorkBuddy</option><option value="deepseek">DeepSeek Harness</option><option value="gemini">Gemini CLI</option><option value="opencode">OpenCode</option><option value="cline">Cline</option><option value="windsurf">Windsurf</option><option value="zed">Zed</option></select></label>
-          <div class="connection-actions"><p data-i="connectDesc">将配置添加到应用，重新连接工具。</p><button type="button" class="primary" id="copy" data-i="copy" disabled>复制配置</button></div>
+          <div class="connection-actions"><p data-i="connectDesc">将配置添加到应用，重新连接工具。</p><button type="button" class="quiet-button" id="revealConnector" data-i="revealConnector" hidden>打开文件夹</button><button type="button" class="primary" id="copy" data-i="copy" disabled>复制配置</button></div>
           <details class="disclosure"><summary data-i="localConfig">查看配置</summary><div class="code-caption"><span id="configFormat">TOML</span></div><pre id="config" class="code" tabindex="0" aria-label="MCP configuration"></pre><button type="button" class="quiet-button" id="copyManual" data-i="copy">复制配置</button></details>
         </div>
+        <div class="lifecycle-card card"><div class="selftest-head"><strong data-i="integrationTitle">连接管理</strong><button type="button" class="quiet-button" id="inspectIntegration" data-i="integrationInspect">查看状态</button></div><p id="integrationState" class="selftest-result" role="status" aria-live="polite"></p><ul id="cleanupItems" class="cleanup-items"></ul><p id="cleanupNote" class="selftest-hint"></p><div class="lifecycle-actions"><button type="button" class="quiet-button" id="cleanupIntegration" data-i="integrationCleanup">查看移除内容</button><button type="button" class="primary" id="confirmCleanup" data-i="integrationConfirm" hidden>移除连接</button></div></div>
         <h2 id="observedHostsTitle" data-i="observedHostsTitle">最近连接</h2>
         <div id="hostEvidence" class="evidence-list" role="list" aria-live="polite"></div>
       </section>
@@ -53,6 +54,7 @@
       </section>
       <section data-view="diagnostics" class="view" hidden>
         <h1 data-i="healthTitle">帮助</h1>
+        <div class="feature-switches card"><label class="consent"><input type="checkbox" id="continuous" form="preferences"><span data-i="continuousEnabled">保持连续会话</span></label></div>
         <div class="permission-row"><label class="consent"><input type="checkbox" id="accessibility" form="preferences"><span data-i="inspect">允许定位屏幕控件</span></label><button type="button" class="quiet-button" id="permission" data-i="openPermission">系统设置</button></div>
         <p class="permission-hint" data-i="inspectDesc">定位需要辅助功能权限。</p>
         <div class="selftest"><div class="selftest-head"><strong id="selftestTitle" data-i="selfTestTitle">连接检查</strong><button type="button" class="quiet-button" id="testMcp" data-i="selfTestRun">检查</button></div><p class="selftest-result" id="testResult" role="status" aria-live="polite"></p><p class="selftest-hint" id="testHint"></p></div>
@@ -63,7 +65,7 @@
           <div class="card-bottom"><span class="version" id="appVersion">—</span><button type="button" class="quiet-button" id="copyReport" data-i="reportCopy">复制诊断信息</button></div>
         </details>
       </section>
-      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      <div class="inline-feedback" id="toast" role="status" aria-live="polite"></div>
     </div>
   </main>
 </div>

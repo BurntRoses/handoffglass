@@ -12,7 +12,7 @@ npm run connection:check
 npm run readiness -- --json
 ```
 
-The check returns `hostVerified:false`, even on success. The Control Center also records actual authenticated MCP tool calls, labeled only by the launch configuration and kept in memory for fifteen minutes; see [Host activity](HOST_ACTIVITY.md). A working local MCP executable does not prove that Claude, Codex, DeepSeek Harness, WorkBuddy or another host has installed its configuration. In the host, refresh tool discovery and confirm `screen_displays` and `handoff_request` appear; then call `screen_displays` once. No sensitive action is needed.
+The check returns `hostVerified:false`, even on success. The Control Center also records actual authenticated MCP tool calls, labeled only by the launch configuration and kept in memory for fifteen minutes; see [Host activity](HOST_ACTIVITY.md). A working local MCP executable does not prove that Claude, Codex, DeepSeek Harness, WorkBuddy or another host has installed its configuration. In the host, refresh tool discovery and confirm `capability_manifest`, `session_start`, `session_wait`, `integration_status` and `integration_cleanup` appear; then call `connection_status` once. No sensitive action is needed.
 
 ## Error recovery
 

@@ -5,16 +5,16 @@ HandoffGlass does **not** invoke a language or vision model itself; the surround
 ## Tiny / fast models and short context
 
 - Set `HANDOFFGLASS_OUTPUT=compact` in the host's MCP environment or use `node scripts/configure.mjs HOST --compact`.
-- Prefer **one** `handoff_request` with a concise action rationale and **no coordinates** if the host lacks grounded UI element access.
-- Save the returned `session.id`, wait once for up to 15–30 seconds, then inspect `status`. Use a stable `requestId` on retries.
+- Prefer **one** `session_start` with a concise action rationale and **no coordinates** if the host lacks grounded UI element access.
+- Save the returned `session.id` and `nextCursor`, then call `session_wait` for meaningful changes. Carry each returned cursor into the next wait. Use a stable `requestId` on retries.
 - Do not pass a base64 screenshot, verbose UI tree, password or one-time code in any handoff argument.
-- Treat `completed` as `verified:false` until the host rechecks the original app.
+- Treat `user_action_reported` as unverified until the host rechecks the original app and calls `session_verify`. Finish only with `verified:true, finish:true`.
 
 ## Reasoning / vision-rich models
 
 - Ground coordinates from the host's independently observed screen bounds or an approved accessibility provider. Convert into **global DIP**, not normalized image pixels. Call `screen_displays` first.
 - Use multiple annotations only when targets are distinct and physically grounded. One spotlight is often enough.
-- Use `visual_show` for **nonblocking illustration**, and `handoff_request` when the task must suspend for a human decision.
+- Use `session_start(mode:"guide")` for **nonblocking illustration**, and `session_start` when the task must suspend for a human decision.
 - Reinspect the actual application after user-reported completion. UI movement invalidates old coordinates.
 
 ## Hosts with approval and sandbox rules

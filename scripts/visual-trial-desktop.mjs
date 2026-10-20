@@ -53,34 +53,35 @@ void app.whenReady().then(async()=>{
    state({message:'当前正在交接。请先在 HandoffGlass 面板完成、拒绝或取消，然后再试另一种笔触。'});return;
   }
   if(active?.mode==='handoff')await win.webContents.executeJavaScript('dispatchEvent(new Event("hg-trial-reset"))');
-  if(active)await invoke('handoff_cancel',{sessionId:active.id});
+  if(active)await invoke('session_stop',{sessionId:active.id});
   preset=index;
   // Preferences belong only to this disposable fixture, never the user's profile.
   await savePreferences({visualStyle:presets[preset].style,motion:'expressive'},dir);
-  active=(await invoke('visual_show',{title:presets[preset].name,message:'请在演示窗口中打开项目',scene:await scene(),timeoutSeconds:600})).session;
+  active=(await invoke('session_start',{mode:'guide',title:presets[preset].name,message:'请在演示窗口中打开项目',scene:await scene(),timeoutSeconds:600})).session;
   state({preset,message:`${presets[preset].name} · 拖动窗口可观察跟随，点击「打开项目」进入交接`,phase:'AGENT → HANDOFFGLASS → YOU'});
  }
  async function follow(){
   if(closing||!active||active.status!=='awaiting_user')return;
   const next=await scene();
-  active=(await invoke('visual_scene_update',{sessionId:active.id,expectedRevision:active.sceneRevision,
+  active=(await invoke('session_update',{sessionId:active.id,expectedRevision:active.sceneRevision,
    operations:[{op:'upsert_layer',layer:next.layers[0]}]})).session;
  }
  async function opened(){
   const actual=await win.webContents.executeJavaScript('document.body.dataset.opened === "true"');
   assert.equal(actual,true,'Original application state must change before the handoff');
-  if(active)await invoke('handoff_cancel',{sessionId:active.id});
-  active=(await invoke('handoff_request',{title:'把工作交回 Agent',message:'演示项目已经打开。请核对原始窗口，然后点击「我已完成」。Agent 会独立读取项目状态。',
+  if(active)await invoke('session_stop',{sessionId:active.id});
+  active=(await invoke('session_start',{title:'把工作交回 Agent',message:'演示项目已经打开。请核对原始窗口，然后点击「我已完成」。Agent 会独立读取项目状态。',
    scene:await scene(),timeoutSeconds:600})).session;
   state({message:'项目已打开。请在 HandoffGlass 交接面板中点击「我已完成」。',phase:'YOU → HANDOFFGLASS → AGENT'});
  }
  async function verifyDecision(){
   if(!active||active.mode!=='handoff')return false;
-  const result=await invoke('handoff_wait',{sessionId:active.id,maxWaitSeconds:0});
+  const result=await invoke('session_wait',{sessionId:active.id,maxWaitSeconds:0});
   if(result.session.status==='awaiting_user')return false;
   active=result.session;
   const opened=await win.webContents.executeJavaScript('document.body.dataset.opened === "true"');
-  const events=await invoke('handoff_events',{sessionId:active.id});
+  if(active.phase==='verifying')active=(await invoke('session_verify',{sessionId:active.id,verified:opened,finish:opened})).session;
+  const events=await invoke('session_wait',{sessionId:active.id,maxWaitSeconds:0});
   report.result={status:active.status,completionSource:active.completionSource,verified:active.verified,applicationOpened:opened,events:events.events.map(e=>e.type)};
   state({message:active.status==='completed'&&opened?'交接成功 · Agent 已独立核对：原始项目处于打开状态。':`交接状态：${active.status} · Agent 已停止等待`,phase:'AGENT RESUMED · ORIGINAL STATE CHECKED'});
   console.log(JSON.stringify(report,null,2));
@@ -124,7 +125,7 @@ void app.whenReady().then(async()=>{
    await until(()=>panel.webContents.executeJavaScript('!document.getElementById("done").disabled'),'Decision panel did not become interactive');
    await panel.webContents.executeJavaScript('document.getElementById("done").click()');
    await until(verifyDecision,'Decision did not return over MCP');
-   assert.deepEqual({...report.result,events:undefined},{status:'completed',completionSource:'user_report',verified:false,applicationOpened:true,events:undefined});
+   assert.deepEqual({...report.result,events:undefined},{status:'completed',completionSource:'user_report',verified:true,applicationOpened:true,events:undefined});
    assert.ok(report.result.events.includes('completed'));
    console.log('PASS real desktop visual trial: six presets, continuous motion, live scene patches, reduced motion, MCP/decision/state verification (fixture actions synthetic)');
   }else{
@@ -134,7 +135,7 @@ void app.whenReady().then(async()=>{
   }
  }finally{
   closing=true;clearTimeout(moveTimer);clearInterval(decisionTimer);await chain;
-  if(active)await invoke('handoff_cancel',{sessionId:active.id}).catch(()=>{});
+  if(active)await invoke('session_stop',{sessionId:active.id}).catch(()=>{});
   await client.close().catch(()=>{});manager.close();await bridge.stop();
   await rm(dir,{recursive:true,force:true,maxRetries:8,retryDelay:100});
  }
@@ -163,11 +164,11 @@ async function runVisualChecks(ctx){
   report.presets.push(presets[i].shape);
  }
  // Production hidden windows must clear playback state before target restoration.
- let hidden=await invoke('visual_scene_update',{sessionId:active().id,expectedRevision:active().sceneRevision,
+ let hidden=await invoke('session_update',{sessionId:active().id,expectedRevision:active().sceneRevision,
   operations:[{op:'set_layer',layerId:'guide',visible:false}]});
  Object.assign(active(),hidden.session);
  await until(()=>js('document.querySelectorAll(".hg-mark").length === 0'),'Lost target did not clear the hidden renderer');
- const restored=await invoke('visual_scene_update',{sessionId:active().id,expectedRevision:active().sceneRevision,
+ const restored=await invoke('session_update',{sessionId:active().id,expectedRevision:active().sceneRevision,
   operations:[{op:'set_layer',layerId:'guide',visible:true}]});
  Object.assign(active(),restored.session);
  await until(()=>js('document.querySelectorAll(".hg-mark").length === 1'),'Target restoration did not redraw');
@@ -191,7 +192,7 @@ async function runVisualChecks(ctx){
  // Repeated owner-scoped updates exercise node preservation and bound response costs.
  app.focus({steal:true});win.focus();await until(()=>win.isFocused(),'Fixture did not receive focus before patch check');
  const timings=[];
- for(let i=0;i<24;i++){const t=performance.now();const s=active();await invoke('visual_scene_update',{sessionId:s.id,expectedRevision:s.sceneRevision,operations:[{op:'upsert_layer',layer:(await scene()).layers[0]}]}).then(r=>Object.assign(s,r.session));timings.push(performance.now()-t);}
+ for(let i=0;i<24;i++){const t=performance.now();const s=active();await invoke('session_update',{sessionId:s.id,expectedRevision:s.sceneRevision,operations:[{op:'upsert_layer',layer:(await scene()).layers[0]}]}).then(r=>Object.assign(s,r.session));timings.push(performance.now()-t);}
  timings.sort((a,b)=>a-b);report.patchMs={count:timings.length,p50:Math.round(timings[11]),p95:Math.round(timings[22])};
  assert.equal(win.isFocused(),true,'Overlay must retain target focus');
  assert.equal(overlay.isFocusable(),false);

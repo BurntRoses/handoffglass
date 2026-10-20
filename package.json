@@ -34,6 +34,7 @@
     "install:desktop": "npm install --include=optional",
     "bench:broker": "node scripts/benchmark.mjs",
     "install:host": "node scripts/install-host.mjs",
+    "uninstall:host": "node scripts/uninstall-host.mjs",
     "gallery": "node scripts/gallery.mjs",
     "scene:templates": "node scripts/scene.mjs list",
     "scene:lint": "node scripts/scene.mjs validate examples/scenes/access-review.json && node scripts/scene.mjs validate examples/scenes/tutorial.json && node scripts/scene.mjs validate examples/scenes/multi-monitor.json",
@@ -64,7 +65,8 @@
     "handoff:check": "npm run verify && npm run scene:lint",
     "visual:trial": "node scripts/visual-trial.mjs",
     "test:visual": "node scripts/visual-trial.mjs --smoke",
-    "test:release-ui": "electron scripts/release-ui-smoke.mjs"
+    "test:release-ui": "electron scripts/release-ui-smoke.mjs",
+    "bench:continuity": "node scripts/benchmark-continuity.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

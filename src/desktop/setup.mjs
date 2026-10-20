@@ -6,6 +6,8 @@ import { hostConfig, HOSTS } from '../config.mjs';
 import { loadPreferences, savePreferences, hasUserPreferences } from '../local/preferences.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
 import { installCodex } from '../codex-install.mjs';
+import { prepareWorkbuddyBundle, readWorkbuddyRecord } from '../workbuddy-bundle.mjs';
+import { appWorkbuddyDirectory } from '../integration-lifecycle.mjs';
 const here=dirname(fileURLToPath(import.meta.url));
 const HOST_ALLOWLIST=new Set(Object.keys(HOSTS));
 let window=null;
@@ -22,6 +24,19 @@ export async function connectCodex() {
   try {await installCodex({apply:true,replace:true,userHome:app.getPath('home'),configOptions:configOptions()});return {ok:true};}
   catch {return {ok:false,code:'install_failed'};}
   finally {connecting=false;}
+}
+export async function connectHost(host='codex') {
+  if(host==='codex')return connectCodex();
+  if(host!=='workbuddy')return {ok:false,code:'unsupported_host'};
+  try{return {ok:true,...await prepareWorkbuddyBundle(appWorkbuddyDirectory(),configOptions()),nextAction:'import_trust_enable_reload_in_workbuddy'};}
+  catch{return {ok:false,code:'bundle_refused'};}
+}
+export async function revealWorkbuddyConnector() {
+  try{
+    const directory=appWorkbuddyDirectory();
+    if(!(await readWorkbuddyRecord(directory)).record)return {ok:false,code:'not_prepared'};
+    shell.showItemInFolder(join(directory,'connector-meta.json'));return {ok:true};
+  }catch{return {ok:false,code:'not_prepared'};}
 }
 function fromWindow(event){return window&&!window.isDestroyed()&&event.sender===window.webContents;}
 export async function showSetup({firstRun=false}={}){
@@ -67,10 +82,11 @@ export function registerSetupIPC(){
     try{clipboard.writeText(connection(host));return {ok:true};}
     catch(error){return {ok:false,error:error.message};}
   });
-  ipcMain.handle('hg:setup:connect',async event=>{
+  ipcMain.handle('hg:setup:connect',async(event,host='codex')=>{
     if(!fromWindow(event))return {ok:false,code:'unauthorized'};
-    return connectCodex();
+    return connectHost(host);
   });
+  ipcMain.handle('hg:setup:reveal-connector',event=>fromWindow(event)?revealWorkbuddyConnector():{ok:false,code:'unauthorized'});
   ipcMain.handle('hg:setup:permission',async event=>{
     if(!fromWindow(event))return {ok:false};
     if(process.platform!=='darwin')return {ok:false,error:'See system accessibility settings for your platform'};

@@ -10,7 +10,7 @@ if (process.platform === 'darwin' && !existsSync(join(__dirname,'native/macos/hg
 module.exports = {
   appId: 'dev.handoffglass.desktop', productName: 'HandoffGlass',
   asar: true, directories: { output: 'dist' },
-  files: [ 'src/**', 'skills/visual-handoff/**', 'assets/brandmark.svg', 'package.json' ],
+  files: [ 'src/**', 'skills/visual-handoff/**', 'integrations/workbuddy/connector-meta.json', 'integrations/workbuddy/icon.svg', 'assets/brandmark.svg', 'package.json' ],
   extraResources: native,
   mac: { icon: 'build/icons/icon.icns', target: ['zip'], category: 'public.app-category.productivity', identity: null,
     hardenedRuntime: false },

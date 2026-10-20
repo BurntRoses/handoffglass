@@ -11,7 +11,7 @@ test('every scenario and evidence state is safe and requires downstream verifica
     assert.equal(result.reportIsNotVerification, true);
     assert.equal(result.localModelCalls, 0);
     assert.equal(result.coordinateFree, !['global_dip', 'accessibility'].includes(evidence));
-    assert.equal(result.nextTool, result.risk === 'normal' && !result.coordinateFree ? 'visual_show' : 'handoff_request');
+    assert.equal(result.nextTool, 'session_start');
     assert.equal(result.template === null, result.coordinateFree);
   }
 });
@@ -26,7 +26,7 @@ test('ambiguous and stale targets must never turn into guessed coordinates', () 
 test('permission, authentication and destructive choices remain human-owned even with exact coordinates', () => {
   for (const blueprint of ['authorization','authentication','destructive_action','system_settings']) {
     const result = assessHandoff({ blueprint,evidence:'accessibility' });
-    assert.equal(result.nextTool,'handoff_request');
+    assert.equal(result.nextTool,'session_start');
     assert.equal(result.userDecides,true);
     assert.equal(result.coordinateFree,false);
   }

@@ -4,6 +4,7 @@ import { showControlCenter, registerCenterIPC } from './center.mjs';
 import { loadPreferences } from '../local/preferences.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { placePanel } from './panel-layout.mjs';
 import { localAnnotations, contains } from '../geometry.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -65,7 +66,7 @@ function createOverlay(display) {
 }
 function createPanel() {
   const win = new BrowserWindow({
-    width: 440, height: 280, minWidth: 440, minHeight: 280,
+    width: 420, height: 238, minWidth: 420, minHeight: 238,
     show: false, skipTaskbar: true, frame: false, transparent: false,
     alwaysOnTop: true, resizable: false, backgroundColor: '#101923',
     webPreferences: {
@@ -85,6 +86,12 @@ function draw(win, display) {
   if (win.isDestroyed() || win.webContents.isLoading()) return;
   const b = { id: String(display.id), x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height };
   const annotations = current ? localAnnotations(b, current.annotations) : [];
+  // Handoff sessions use a local scrim to focus attention while the SVG layer
+  // remains click-through. The human-facing card is the only interactive UI.
+  if (current?.mode === 'handoff' && annotations.length && !annotations.some(a => a.shape === 'spotlight')) {
+    const focus = annotations[0];
+    annotations.unshift({ ...focus, id: '__session_spotlight', shape: 'spotlight', opacity: .92, effect: 'still', label: '' });
+  }
   // Clear the renderer's playback cache when a target is lost, even while hidden.
   win.webContents.send('hg:render', { sessionId: current?.id, annotations, visualStyle: current?.visualStyle, motion: current?.motion });
   if (!annotations.length) { win.hide(); return; }
@@ -102,16 +109,14 @@ function applySnapshot(state) {
   updateUI(state.active);
 }
 function updateUI(next) {
-  current = next?.status === 'awaiting_user' ? next : null;
+  current = next && ['awaiting_user','user_action_reported','observing'].includes(next.status) ? next : null;
   for (const { win, display } of overlays) draw(win, display);
   if (!panel) return;
   // Plain visual_show is non-blocking: no panel to dismiss or steal focus.
   if (!current || current.mode === 'guide') { panel.hide(); return; }
   const area = findTargetDisplay(current).workArea;
   const target = current.annotations?.[0];
-  const placeLeft = target && target.x > area.x + area.width * 0.55;
-  const x = placeLeft ? area.x + 12 : area.x + Math.max(8, area.width - 456);
-  panel.setPosition(Math.round(x), Math.round(area.y + Math.max(8, area.height - 296)));
+  if(current.status==='awaiting_user'){const {x,y}=placePanel(area,target);panel.setPosition(x,y);}
   if (!panel.webContents.isLoading()) panel.webContents.send('hg:render', current);
   panel.showInactive();
   panel.moveTop();
@@ -132,8 +137,19 @@ async function runLoop() {
         const state = await call('POST', '/hello', { displays: info() });
         applySnapshot(state);
       }
-      const next = await call('GET', `/poll?after=${revision}`);
-      applySnapshot(next);
+      const response=await fetch(`${endpoint}/desktop/stream`,{headers:{authorization:`Bearer ${secret}`}});
+      if(!response.ok)throw Error(`Desktop stream ${response.status}`);
+      let buffer='';const decoder=new TextDecoder();
+      for await(const chunk of response.body){
+        buffer+=decoder.decode(chunk,{stream:true});
+        let end;
+        while((end=buffer.indexOf('\n\n'))>=0){
+          const frame=buffer.slice(0,end);buffer=buffer.slice(end+2);
+          if(frame.startsWith('data: '))applySnapshot(JSON.parse(frame.slice(6)));
+        }
+        if(closing)break;
+      }
+      if(!closing)throw Error('Desktop stream closed');
       failures = 0;
     } catch (error) {
       if (closing) break;
@@ -207,10 +223,12 @@ async function startDesktop() {
     }
     try {
       const result = await call('POST', '/decision', { id: current.id, status: data.status });
-      if (result.session?.id !== data.id || result.session.status !== data.status) {
+      if (result.session?.id !== data.id || !(result.session.status === data.status || (data.status==='completed' && result.session.status==='user_action_reported'))) {
         return { ok: false, error: 'Session state changed; review before retrying' };
       }
-      if (current?.id === data.id) updateUI(null);
+      // SSE can arrive before this HTTP response. Use its revision so an older
+      // response cannot hide verification or overwrite the Agent's next step.
+      applySnapshot(result);
       return { ok: true, sessionId: data.id, status: data.status };
     } catch (error) {
       console.error('[handoffglass] decision failed:', error.message);

@@ -66,7 +66,7 @@ function paint(){
  $('durationLabel').textContent=`${$('duration').value} ms`;
  $('caption').textContent=view==='sequence'?'依次描绘三处目标；步骤推进由 Agent 决定。':view==='collection'?'每格独立预览，聚焦蒙版只作用于当前格。':descriptions[shape];
  $('counts').textContent=`${flattenScene(scene).length} MARK${flattenScene(scene).length>1?'S':''} / ${view==='collection'?'13 PREVIEWS':'SHARED SVG'}`;
- payload={name:'visual_show',arguments:{title:'视觉引导试用',message:'演示坐标；真实任务须重新定位目标',visualStyle:$('visualStyle').value,motion:$('motion').value,scene}};
+ payload={name:'session_start',arguments:{mode:'guide',title:'视觉引导试用',message:'演示坐标；真实任务须重新定位目标',visualStyle:$('visualStyle').value,motion:$('motion').value,scene}};
  $('json').textContent=JSON.stringify(payload,null,2);
 }
 for(const id of ['visualStyle','effect','motion','labels'])$(id).addEventListener('change',()=>{replay++;paint();});

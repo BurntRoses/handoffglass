@@ -26,6 +26,8 @@ https://github.com/BurntRoses/handoffglass をインストールしてくださ�
 
 「ゴミ箱を空にする方法を教えて」と伝えるだけです。他の作業中も、人の操作が必要になれば画面上で案内できます。
 
+接続を停止または削除するときは、「HandoffGlass を無効にして」「Codex から HandoffGlass を削除して」と伝えてください。状態を確認してから、HandoffGlass が書き込んだ内容だけを削除します。アプリの「接続」画面からも操作できます。
+
 <details>
 <summary>ドキュメント</summary>
 

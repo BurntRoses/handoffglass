@@ -134,6 +134,12 @@ export class BrokerClient {
     }
   }
   async context() { return this.request('/agent/context'); }
+  async capabilities() { return this.request('/agent/capabilities'); }
+  async connection() { return this.request('/agent/connection'); }
+  async setEnabled(enabled) { return this.request('/agent/integration-enabled',{method:'POST',body:{enabled}}); }
+  async permissions() { return this.request('/agent/permissions'); }
+  async integrationStatus(host = 'codex') { return this.request(`/agent/integration-status?host=${encodeURIComponent(host)}`); }
+  async cleanupIntegration(host, confirm = false) { return this.request('/agent/integration-cleanup', { method: 'POST', body: { host, confirm } }); }
   async blueprint(blueprint, locale) { return this.request('/agent/blueprint', { method: 'POST', body: { blueprint, locale } }); }
   async present(mode, args) { return this.request('/agent/show', { method: 'POST', body: { ...args, mode } }); }
   async displays() { return this.request('/agent/displays'); }
@@ -146,8 +152,11 @@ export class BrokerClient {
   }
   async status(sessionId) { return this.request(`/agent/status?sessionId=${encodeURIComponent(sessionId)}`); }
   async events(sessionId,after=0,limit=20) { return this.request(`/agent/events?sessionId=${encodeURIComponent(sessionId)}&after=${after}&limit=${limit}`); }
-  async wait(sessionId, maxWaitSeconds) {
-    return this.request(`/agent/wait?sessionId=${encodeURIComponent(sessionId)}&maxWaitMs=${Math.round(maxWaitSeconds * 1000)}`);
+  async wait(sessionId, maxWaitSeconds, { continuous = false, cursor=0 } = {}) {
+    return this.request(`/agent/wait?sessionId=${encodeURIComponent(sessionId)}&maxWaitMs=${Math.round(maxWaitSeconds * 1000)}${continuous ? `&continuous=1&cursor=${cursor}` : ''}`);
+  }
+  async verify(sessionId, verified, finish=false) {
+    return this.request('/agent/verify', { method: 'POST', body: { sessionId, verified, finish } });
   }
   async updateScene(sessionId, expectedRevision, operations) {
     return this.request('/agent/scene', { method: 'POST', body: { sessionId, expectedRevision, operations } });

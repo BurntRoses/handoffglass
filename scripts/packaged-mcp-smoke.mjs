@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Launch packaged Electron in Node mode and verify its *bundled* MCP stdio entry. */
-import { readdir, access, mkdtemp, rm } from 'node:fs/promises';
+import { readdir, readFile, access, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import assert from 'node:assert/strict';
@@ -50,7 +50,7 @@ try{
   const {tools}=await client.listTools();
   assert.ok((client.getInstructions() || '').length <= 512);
   assert.match(client.getInstructions() || '',/agent's hand/);
-  assert.ok(tools.some(t=>t.name==='handoff_request'));
+  assert.ok(tools.some(t=>t.name==='session_start'));
   assert.ok(tools.some(t=>t.name==='ui_locate'));
   assert.ok(tools.some(t=>t.name==='ui_inspect'));
   const installURL=pathToFileURL(join(dirname(entry),'codex-install.mjs')).href;
@@ -58,6 +58,22 @@ try{
     `const {installCodex}=await import(${JSON.stringify(installURL)}); await installCodex({userHome:${JSON.stringify(dir)},codexHome:${JSON.stringify(join(dir,'codex'))},apply:true});`],
     {env:nativeEnv,timeout:15000});
   console.log('Packaged Codex installer and bundled guidance skill verified');
+  const bundleURL=pathToFileURL(join(dirname(entry),'workbuddy-bundle.mjs')).href;
+  const lifecycleURL=pathToFileURL(join(dirname(entry),'integration-lifecycle.mjs')).href;
+  const bundle=join(dir,'connectors','workbuddy-local');
+  await promisify(execFile)(appBinary,['--input-type=module','-e',
+    `const {prepareWorkbuddyBundle}=await import(${JSON.stringify(bundleURL)}); await prepareWorkbuddyBundle(${JSON.stringify(bundle)},{envOverrides:{ELECTRON_RUN_AS_NODE:'1'}});`],
+    {env:nativeEnv,timeout:15000});
+  const connector=JSON.parse(await readFile(join(bundle,'mcp.json'),'utf8'));
+  assert.equal(connector.mcpServers.handoffglass.command,appBinary);
+  assert.equal(connector.mcpServers.handoffglass.env.ELECTRON_RUN_AS_NODE,'1');
+  assert.ok(JSON.parse(await readFile(join(bundle,'connector-meta.json'),'utf8')).minWorkbuddyVersion);
+  assert.match(await readFile(join(bundle,'skills/visual-handoff/references/tool-contracts.md'),'utf8'),/session_wait/);
+  await promisify(execFile)(appBinary,['--input-type=module','-e',
+    `const {cleanupIntegration}=await import(${JSON.stringify(lifecycleURL)}); await cleanupIntegration('workbuddy',{dir:${JSON.stringify(dir)},root:${JSON.stringify(dirname(dirname(entry)))},confirm:true});`],
+    {env:nativeEnv,timeout:15000});
+  await assert.rejects(access(join(bundle,'mcp.json')),{code:'ENOENT'});
+  console.log('Packaged WorkBuddy metadata, MCP, Skill and owned bundle cleanup verified');
   const status=await client.callTool({name:'screen_displays',arguments:{}});
   assert.ok(!status.isError); // headless fixture returns a valid empty-display status
   console.log('Packaged ELECTRON_RUN_AS_NODE MCP handshake complete:',tools.length,'tools');

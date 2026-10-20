@@ -9,6 +9,13 @@ import { HostActivity } from './local/host-activity.mjs';
 import { layoutSignature, compareObservation } from './native/calibration.mjs';
 import { NativeAnchorTracker } from './native/anchor-tracker.mjs';
 import { InteractionJournal, recoveryFor } from './local/interaction-journal.mjs';
+import { getAccessibilityConsent } from './native/preferences.mjs';
+import { CAPABILITY_MANIFEST } from './capabilities.mjs';
+import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled } from './integration-lifecycle.mjs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function sendJson(res, code, data) {
   if (res.destroyed || res.writableEnded) return;
@@ -65,16 +72,18 @@ export class LocalBridge {
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
     this.waiters = new Set();
+    this.streams=new Set();
     this.anchors = new NativeAnchorTracker({manager,locator:(target, displays)=>this.locator(target,displays),
       getDisplays:()=>this.displays,desktopReady:()=>this.headless || this.connected});
     this.onManagerChange = () => this.#publish();
     manager.on('show', this.onManagerChange);
     manager.on('change', this.onManagerChange);
   }
-  get connected() { return Date.now() - this.lastPoll < 35000; }
+  get connected() { return this.streams.size > 0 || Date.now() - this.lastPoll < 35000; }
   snapshot() { return { revision: this.revision, active: this.manager.active() }; }
   #publish() {
     this.revision++;
+    for(const stream of this.streams)stream.write(this.snapshot());
     for (const responder of [...this.waiters]) responder(this.snapshot());
   }
   async start() {
@@ -95,6 +104,8 @@ export class LocalBridge {
     } catch (error) { this.server = null; throw error; }
   }
   async stop() {
+    for(const stream of this.streams)stream.close();
+    this.streams.clear();
     this.anchors.close();
     this.journal.close();
     for (const respond of [...this.waiters]) respond(this.snapshot());
@@ -116,8 +127,11 @@ export class LocalBridge {
     const pathname = parsed.pathname;
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/desktop/diagnostics': 'GET', '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
+      '/desktop/preferences':'POST', '/desktop/stream':'GET',
       '/agent/displays': 'GET', '/agent/inspect': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
-      '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
+      '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/capabilities': 'GET',
+      '/agent/connection': 'GET', '/agent/permissions': 'GET', '/agent/integration-status': 'GET', '/agent/integration-cleanup': 'POST', '/agent/integration-enabled':'POST',
+      '/agent/verify': 'POST', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
     }
@@ -154,10 +168,29 @@ export class LocalBridge {
         schemaVersion: 1, broker: 'running', desktopConnected: this.connected,
         lastAgentActivityAt: this.lastAgentRequestAt,
         displays: this.displays.length, pendingPolls: this.waiters.size,
-        handoff: active ? { status: active.status, mode: active.mode, timeoutAt: active.timeoutAt } : null,
+        handoff: active ? { status: active.status, mode: active.mode, phase: active.phase, nextAction: active.nextAction, timeoutAt: active.timeoutAt } : null,
         hostActivity: this.hostActivity.snapshot(),
-        timeline: this.journal.recent(12)
+        timeline: this.journal.recent(12).map(({type,at,reason})=>({type,at,...(reason?{reason}:{})}))
       });
+    }
+    if(req.method==='POST' && pathname==='/desktop/preferences'){
+      await readJson(req);
+      const preferences=await loadPreferences();
+      if(!preferences.enabled || !preferences.continuous){this.anchors.clear();this.manager.stopActive();}
+      return sendJson(res,200,{ok:true});
+    }
+    if(req.method==='GET' && pathname==='/desktop/stream'){
+      if(this.streams.size>=4)return sendJson(res,503,{error:'Too many desktop streams'});
+      res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-store','x-content-type-options':'nosniff'});
+      const stream={write:state=>{
+        if(res.destroyed||res.writableEnded)return;
+        if(res.writableLength>262144){res.destroy();return;}
+        res.write(`data: ${JSON.stringify(state)}\n\n`);
+      },close:()=>res.end()};
+      this.streams.add(stream);stream.write(this.snapshot());
+      const heartbeat=setInterval(()=>{this.lastPoll=Date.now();res.write(': keepalive\n\n');},15000);
+      res.on('close',()=>{clearInterval(heartbeat);this.streams.delete(stream);});
+      return;
     }
     if (req.method === 'GET' && pathname === '/state') {
       return sendJson(res, 200, this.snapshot());
@@ -169,11 +202,14 @@ export class LocalBridge {
       }
       this.lastAgentRequestAt = Date.now();
       this.hostActivity.record(req.headers['x-handoffglass-host'], pathname);
+      const isDisabled = async () => (await loadPreferences()).enabled === false;
       if (req.method === 'GET' && pathname === '/agent/displays') {
+        if(await isDisabled())return sendJson(res,423,{error:'HandoffGlass is disabled by the user',code:'disabled_by_user'});
         await this.prepare();
         return sendJson(res, 200, { displays: this.displays, connected: this.connected, headless: this.headless });
       }
       if (req.method === 'GET' && pathname === '/agent/inspect') {
+        if (await isDisabled()) return sendJson(res, 423, { error: 'HandoffGlass is disabled by the user', code: 'disabled_by_user' });
         await this.prepare();
         if (!this.headless && !this.connected) return sendJson(res,503,{error:'Desktop unavailable',code:'no_desktop'});
         return sendJson(res,200,await this.inspector(this.displays));
@@ -182,6 +218,34 @@ export class LocalBridge {
         const preferences = await loadPreferences();
         return sendJson(res, 200, { preferences, storage: 'local', historyStored: false, modelCallRequired: false });
       }
+      if (req.method === 'GET' && pathname === '/agent/capabilities') {
+        return sendJson(res, 200, { manifest: CAPABILITY_MANIFEST, connected: this.connected, headless: this.headless });
+      }
+      if (req.method === 'GET' && pathname === '/agent/connection') {
+        const preferences = await loadPreferences();
+        return sendJson(res, 200, { broker: 'running', desktop: this.connected || this.headless ? 'ready' : 'offline', enabled: preferences.enabled, continuous: preferences.continuous, host: req.headers['x-handoffglass-host'] || 'unidentified' });
+      }
+      if (req.method === 'GET' && pathname === '/agent/permissions') {
+        const preferences = await loadPreferences();
+        return sendJson(res, 200, { enabled: preferences.enabled, continuous: preferences.continuous, localConsent:await getAccessibilityConsent(), osPermission:'not_checked', accessibility:await getAccessibilityConsent(), nextAction:'inspect_to_check_os_permission' });
+      }
+      if (req.method === 'POST' && pathname === '/agent/integration-enabled') {
+        const body=await readJson(req);
+        const result=await setIntegrationEnabled(body.enabled);
+        if(!result.enabled){this.anchors.clear();this.manager.stopActive();}
+        return sendJson(res,200,result);
+      }
+      if (req.method === 'GET' && pathname === '/agent/integration-status') {
+        const host = parsed.searchParams.get('host') || 'codex';
+        try { return sendJson(res, 200, { status: await integrationStatus(host, { root: PROJECT_ROOT }), guide: lifecycleGuide(host) }); }
+        catch (error) { return sendJson(res, 400, { error: error.message, code: 'unsupported_integration' }); }
+      }
+      if (req.method === 'POST' && pathname === '/agent/integration-cleanup') {
+        const body = await readJson(req);
+        if (typeof body.host !== 'string' || typeof body.confirm !== 'boolean') return sendJson(res, 400, { error: 'host and confirm are required' });
+        try { return sendJson(res, 200, { result: await cleanupIntegration(body.host, { confirm: body.confirm, root: PROJECT_ROOT }) }); }
+        catch (error) { return sendJson(res, 400, { error: error.message, code: 'cleanup_refused' }); }
+      }
       if (req.method === 'POST' && pathname === '/agent/blueprint') {
         const { blueprint, locale } = await readJson(req);
         if (!BLUEPRINT_NAMES.includes(blueprint)) return sendJson(res, 400, { error: 'Unknown blueprint' });
@@ -189,6 +253,7 @@ export class LocalBridge {
         return sendJson(res, 200, compileBlueprint(blueprint, { locale: locale || preferences.locale }));
       }
       if (req.method === 'POST' && pathname === '/agent/locate') {
+        if (await isDisabled()) return sendJson(res, 423, { error: 'HandoffGlass is disabled by the user', code: 'disabled_by_user' });
         const body = await readJson(req);
         const target = validateTarget(body.target);
         await this.prepare();
@@ -205,6 +270,10 @@ export class LocalBridge {
       }
       if (req.method === 'POST' && pathname === '/agent/show') {
         const body = await readJson(req);
+        const preference = await loadPreferences();
+        if (!preference.enabled) return sendJson(res,423,{error:'HandoffGlass is disabled by the user',code:'disabled_by_user'});
+        if(body.continuous && !preference.continuous)return sendJson(res,423,{error:'Continuous sessions are disabled by the user',code:'continuous_disabled'});
+        if(body.sessionId && !this.manager.getOwned(body.sessionId,owner))return sendJson(res,404,{error:'Session not found',code:'not_found'});
         const original = JSON.stringify(body);
         const hadTarget = body.target !== undefined;
         const followTarget = body.followTarget !== false;
@@ -234,7 +303,6 @@ export class LocalBridge {
           body.x = hit.x; body.y = hit.y; body.width = hit.width; body.height = hit.height;
         }
         // Apply user-owned visual preferences; Agents cannot persist them.
-        const preference = await loadPreferences();
         body.locale = preference.locale;
         body.density = preference.density;
         body.theme = preference.theme;
@@ -256,14 +324,23 @@ export class LocalBridge {
         if (!this.headless && !canLocateAll(this.displays, normalized.annotations)) {
           return sendJson(res, 422, { error: 'Target outside current display bounds; call screen_displays', code: 'outside_display' });
         }
-        const session = this.manager.show(body, owner);
+        // A user may pause guidance while a native lookup or desktop startup is
+        // in flight. Recheck before the synchronous session mutation.
+        const latestPreferences=await loadPreferences();
+        if(!latestPreferences.enabled)return sendJson(res,423,{error:'HandoffGlass is disabled by the user',code:'disabled_by_user'});
+        if(body.continuous && !latestPreferences.continuous)return sendJson(res,423,{error:'Continuous sessions are disabled by the user',code:'continuous_disabled'});
+        const priorStep=body.sessionId?this.manager.getOwned(body.sessionId,owner)?.step:null;
+        const result=body.sessionId?this.manager.present(body.sessionId,body,owner):{session:this.manager.show(body,owner)};
+        if(result.error)return sendJson(res,409,{error:result.error,code:result.error});
+        const session=result.session;
         if (session.error) return sendJson(res, 409, { error: 'A different Agent already owns the active handoff', code: 'busy' });
+        if(body.sessionId && session.step!==priorStep)this.anchors.clearFor(body.sessionId);
         if (anchoredQuery && followTarget) this.anchors.track(session.id,anchoredQuery,anchoredHit);
         if (retryKey && !previous && hadTarget) {
           this.resolvedTargets.set(retryKey,{original,resolved:structuredClone(body)});
           if(this.resolvedTargets.size > 128) this.resolvedTargets.delete(this.resolvedTargets.keys().next().value);
         }
-        return sendJson(res, 200, { session: this.manager.get(session.id), visible: !this.headless,
+        return sendJson(res, 200, { session: this.manager.get(session.id), nextCursor:this.journal.latestCursor(session.id), visible: !this.headless,
           coordinateSystem: 'global_DIP',
           instruction: 'User-reported completion is not verification. Recheck the target application.' });
       }
@@ -288,9 +365,31 @@ export class LocalBridge {
         if (!Number.isFinite(ms) || ms < 0 || ms > 30000) {
           return sendJson(res, 400, { error: 'Invalid wait timeout' });
         }
+        const preferences = await loadPreferences();
+        if (parsed.searchParams.get('continuous') === '1' && preferences.continuous === false)
+          return sendJson(res, 423, { error: 'Continuous sessions are disabled by the user', code: 'continuous_disabled' });
+        if(parsed.searchParams.get('continuous')==='1'){
+          if(!preferences.enabled)return sendJson(res,423,{error:'HandoffGlass is disabled by the user',code:'disabled_by_user'});
+          if(!this.manager.getOwned(id,owner))return sendJson(res,404,{error:'Session not found',code:'not_found'});
+          const cursor=Number(parsed.searchParams.get('cursor')??0);
+          if(!Number.isSafeInteger(cursor)||cursor<0)return sendJson(res,400,{error:'Invalid cursor',code:'invalid_cursor'});
+          const abort=new AbortController(),onClose=()=>abort.abort();res.on('close',onClose);
+          try{
+            const events=await this.journal.wait(id,{after:cursor,timeoutMs:ms,signal:abort.signal});
+            const session=this.manager.getOwned(id,owner);
+            return sendJson(res,200,{...events,session,pending:!events.events?.length,nextAction:session?.nextAction||recoveryFor(session)});
+          }finally{res.off('close',onClose);}
+        }
         return sendJson(res, 200, await this.manager.waitOwned(id, owner, ms));
       }
+      if (req.method === 'POST' && pathname === '/agent/verify') {
+        const body = await readJson(req);
+        if (typeof body.sessionId !== 'string' || typeof body.verified !== 'boolean' || (body.finish!==undefined && typeof body.finish!=='boolean')) return sendJson(res, 400, { error: 'sessionId and verified are required' });
+        const result = this.manager.verify(body.sessionId, owner, body.verified, body.finish === true);
+        return sendJson(res, result.error ? 409 : 200, result);
+      }
       if (req.method === 'POST' && pathname === '/agent/scene') {
+        if (await isDisabled()) return sendJson(res, 423, { error: 'HandoffGlass is disabled by the user', code: 'disabled_by_user' });
         const body = await readJson(req);
         if (typeof body.sessionId !== 'string') return sendJson(res, 400, { error: 'Invalid session id' });
         // Run full schema validation and out-of-bounds guard BEFORE mutating state.
@@ -349,7 +448,7 @@ export class LocalBridge {
         return sendJson(res, 400, { error: 'Invalid decision' });
       }
       const result = this.manager.resolve(body.id, body.status);
-      return sendJson(res, result.error ? 409 : 200, result);
+      return sendJson(res, result.error ? 409 : 200, {...result,...this.snapshot()});
     }
     return sendJson(res, 404, { error: 'Unknown endpoint' });
   }

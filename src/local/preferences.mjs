@@ -8,8 +8,9 @@ export const VISUAL_STYLES = Object.freeze(['minimal', 'luminous', 'handdrawn'])
 export const MOTION_MODES = Object.freeze(['off', 'gentle', 'expressive']);
 export const LOCALES = Object.freeze(['zh-CN', 'en-US']);
 export const THEMES = Object.freeze(['system', 'dark', 'light']);
-export const DEFAULT_PREFERENCES = Object.freeze({ version: 1, visualStyle: 'minimal', motion: 'gentle', locale: 'zh-CN', density: 'normal', theme: 'system' });
-const KEYS = Object.freeze({ visualStyle: VISUAL_STYLES, motion: MOTION_MODES, locale: LOCALES, density: ['normal', 'compact'], theme: THEMES });
+export const DEFAULT_PREFERENCES = Object.freeze({ version: 1, visualStyle: 'minimal', motion: 'gentle', locale: 'zh-CN', density: 'normal', theme: 'system', enabled: true, continuous: true });
+const KEYS = Object.freeze({ visualStyle: VISUAL_STYLES, motion: MOTION_MODES, locale: LOCALES, density: ['normal', 'compact'], theme: THEMES,
+  enabled: [true, false], continuous: [true, false] });
 export function validatePreferences(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Preferences must be an object');
   if (Object.keys(value).some(k => k !== 'version' && !Object.hasOwn(KEYS, k))) throw new TypeError('Unknown preference key');

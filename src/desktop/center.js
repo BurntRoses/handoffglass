@@ -1,20 +1,39 @@
 'use strict';
+import { upgradeChoices, syncChoices } from './choice-controls.mjs';
 import { renderOverlay } from './overlay-renderer.mjs';
 const lex = {
  "zh-CN": {
+  "event_session_started":"引导已开始","event_scene_updated":"已显示下一步","event_session_finished":"引导已结束","event_user_action":"已提交操作结果","event_verification_required":"等待核实","event_agent_ready":"准备下一步",
+  "phase_verifying":"等待核实","phase_next_step":"准备下一步","pausedTitle":"引导已停用","pausedDesc":"连接和设置仍保留。需要时可在连接页重新启用。",
   "overview": "引导",
   "connections": "连接",
   "appearance": "外观",
   "diagnostics": "帮助",
   "refresh": "刷新",
   "welcome": "等待下一步",
-  "welcomeDesc": "从 Codex 发起任务，需要你时，引导会出现在桌面。",
+  "welcomeDesc": "在已连接的应用中开始任务，需要你操作时，提示会出现在目标附近。",
   "manageConnection": "管理连接",
   "desktopTitle": "桌面引导",
   "handoffTitle": "当前操作",
   "activityTitle": "最近连接",
   "connectTitle": "连接",
   "connectDesc": "将配置添加到应用，重新连接工具。",
+  "workbuddyConnectHint": "导入本地连接器后，在 WorkBuddy 中信任并启用它，再重新加载工具。",
+  "prepareConnector":"生成连接器",
+  "revealConnector":"打开文件夹",
+  "workbuddyPrepared":"连接器已生成。导入此文件夹，再在 WorkBuddy 中信任、启用并重新加载工具。",
+  "workbuddyFailed":"未能生成连接器。已有改动会保留，请检查文件内容和写入权限。",
+  "integrationTitle": "连接管理",
+  "integrationInspect": "查看状态",
+  "integrationCleanup": "查看移除内容",
+  "integrationConfirm": "移除连接",
+  "integrationNotInstalled": "尚未安装此连接",
+  "integrationInstalled": "已写入本机配置和技能",
+  "integrationModified": "发现修改，将保留相关内容",
+  "integrationBundleReady": "本地连接器已生成，WorkBuddy 中的连接尚未验证",
+  "integrationCleanupReady": "将进行以下变更。修改过的文件和其他应用设置会保留。",
+  "integrationCleanupDone": "本机连接内容已移除。重启应用后生效。",
+  "integrationUnsupported": "此应用暂不支持自动卸载，请按应用自己的设置移除连接。",
   "host": "应用",
   "localConfig": "查看配置",
   "copy": "复制配置",
@@ -28,8 +47,10 @@ const lex = {
   "theme": "主题",
   "language": "语言",
   "density": "间距",
-  "inspect": "允许定位屏幕控件",
-  "inspectDesc": "定位需要辅助功能权限。",
+  "inspect": "定位窗口中的按钮和控件",
+  "inspectDesc": "用于显示位置标记，不会代你点击。还需在系统设置中授予辅助功能权限。",
+  "toolsEnabled": "桌面引导",
+  "continuousEnabled": "接收后续步骤",
   "openPermission": "系统设置",
   "save": "保存",
   "healthTitle": "帮助",
@@ -116,6 +137,8 @@ const lex = {
   "offlineDesc": "桌面引导暂不可用，请稍后重试。"
  },
  "en-US": {
+  "event_session_started":"Guidance started","event_scene_updated":"Next step shown","event_session_finished":"Guidance ended","event_user_action":"Action reported","event_verification_required":"Awaiting verification","event_agent_ready":"Preparing next step",
+  "phase_verifying":"Awaiting verification","phase_next_step":"Preparing next step","pausedTitle":"Guidance is paused","pausedDesc":"Connections and settings are kept. Re-enable it in Connections when needed.",
   "overview": "Guidance",
   "connections": "Connections",
   "appearance": "Appearance",
@@ -129,6 +152,22 @@ const lex = {
   "activityTitle": "Recent connection",
   "connectTitle": "Connections",
   "connectDesc": "Add the configuration to your app, then reconnect its tools.",
+  "workbuddyConnectHint": "Import the local connector, trust and enable it in WorkBuddy, then reload its tools.",
+  "prepareConnector":"Prepare connector",
+  "revealConnector":"Show folder",
+  "workbuddyPrepared":"Connector prepared. Import this folder, then trust, enable and reload its tools in WorkBuddy.",
+  "workbuddyFailed":"Could not prepare the connector. Existing edits were kept. Check the files and write access.",
+  "integrationTitle": "Connection management",
+  "integrationInspect": "Check status",
+  "integrationCleanup": "Review removal",
+  "integrationConfirm": "Remove connection",
+  "integrationNotInstalled": "This connection is not installed",
+  "integrationInstalled": "Local configuration and Skill installed",
+  "integrationModified": "Changed content will be kept",
+  "integrationBundleReady": "Local connector prepared; the WorkBuddy connection is not yet verified",
+  "integrationCleanupReady": "Review the changes below. Edited files and other app settings are kept.",
+  "integrationCleanupDone": "Local connection removed. Restart the app to apply it.",
+  "integrationUnsupported": "Automatic removal is not available for this app. Remove the connection in its own settings.",
   "host": "App",
   "localConfig": "View configuration",
   "copy": "Copy configuration",
@@ -142,8 +181,10 @@ const lex = {
   "theme": "Theme",
   "language": "Language",
   "density": "Spacing",
-  "inspect": "Allow screen element lookup",
-  "inspectDesc": "Element lookup requires Accessibility permission.",
+  "inspect": "Locate buttons and controls",
+  "inspectDesc": "Used to place visual marks. It never clicks. System Accessibility permission is also required.",
+  "toolsEnabled": "Desktop guidance",
+  "continuousEnabled": "Receive follow-up steps",
   "openPermission": "System settings",
   "save": "Save",
   "healthTitle": "Help",
@@ -231,10 +272,11 @@ const lex = {
  }
 };
 const $=id=>document.getElementById(id);
+upgradeChoices();
 let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false,testBusy=false,testLast=null;
 const translateKey=key=>(lex[prefs?.locale]||lex['zh-CN'])[key]||key;
-function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);connectionLabels();renderLocal();}
-function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=translateKey(page);if(page==='connections'){void preview();void refresh();}if(page==='diagnostics'||page==='overview')void refresh();if(page==='diagnostics')void refreshDisplays();if(page==='appearance')requestAnimationFrame(renderPreview);}
+function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();}
+function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=translateKey(page);if(page==='connections'){void preview();void refresh();void inspectIntegration();}if(page==='diagnostics'||page==='overview')void refresh();if(page==='diagnostics')void refreshDisplays();if(page==='appearance')requestAnimationFrame(renderPreview);}
 function value(id,text){$(id).textContent=text;}
 let observedHosts=[];
 function renderHosts(){
@@ -262,49 +304,64 @@ function renderTimeline(){
     item.append(marker,message,age);list.append(item);
   }
 }
-function renderLocal(){renderHosts();renderTimeline();value('diagPermission',prefs?.accessibility?translateKey('enabled'):translateKey('disabled'));if(testLast)renderSelfTest(testLast);}
+function renderLocal(){value('enabledHint',prefs?.enabled===false?(prefs.locale==='zh-CN'?'已停用 · 设置仍保留':'Paused · settings kept'):(prefs?.locale==='zh-CN'?'已启用 · 需要你时显示当前步骤':'Enabled · shows the current step when needed'));renderHosts();renderTimeline();value('diagPermission',prefs?.accessibility?translateKey('enabled'):translateKey('disabled'));if(testLast)renderSelfTest(testLast);}
 function showState(d){
  observedHosts=Array.isArray(d?.hosts)?d.hosts.slice(0,16):[];renderHosts();
  recentTimeline=Array.isArray(d?.timeline)?d.timeline.slice(-12):[];renderTimeline();
- const healthy=d?.broker==='running',desktop=d?.desktop==='present',hasHandoff=d?.session?.state==='awaiting_user';
+ const healthy=d?.broker==='running',desktop=d?.desktop==='present',hasHandoff=['awaiting_user','user_action_reported','observing'].includes(d?.session?.state);
 
- value('overviewTitle',translateKey(!desktop?'offlineTitle':hasHandoff?'activeTitle':'welcome'));
- value('overviewDescription',translateKey(!desktop?'offlineDesc':hasHandoff?'activeDesc':'welcomeDesc'));
+ value('overviewTitle',translateKey(prefs?.enabled===false?'pausedTitle':!desktop?'offlineTitle':hasHandoff?'activeTitle':'welcome'));
+ value('overviewDescription',translateKey(prefs?.enabled===false?'pausedDesc':!desktop?'offlineDesc':hasHandoff?'activeDesc':'welcomeDesc'));
  value('desktopState',desktop?translateKey('present'):translateKey('reconnecting'));
- value('handoffState',hasHandoff?translateKey('waiting'):translateKey('idle'));
+ value('handoffState',hasHandoff?translateKey(['verifying','next_step'].includes(d.session.phase)?'phase_'+d.session.phase:'waiting'):translateKey('idle'));
  value('agentActivity',d?.agentActivity==='recent'?translateKey('recent'):translateKey('noActivity'));
  value('diagBroker',healthy?translateKey('running'):translateKey('unavailable'));
  value('diagDesktop',desktop?translateKey('present'):translateKey('reconnecting'));
  value('diagAgent',d?.agentActivity==='recent'?translateKey('recent'):translateKey('noActivity'));
- value('diagSession',hasHandoff?translateKey('waiting'):translateKey('idle'));
+ value('diagSession',hasHandoff?translateKey(['verifying','next_step'].includes(d.session.phase)?'phase_'+d.session.phase:'waiting'):translateKey('idle'));
  value('diagDisplays',Number.isInteger(d?.displays)?String(d.displays):'—');
  value('refreshed',translateKey('moment'));
 }
 let toastTimeout;
-function toast(message){const el=$('toast');el.textContent=message;el.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('visible'),2800);}
+function toast(message){const el=$('toast');document.querySelector(`[data-view="${currentPage}"]`).append(el);el.textContent=message;el.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('visible'),5000);}
 async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}value('appVersion',r.appVersion?`v${r.appVersion}`:'—');if(!prefs||(!settingsDirty&&!busy)){
       prefs={...r.preferences,accessibility:r.accessibility};$('permission').hidden=r.platform!==undefined&&r.platform!=='darwin';
       for(const name of ['visualStyle','motion','theme','locale','density'])$(name).value=prefs[name];
-      $('accessibility').checked=prefs.accessibility;
+      $('accessibility').checked=prefs.accessibility; $('enabled').checked=prefs.enabled!==false; $('continuous').checked=prefs.continuous!==false;
       applyLocale();
     }
     showState(r.diagnostics);}catch{if(id===serial)value('refreshed',translateKey('unavailable'));}}
-let connectBusy=false,connectResult='';
-function connectionLabels(){const codex=$('host').value==='codex';$('copy').textContent=translateKey(connectBusy?'connecting':codex?'connect':'copy');document.querySelector('[data-i="connectDesc"]').textContent=codex?(connectResult?translateKey(connectResult):''):translateKey('connectDesc');}
+let connectBusy=false;const connectResults={};
+function connectionLabels(){const host=$('host').value,codex=host==='codex',workbuddy=host==='workbuddy';$('copy').textContent=translateKey(connectBusy?'connecting':codex?'connect':workbuddy?'prepareConnector':'copy');document.querySelector('[data-i="connectDesc"]').textContent=connectResults[host]?translateKey(connectResults[host]):codex?'':workbuddy?translateKey('workbuddyConnectHint'):translateKey('connectDesc');$('revealConnector').hidden=!(workbuddy&&connectResults[host]==='workbuddyPrepared');}
 async function preview(){const id=++preview.seq;const host=$('host').value;connectionLabels();value('config',translateKey('loading'));value('configFormat',host==='codex'?'TOML':'JSON');try{const r=await window.hgCenter.preview(host);if(id!==preview.seq)return;value('config',r?.ok?r.content:translateKey('na'));$('copy').disabled=connectBusy||!r?.ok;}catch{if(id===preview.seq){value('config',translateKey('na'));$('copy').disabled=true;}}}
 preview.seq=0;
+function integrationLabel(state){return state==='installed'?'integrationInstalled':['modified','unmanaged'].includes(state)?'integrationModified':state==='bundle_ready'?'integrationBundleReady':'integrationNotInstalled';}
+function renderIntegration(result){$('cleanupItems').replaceChildren();value('cleanupNote','');const node=$('integrationState');if(!result?.ok){node.textContent=translateKey('integrationUnsupported');node.dataset.state='unsupported';$('confirmCleanup').hidden=true;return;}const status=result.status||{};node.textContent=translateKey(integrationLabel(status.state));node.dataset.state=status.state||'unknown';$('confirmCleanup').hidden=true;}
+async function inspectIntegration(){const host=$('host').value;try{const result=await window.hgCenter.lifecycleStatus(host);if(host!==$('host').value)return;renderIntegration(result);}catch{value('integrationState',translateKey('failed'));$('confirmCleanup').hidden=true;}}
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>showPage(button.dataset.page)));
-$('refresh').addEventListener('click',refresh);$('host').addEventListener('change',preview);
+ $('refresh').addEventListener('click',refresh);$('host').addEventListener('change',()=>{preview();inspectIntegration();});
 $('copy').addEventListener('click',async()=>{
- if($('host').value!=='codex'){try{const r=await window.hgCenter.copy($('host').value);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}return;}
+ const host=$('host').value;
+ if(!['codex','workbuddy'].includes(host)){try{const r=await window.hgCenter.copy(host);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}return;}
  if(connectBusy)return;connectBusy=true;$('copy').disabled=true;connectionLabels();
- try{const r=await window.hgCenter.connect();connectResult=r?.ok?'connectedRestart':'connectFailed';}catch{connectResult='connectFailed';}
- finally{connectBusy=false;$('copy').disabled=false;connectionLabels();}
+ try{const r=await window.hgCenter.connect(host);connectResults[host]=r?.ok?(host==='codex'?'connectedRestart':'workbuddyPrepared'):(host==='codex'?'connectFailed':'workbuddyFailed');}catch{connectResults[host]=host==='codex'?'connectFailed':'workbuddyFailed';}
+ finally{connectBusy=false;$('copy').disabled=false;connectionLabels();void inspectIntegration();}
 });
+$('revealConnector').addEventListener('click',async()=>{try{const r=await window.hgCenter.revealConnector();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
 $('copyManual').addEventListener('click',async()=>{try{const r=await window.hgCenter.copy($('host').value);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}});
+$('inspectIntegration').addEventListener('click',inspectIntegration);
+function renderCleanup(plan){
+ const list=$('cleanupItems');list.replaceChildren();
+ const zh=prefs?.locale==='zh-CN';
+ for(const item of plan.items||[]){const li=document.createElement('li');const title=document.createElement('span');title.textContent=(zh?{mcp_entry:'MCP 配置',skill:'引导技能',skill_resource:'技能参考',backup:'安装备份',installation_record:'安装记录',connector_file:'连接器文件'}:{mcp_entry:'MCP entry',skill:'Guidance Skill',skill_resource:'Skill reference',backup:'Installation backup',installation_record:'Installation record',connector_file:'Connector file'})[item.kind]||item.kind;const path=document.createElement('small');path.textContent=item.path;li.append(title,path);list.append(li);}
+ value('cleanupNote',plan.host==='workbuddy'?(zh?'这里只清理本地连接器包。已导入的连接需在 WorkBuddy 中停用并移除。':'This removes the local bundle. Disable and remove the imported connector in WorkBuddy.'):(plan.retained?.length?(zh?'有修改过的内容，将予以保留。':'Edited content will be kept.'):(zh?'仅移除宿主连接。HandoffGlass 应用和外观设置仍保留。':'Removes the host connection. The HandoffGlass app and appearance settings are kept.')));
+}
+$('cleanupIntegration').addEventListener('click',async()=>{const host=$('host').value;try{const r=await window.hgCenter.cleanup(host,false);if(host!==$('host').value)return;if(!r?.ok)throw Error();renderCleanup(r.result);value('integrationState',translateKey(r.result.cleanupAvailable?'integrationCleanupReady':integrationLabel(r.result.state)));$('confirmCleanup').hidden=!r.result.cleanupAvailable;}catch{value('integrationState',translateKey('failed'));}});
+$('confirmCleanup').addEventListener('click',async()=>{const button=$('confirmCleanup'),host=$('host').value;button.disabled=true;try{const r=await window.hgCenter.cleanup(host,true);if(host!==$('host').value)return;if(!r?.ok||!r.result.applied)throw Error();delete connectResults[host];$('integrationState').dataset.state=r.result.retained?.length?'modified':'not_installed';renderCleanup({...r.result,items:[]});value('integrationState',r.result.retained?.length?(prefs?.locale==='zh-CN'?'已移除未修改的内容，其余已保留。':'Unchanged content removed. Edited content was kept.'):r.result.host==='workbuddy'?(prefs?.locale==='zh-CN'?'本地连接器包已清理。':'Local connector bundle removed.'):translateKey('integrationCleanupDone'));button.hidden=true;await preview();}catch{value('integrationState',translateKey('failed'));}finally{button.disabled=false;}});
+$('enabled').addEventListener('change',async()=>{if(!prefs)return;const node=$('enabled');node.disabled=true;try{const r=await window.hgCenter.setEnabled(node.checked);if(!r?.ok)throw Error();prefs.enabled=r.enabled;renderLocal();}catch{node.checked=prefs.enabled;toast(translateKey('failed'));}finally{node.disabled=false;}});
 $('permission').addEventListener('click',async()=>{try{const r=await window.hgCenter.permission();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
-$('preferences').addEventListener('change',()=>{settingsDirty=true;document.documentElement.dataset.theme=$('theme').value;renderPreview();});
-$('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};settingsDirty=false;applyLocale();toast(translateKey('saved'));}catch{toast(translateKey('failed'));}finally{busy=false;$('save').disabled=false;}});
+$('preferences').addEventListener('change',event=>{if(!['visualStyle','motion','theme','locale','density'].includes(event.target.id))return;settingsDirty=true;document.documentElement.dataset.theme=$('theme').value;renderPreview();});
+$('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked,enabled:$('enabled').checked,continuous:$('continuous').checked};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};settingsDirty=false;applyLocale();toast(translateKey('saved'));}catch{toast(translateKey('failed'));}finally{busy=false;$('save').disabled=false;}});
 window.addEventListener('focus',refresh);
 void refresh();setInterval(()=>{if(document.visibilityState==='visible'&&['overview','diagnostics'].includes(currentPage))void refresh();},8000);
 
@@ -377,10 +434,10 @@ function renderPreview(){
 }
 $('replay').addEventListener('click',()=>{previewRevision++;renderPreview();});
 new ResizeObserver(()=>renderPreview()).observe(document.querySelector('.style-preview'));
-$('accessibility').addEventListener('change',async()=>{
+for(const switchId of ['accessibility','continuous'])$(switchId).addEventListener('change',async()=>{
  if(!prefs)return;
- const requested=$('accessibility').checked;$('accessibility').disabled=true;
- try{const result=await window.hgCenter.save({visualStyle:prefs.visualStyle,motion:prefs.motion,theme:prefs.theme,locale:prefs.locale,density:prefs.density,accessibility:requested});if(!result?.ok)throw Error();prefs.accessibility=result.accessibility;renderLocal();}
- catch{$('accessibility').checked=prefs.accessibility;toast(translateKey('failed'));}
- finally{$('accessibility').disabled=false;}
+ const requested=$('accessibility').checked;for(const id of ['accessibility','continuous'])$(id).disabled=true;
+ try{const result=await window.hgCenter.save({visualStyle:prefs.visualStyle,motion:prefs.motion,theme:prefs.theme,locale:prefs.locale,density:prefs.density,enabled:$('enabled').checked,continuous:$('continuous').checked,accessibility:requested});if(!result?.ok)throw Error();prefs={...result.preferences,accessibility:result.accessibility};renderLocal();}
+ catch{$('accessibility').checked=prefs.accessibility;$('continuous').checked=prefs.continuous;toast(translateKey('failed'));}
+ finally{for(const id of ['accessibility','continuous'])$(id).disabled=false;}
 });

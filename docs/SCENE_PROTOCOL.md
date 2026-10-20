@@ -4,9 +4,9 @@
 
 Keep HandoffGlass small: no second process, no new database, no image models. One pure JavaScript module (`src/visual/scene.mjs`) is the common source of truth for model-provided scene descriptions, template composition, validation, flattening and atomic edits. The actual desktop renderer is SVG (`src/desktop/overlay-renderer.mjs`).
 
-## Creation — existing tools, backward compatible
+## Creation
 
-Existing MCP tool names continue to operate as before. `visual_show` and `handoff_request` can now additionally accept either `template` or `scene`. The following are mutually exclusive: `scene`, `template + (x/y or annotations)`, legacy `x/y`, legacy `annotations`.
+`session_start` and `session_present` accept either `template` or `scene`. Set `mode:"guide"` for nonblocking illustration; the default `handoff` mode waits for the user. Old tool names require `HANDOFFGLASS_LEGACY_TOOLS=1`. The following are mutually exclusive: `scene`, `template + (x/y or annotations)`, legacy `x/y`, legacy `annotations`.
 
 ### Smallest semantic request
 
@@ -18,7 +18,7 @@ Existing MCP tool names continue to operate as before. `visual_show` and `handof
 }
 ```
 
-Use in `handoff_request` for user input or `visual_show` for non-blocking visual instruction. Do not send `template` without grounded targets; if no measured target is available use coordinate-free `handoff_request` without any marker.
+Use in `session_start` for user input or `session_start(mode:"guide")` for non-blocking visual instruction. Do not send `template` without grounded targets; if no measured target is available use coordinate-free `session_start` without any marker.
 
 ### Explicit layered scene
 
@@ -34,15 +34,15 @@ Use in `handoff_request` for user input or `visual_show` for non-blocking visual
 }
 ```
 
-The result includes `session.id` and `session.sceneRevision=1`; compact model-output mode retains the revision number.
+The result includes `session.id`, `nextCursor` and `session.sceneRevision=1`; compact model-output mode retains the revision number.
 
 ## Updating without changing task ownership
 
-Call MCP tool `visual_scene_update`:
+Call MCP tool `session_update`:
 
 ```json
 {
-  "sessionId": "UUID_FROM_VISUAL_SHOW",
+  "sessionId": "00000000-0000-4000-8000-000000000001",
   "expectedRevision": 1,
   "operations": [
     {"op":"set_layer", "layerId":"context", "visible":false},
@@ -57,7 +57,7 @@ Supported commands: `upsert_layer`, `remove_layer`, `set_layer`, `upsert_annotat
 Semantics:
 
 - Exactly one active HandoffGlass session; **only its owning MCP host** may change its scene.
-- `expectedRevision` is mandatory. A stale client gets `revision_conflict`, not an accidental overwrite. Read `handoff_status` to obtain a fresh revision before rebuilding the intended patch.
+- `expectedRevision` is mandatory. A stale client gets `revision_conflict`, not an accidental overwrite. Read `session_wait(maxWaitSeconds:0)` to obtain a fresh revision before rebuilding the intended patch.
 - A successful patch increments `sceneRevision` and the desktop snapshot revision, but **does not extend TTL**, complete a user action, or claim `verified=true`.
 - Finished, expired or superseded sessions reject changes. Legacy non-scene sessions remain immutable (create a new scene to use incremental updates).
 - Hidden layers can temporarily make every marker disappear while retaining the session/panel for user control.

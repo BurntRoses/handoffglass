@@ -26,6 +26,8 @@ Please install https://github.com/BurntRoses/handoffglass
 
 Tell your agent what you need: “Show me how to empty the Trash.” During other tasks, it can also guide you when a step needs your input.
 
+To disable or remove a connection, tell the agent to “disable HandoffGlass” or “clean HandoffGlass from Codex.” It checks the integration first and removes only HandoffGlass-owned content. The same actions are available from the app’s Connections page.
+
 <details>
 <summary>Documentation</summary>
 

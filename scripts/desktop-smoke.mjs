@@ -83,15 +83,15 @@ async function smoke(mode) {
     await invoke(second, 'screen_displays');
     assert.equal((await readManifest(dir)).pid, info.pid, 'Two MCP clients must share one Broker');
     const d = displays.displays[0];
-    const shown = await invoke(first, 'visual_show', { title: 'HandoffGlass startup check',
+    const shown = await invoke(first, 'session_start', {mode:'guide', title: 'HandoffGlass startup check',
       message: 'Synthetic display test point', requestId: `desktop-smoke-${mode}`,
       annotations: [{ x: d.x + d.width / 2, y: d.y + d.height / 2,
         shape: 'ring', width: 80, height: 50, label: 'Startup check' }], timeoutSeconds: 30 });
     assert.equal(shown.visible, true);
     assert.equal(shown.session.status, 'awaiting_user');
-    assert.equal((await invoke(second, 'handoff_status', {sessionId: shown.session.id})).session, null);
+    assert.equal((await second.callTool({name:'session_wait',arguments:{sessionId:shown.session.id,maxWaitSeconds:0}})).isError,true);
     await pause(250);
-    const cancelled = await invoke(first, 'handoff_cancel', {sessionId: shown.session.id});
+    const cancelled = await invoke(first, 'session_stop', {sessionId: shown.session.id});
     assert.equal(cancelled.session.status, 'cancelled');
     console.log(`PASS ${packaged ? 'packaged ' : ''}${mode}: ${displays.displays.length} real display(s), two MCP clients, shared Broker, visual/cancel (${Math.round(performance.now() - started)}ms)`);
   } finally {

@@ -44,7 +44,7 @@ Keep both layers: MCP tools provide the capability; initialization instructions 
 
 - When asked to teach a desktop task, guide the user through the actions yourself.
 - During Computer Use, hand over a step when the user needs to act, log in, authorize, or handle a blocked interaction. Continue ordinary authorized automation where appropriate.
-- Observe the current app, request one action with `handoff_request`, wait with `handoff_wait`, then inspect the original app before continuing. Ground marks in fresh UI evidence; omit marks if the target is unseen. A user's completion report is not proof of the outcome.
+- Observe the current app, request one action with `session_start`, wait with `session_wait`, then inspect the original app before continuing. Ground marks in fresh UI evidence; omit marks if the target is unseen. A user's completion report is not proof of the outcome.
 - Keep each on-screen instruction brief and in the user's language. The user supplies the goal; the agent chooses the tools and steps.
 
 The installed skill contains the full workflow. Do not paste it into the user's installation prompt or completion message.
@@ -58,3 +58,5 @@ Reload tools through the host's supported mechanism when available. Otherwise te
 An isolated check proves the service starts; it does not prove the current host has loaded it or that a model will choose it. After a host reload, use an available read-only HandoffGlass tool to confirm the connection. If that must wait for restart, say so.
 
 Finish with a brief status and only a necessary user action, for example: “已安装。重启 Codex 后生效。” Report an unresolved failure plainly instead of claiming success. Leave logs, paths, configuration and troubleshooting details in the project unless requested.
+
+For removal or a temporary pause, use the [shared lifecycle workflow](INTEGRATION_LIFECYCLE.md). Do not edit user memory or delete a same-named MCP entry without an installation record.
