@@ -1,6 +1,6 @@
 # First run & installation
 
-The desktop app opens a local three-step setup on first launch: **connect an agent → choose visual preferences → finish**. The same dialog can be reopened from the tray menu **Setup & Agent connections…**.
+The desktop app opens a local three-step setup on first launch: **connect an agent → choose visual preferences → finish**. Later changes are available in **Connections**, **Appearance** and **Help**. New installations use minimal marks; existing preferences are preserved.
 
 The setup is part of the packaged Electron application. It is not a hosted page. All UI and branding are loaded from bundled files; no screenshots or user files are uploaded. The setup renderer uses a dedicated, sandboxed preload and only exposes narrowly scoped operations: status, a read-only host configuration preview, validated preference updates, clipboard export, system accessibility settings, and close. Only events originating from that exact setup window may reach the setup handlers.
 

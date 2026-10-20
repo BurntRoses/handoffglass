@@ -32,9 +32,12 @@ async function client(name) {
 const invoke = async (c, name, args) => decode(await c.callTool({ name, arguments: args }));
 try {
   const [a, b] = await Promise.all([client('host-A'), client('host-B')]);
+  assert.ok((a.getInstructions() || '').length <= 512);
+  assert.match(a.getInstructions() || '', /agent's hand/);
+  assert.match(a.getInstructions() || '', /never ask the user to name a tool/);
   const { tools } = await a.listTools();
   const names = [
-    'screen_displays', 'ui_locate', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_events', 'handoff_wait', 'handoff_cancel'
+    'screen_displays', 'ui_inspect', 'ui_locate', 'visual_show', 'visual_scene_update', 'handoff_request', 'handoff_status', 'handoff_events', 'handoff_wait', 'handoff_cancel'
   ];
   if (extras) names.push('handoff_context', 'handoff_blueprint', 'handoff_assess');
   assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());
@@ -94,7 +97,7 @@ try {
   assert.equal((await invoke(a,'visual_scene_update',mutating)).session.sceneRevision,2);
   assert.equal((await invoke(a,'handoff_status',{sessionId:painted.session.id})).session.annotations.length,0);
   assert.equal((await invoke(a,'handoff_cancel',{sessionId:painted.session.id})).session.status,'cancelled');
-  console.log(`PASS: MCP v2 stdio, ${extras ? 'twelve' : 'nine'} tools, dual hosts, scene updates, local context/blueprints, ownership, cancellation`);
+  console.log(`PASS: MCP v2 stdio, ${extras ? 'thirteen' : 'ten'} tools, initialize instructions, dual hosts, scene updates, local context/blueprints, ownership, cancellation`);
 } finally {
   for (const c of clients) await c.close().catch(() => {});
   const info = await readManifest(dir);

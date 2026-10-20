@@ -5,21 +5,30 @@ import { fileURLToPath } from 'node:url';
 import { hostConfig, HOSTS } from '../config.mjs';
 import { loadPreferences, savePreferences, hasUserPreferences } from '../local/preferences.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
+import { installCodex } from '../codex-install.mjs';
 const here=dirname(fileURLToPath(import.meta.url));
 const HOST_ALLOWLIST=new Set(Object.keys(HOSTS));
 let window=null;
 const asBoolean = v => v === true;
-export function connection(host) {
+function configOptions() {
   const entry=app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
-  return hostConfig(host,{command:process.execPath,entry,compact:true,
-    envOverrides:{ELECTRON_RUN_AS_NODE:'1'}});
+  return {command:process.execPath,entry,compact:true,envOverrides:{ELECTRON_RUN_AS_NODE:'1'}};
+}
+export function connection(host) { return hostConfig(host,configOptions()); }
+let connecting=false;
+export async function connectCodex() {
+  if(connecting)return {ok:false,code:'already_running'};
+  connecting=true;
+  try {await installCodex({apply:true,replace:true,userHome:app.getPath('home'),configOptions:configOptions()});return {ok:true};}
+  catch {return {ok:false,code:'install_failed'};}
+  finally {connecting=false;}
 }
 function fromWindow(event){return window&&!window.isDestroyed()&&event.sender===window.webContents;}
 export async function showSetup({firstRun=false}={}){
   if(window&&!window.isDestroyed()){window.show();window.focus();return window;}
   window=new BrowserWindow({
-    width:1000,height:730,minWidth:740,minHeight:620,show:false,backgroundColor:'#0b141a',
-    title:'HandoffGlass · Setup',autoHideMenuBar:true,
+    width:580,height:730,minWidth:520,minHeight:650,show:false,backgroundColor:'#20211f',
+    title:'HandoffGlass',autoHideMenuBar:true,
     webPreferences:{preload:join(here,'setup-preload.cjs'),sandbox:true,contextIsolation:true,
       nodeIntegration:false,webSecurity:true}
   });
@@ -45,6 +54,7 @@ export function registerSetupIPC(){
       if(typeof accessibility!=='boolean')return {ok:false,error:'Invalid accessibility choice'};
       const preferences=await savePreferences({visualStyle,motion,locale,density,theme});
       await setAccessibilityConsent(accessibility);
+      app.emit('hg:preferences-changed');
       return {ok:true,preferences};
     } catch(error){return {ok:false,error:error.message};}
   });
@@ -56,6 +66,10 @@ export function registerSetupIPC(){
     if(!fromWindow(event)||!HOST_ALLOWLIST.has(host))return {ok:false,error:'Unknown host'};
     try{clipboard.writeText(connection(host));return {ok:true};}
     catch(error){return {ok:false,error:error.message};}
+  });
+  ipcMain.handle('hg:setup:connect',async event=>{
+    if(!fromWindow(event))return {ok:false,code:'unauthorized'};
+    return connectCodex();
   });
   ipcMain.handle('hg:setup:permission',async event=>{
     if(!fromWindow(event))return {ok:false};

@@ -7,6 +7,15 @@ import { LocalBridge } from '../bridge.mjs';
 import { runtimeDir, secureRuntimeDir, readManifest, writeManifest, probe } from '../runtime.mjs';
 
 if (app.isPackaged) process.env.HANDOFFGLASS_NATIVE_RESOURCE_DIR = resolve(process.resourcesPath, 'native');
+function showStartupError(error){
+  console.error('[handoffglass] Startup:',error.message);
+  const zh=app.getLocale().startsWith('zh');
+  const message=error.code==='already_running'
+    ?(zh?'HandoffGlass 已在运行，请从菜单栏打开。':'HandoffGlass is running. Open it from the menu bar.')
+    :(zh?'未能启动，请稍后重试。':'Could not start. Try again.');
+  dialog.showErrorBox('HandoffGlass',message);
+}
+
 
 // A packaged Electron executable always loads package.json's main, even when
 // the Broker supplies main.mjs as an argument. Join its authenticated Bridge
@@ -20,7 +29,7 @@ if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    dialog.showMessageBox({ type:'info', title:'HandoffGlass', message:'HandoffGlass is already running.' });
+    void import('./center.mjs').then(({showControlCenter})=>showControlCenter());
   });
   // Leave ESM evaluation free to finish so Electron can emit ready.
   void app.whenReady().then(async () => {
@@ -40,7 +49,7 @@ if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
       }
       if (!acquired) throw new Error('Could not acquire local startup lock');
       const active = await readManifest(dir);
-      if (active && await probe(active)) throw new Error('Another HandoffGlass broker is running. Stop it with npm run broker:stop before starting the desktop app.');
+      if (active && await probe(active)) throw Object.assign(new Error('Existing broker'),{code:'already_running'});
       if (active) await rm(join(dir,'broker.json'), {force:true});
       manager = new HandoffManager();
       bridge = new LocalBridge(manager);
@@ -50,7 +59,7 @@ if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
       process.env.HANDOFFGLASS_SECRET = bridge.token;
       ready = true;
     } catch (error) {
-      dialog.showErrorBox('HandoffGlass cannot start', error.message);
+      showStartupError(error);
       app.quit();
     } finally {
       if (acquired) await rm(lock,{recursive:true,force:true});
@@ -68,9 +77,11 @@ if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
         });
       });
       await import('./main.mjs');
+      const {hasUserPreferences}=await import('../local/preferences.mjs');
+      if(await hasUserPreferences()){const {showControlCenter}=await import('./center.mjs');await showControlCenter();}
     }
   }).catch(error => {
-    dialog.showErrorBox('HandoffGlass cannot start', error.message);
+    showStartupError(error);
     app.exit(1);
   });
 }

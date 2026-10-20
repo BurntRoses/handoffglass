@@ -1,5 +1,7 @@
 # Codex 本地接手指南
 
+此文档用于继续开发。用户只要求安装时，执行 [Agent 安装要求](INSTALL_AGENT.md)。
+
 **项目：** [BurntRoses/handoffglass](https://github.com/BurntRoses/handoffglass)
 
 **交接方式：** 从获取 GitHub 仓库开始，由 Codex 独立执行。包括拉取文件、阅读源码、安装环境、运行桌面程序、测试、修复、提交和创建 Pull Request。

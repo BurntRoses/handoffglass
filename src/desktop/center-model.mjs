@@ -16,7 +16,7 @@ export function summarizeDiagnostics(input, now = Date.now()) {
       Number.isFinite(item.lastSeenAt) && item.lastSeenAt <= now && now - item.lastSeenAt < 900000)
     .map(item => ({host:item.host, agoSeconds:Math.floor((now-item.lastSeenAt)/1000),
       calls:Number.isInteger(item.calls) ? Math.min(9999,Math.max(0,item.calls)) : 0,
-      lastAction: typeof item.lastAction==='string' && /^(displays|show|locate|status|wait|events|cancel|scene|context|blueprint)$/.test(item.lastAction)
+      lastAction: typeof item.lastAction==='string' && /^(displays|inspect|show|locate|status|wait|events|cancel|scene|context|blueprint)$/.test(item.lastAction)
         ? item.lastAction : 'other', attribution:'config_declared'})) : [];
   return Object.freeze({broker:'running', desktop:input.desktopConnected === true ? 'present' : 'reconnecting',
     agentActivity:recent ? 'recent' : 'not_observed',

@@ -1,60 +1,17 @@
-<!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'" />
-<meta name="color-scheme" content="dark light" />
-<title>HandoffGlass · Welcome</title>
-<link rel="stylesheet" href="ui-tokens.css" />
-<link rel="stylesheet" href="setup.css" />
-<script src="setup.js" defer></script>
-</head>
-<body>
-<main class="setup" id="setup">
-  <aside class="story" aria-labelledby="brandName">
-    <header class="story-header"><div class="wordmark"><img src="../../assets/brandmark.svg" width="38" height="38" alt="" /><strong id="brandName">handoffglass</strong></div><span class="local-mark"><span class="live-dot"></span> LOCAL RUNTIME</span></header>
-    <div class="story-main">
-      <p class="overline"><span class="index">01—03</span> <span data-t="tagline">人和 Agent 之间，少一点距离。</span></p>
-      <h1 id="heading"><span data-t="hero1">让下一步，</span><em data-t="hero2">清晰可见。</em></h1>
-      <p class="story-summary" data-t="subtitle">真正需要你做决定时，HandoffGlass 会指出位置，再把任务交回 Agent。</p>
-      <div class="art" aria-hidden="true">
-        <div class="art-grid"></div>
-        <div class="art-window">
-          <div class="art-toolbar"><span></span><span></span><span></span><i>workspace / settings</i></div>
-          <div class="art-content"><div class="art-line wide"></div><div class="art-line"></div><div class="art-line short"></div><div class="art-target"></div></div>
-        </div>
-        <svg class="art-trace" viewBox="0 0 430 290" fill="none" aria-hidden="true"><defs><linearGradient id="trace" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#C8FFEC"/><stop offset="1" stop-color="#58C6AC"/></linearGradient></defs><path d="M191 177 C209 151 335 138 357 171 C385 207 334 245 259 240 C196 236 173 208 191 177 Z" stroke="url(#trace)" stroke-width="3.8" stroke-linecap="round" class="draw-line"/><path d="M320 261 L357 225" stroke="#D7FFF2" stroke-width="3" stroke-linecap="round"/><path d="M345 226 L359 223 L355 236" stroke="#D7FFF2" stroke-width="3" stroke-linejoin="round"/></svg>
-        <span class="art-label" data-t="artLabel">下一步操作</span>
-      </div>
-    </div>
-    <footer class="story-footer"><span>AGENT</span><svg width="70" height="12" viewBox="0 0 70 12" aria-hidden="true"><path d="M0 6H68m-7-5 7 5-7 5" stroke="currentColor" stroke-width="1.2" fill="none"/></svg><span>HUMAN</span><svg width="70" height="12" viewBox="0 0 70 12" aria-hidden="true"><path d="M0 6H68m-7-5 7 5-7 5" stroke="currentColor" stroke-width="1.2" fill="none"/></svg><span>AGENT</span></footer>
-  </aside>
-  <section class="workspace" aria-label="Setup">
-    <div class="workspace-head"><span data-t="welcome">快速设置</span><span class="step-counter" id="stepCounter">STEP 01 / 03</span></div>
-    <nav class="step-track" aria-label="Setup progress"><button class="step is-active" data-step="0" aria-current="step" type="button"><b>1</b><span data-t="agent">连接</span></button><span class="step-rule"></span><button class="step" data-step="1" type="button"><b>2</b><span data-t="appearance">外观</span></button><span class="step-rule"></span><button class="step" data-step="2" type="button"><b>3</b><span data-t="ready">完成</span></button></nav>
-    <div class="workspace-body">
-      <section class="screen" data-screen="0" aria-labelledby="chooseHeading">
-        <div class="screen-head"><span class="section-index">01 / CONNECT</span><h2 id="chooseHeading" data-t="choose">连接你的 Agent</h2><p data-t="chooseDesc">选择常用的 Agent，将本机配置添加到它的 MCP 设置中。</p></div>
-        <label class="field"><span data-t="host">Agent / Harness</span><select id="host"><option value="claude">Claude Desktop / Claude Code</option><option value="codex">OpenAI Codex</option><option value="cursor">Cursor</option><option value="vscode">VS Code / GitHub Copilot</option><option value="trae">TRAE</option><option value="workbuddy">Tencent WorkBuddy</option><option value="deepseek">DeepSeek Harness (MCP)</option><option value="gemini">Gemini CLI</option><option value="opencode">OpenCode</option><option value="cline">Cline</option><option value="windsurf">Windsurf</option><option value="zed">Zed</option></select></label>
-        <div class="code-head"><span data-t="configTitle">本机连接配置</span><span class="code-type" id="format">MCP / JSON</span></div>
-        <pre id="configPreview" class="code-block" tabindex="0" aria-label="Generated configuration"></pre>
-        <div class="config-actions"><p data-t="hostNote">复制后粘贴到宿主的 MCP 配置，重新加载工具即可。</p><button class="action-quiet" id="copy" type="button" disabled><span data-t="copy">复制配置</span><span aria-hidden="true">↗</span></button></div>
-      </section>
-      <section class="screen" data-screen="1" hidden aria-labelledby="appearanceHeading">
-        <div class="screen-head"><span class="section-index">02 / PERSONALIZE</span><h2 id="appearanceHeading" data-t="visual">调成你喜欢的样子</h2><p data-t="visualDesc">外观设置只保存在本机，后续所有 Agent 共用。</p></div>
-        <div class="fields"><label class="field"><span data-t="style">视觉风格</span><select id="visualStyle"><option value="luminous">Luminous · 柔光</option><option value="handdrawn">Hand-drawn · 手绘</option><option value="minimal">Minimal · 极简</option></select></label><label class="field"><span data-t="motion">动态效果</span><select id="motion"><option value="gentle">Gentle · 柔和</option><option value="expressive">Expressive · 丰富</option><option value="off">Off · 关闭</option></select></label><label class="field"><span data-t="theme">界面明暗</span><select id="theme"><option value="system">跟随系统 / System</option><option value="dark">深色 / Dark</option><option value="light">浅色 / Light</option></select></label><label class="field"><span data-t="language">界面语言</span><select id="locale"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label><label class="field"><span data-t="density">信息密度</span><select id="density"><option value="normal">舒适 / Comfortable</option><option value="compact">紧凑 / Compact</option></select></label></div>
-        <label class="consent"><input type="checkbox" id="accessibility"/><span class="consent-description"><strong data-t="inspect">允许只读控件定位</strong><small data-t="inspectDesc">查询当前前台应用的控件位置。默认关闭，随时可更改。</small></span><span class="consent-indicator" aria-hidden="true"></span></label>
-        <button class="inline-link" id="permission" type="button" data-t="permission">打开系统辅助功能设置 ↗</button>
-      </section>
-      <section class="screen" data-screen="2" hidden aria-labelledby="readyHeading">
-        <div class="screen-head"><span class="section-index">03 / CONTINUE</span><h2 id="readyHeading" data-t="done">设置好了。</h2><p data-t="doneDesc">你可以返回刚才的 Agent，重新加载 MCP 工具开始使用。</p></div>
-        <div class="finish-card"><div class="finish-icon"><svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="m6 14 5 5L22 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><strong data-t="running">本地服务已就绪</strong><p data-t="runningDesc">配置已经准备好。请在 Agent 中确认能看到 HandoffGlass 工具。</p></div></div>
-        <div class="next-note"><span class="small-orbit">◇</span><span data-t="note">你负责决定。Agent 负责继续完成任务。</span></div>
-      </section>
-    </div>
-    <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
-    <footer class="workspace-footer"><span class="footer-note"><span class="live-dot"></span><span data-t="private">本机运行 · 无需云账号</span></span><div class="actions"><button id="back" class="button-back" data-t="back" type="button" disabled>返回</button><button id="next" class="button-next" type="button"><span data-t="next">继续</span><span aria-hidden="true">→</span></button></div></footer>
-  </section>
-</main>
-</body></html>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'"><meta name="color-scheme" content="dark light"><title>HandoffGlass</title><link rel="stylesheet" href="ui-tokens.css"><link rel="stylesheet" href="setup.css"><script src="setup.js" defer></script></head><body>
+<main class="setup"><header class="setup-brand"><img src="../../assets/brandmark.svg" width="40" height="40" alt=""><span>HandoffGlass</span></header>
+<section class="workspace" aria-label="Setup"><nav class="step-track" aria-label="Setup progress"><button class="step is-active" data-step="0" aria-current="step" type="button"><span data-t="agent">连接</span></button><span class="step-rule"></span><button class="step" data-step="1" type="button"><span data-t="appearance">外观</span></button><span class="step-rule"></span><button class="step" data-step="2" type="button"><span data-t="ready">完成</span></button></nav>
+<div class="workspace-body">
+<section class="screen" data-screen="0" aria-labelledby="chooseHeading"><h1 id="chooseHeading" data-t="choose">连接应用</h1><label class="field"><span data-t="host">应用</span><select id="host"><option value="codex">Codex</option><option value="claude">Claude</option><option value="cursor">Cursor</option><option value="vscode">VS Code</option><option value="trae">TRAE</option><option value="workbuddy">WorkBuddy</option><option value="deepseek">DeepSeek Harness</option><option value="gemini">Gemini CLI</option><option value="opencode">OpenCode</option><option value="cline">Cline</option><option value="windsurf">Windsurf</option><option value="zed">Zed</option></select></label>
+<div class="config-actions"><p data-t="hostNote">将配置添加到应用，重新连接工具。</p><button class="action-quiet" id="copy" type="button" disabled data-t="copy">复制配置</button></div><details class="config-details"><summary data-t="configTitle">查看配置</summary><span id="format" class="code-type">TOML</span><pre id="configPreview" class="code-block" tabindex="0" aria-label="MCP configuration"></pre><button class="action-quiet" id="copyManual" type="button" data-t="copy">复制配置</button></details>
+</section>
+<section class="screen" data-screen="1" hidden aria-labelledby="appearanceHeading"><h1 id="appearanceHeading" data-t="visual">外观</h1><div class="fields">
+<label class="field"><span data-t="style">标注</span><select id="visualStyle"><option value="minimal" data-o="minimal">极简</option><option value="handdrawn" data-o="handdrawn">手绘</option><option value="luminous" data-o="luminous">柔光</option></select></label>
+<label class="field"><span data-t="motion">动态</span><select id="motion"><option value="gentle" data-o="gentle">柔和</option><option value="expressive" data-o="expressive">丰富</option><option value="off" data-o="off">关闭</option></select></label>
+<label class="field"><span data-t="theme">主题</span><select id="theme"><option value="system" data-o="system">跟随系统</option><option value="light" data-o="light">浅色</option><option value="dark" data-o="dark">深色</option></select></label>
+<label class="field"><span data-t="language">语言</span><select id="locale"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label>
+<label class="field"><span data-t="density">间距</span><select id="density"><option value="normal" data-o="normal">标准</option><option value="compact" data-o="compact">紧凑</option></select></label></div>
+<label class="consent"><input type="checkbox" id="accessibility"><span data-t="inspect">允许定位屏幕控件</span></label><button class="inline-link" id="permission" type="button" data-t="permission">辅助功能设置</button></section>
+<section class="screen finish-screen" data-screen="2" hidden aria-labelledby="readyHeading"><svg class="finish-icon" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20"/><path d="m15 24 6 6 13-13"/></svg><h1 id="readyHeading" data-t="done">设置已保存</h1><p data-t="doneDesc">返回应用，重新连接 HandoffGlass 工具。</p></section>
+</div><p class="feedback" id="feedback" role="status" aria-live="polite"></p><footer class="workspace-footer"><button id="back" class="button-back" data-t="back" type="button" disabled>返回</button><button id="next" class="button-next" type="button"><span data-t="next">继续</span></button></footer>
+</section></main></body></html>

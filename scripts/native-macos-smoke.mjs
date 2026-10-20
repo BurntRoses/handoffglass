@@ -49,6 +49,10 @@ try {
       const { phase, bounds: b } = JSON.parse(line);
       const started = performance.now();
       if (phase === 'initial') {
+        const observation = await broker.inspect();
+        assert.equal(observation.app,target.app);
+        const found = observation.controls.find(c=>c.role===target.role && c.name===target.name);
+        assert.ok(found?.targetable,'Real AX inspection must discover the target without a supplied name');
         const shown = await broker.present('guide', { title: 'HandoffGlass native QA',
           message: 'Measured native fixture; no click required', target, template: 'sketch', timeoutSeconds: 30 });
         assert.equal(shown.visible, true);

@@ -1,6 +1,8 @@
 # Connect HandoffGlass to an Agent
 
-HandoffGlass exposes a **local MCP server**. Skills provide prompt guidance but do not install tool access by themselves. Compatible hosts start the MCP server using Node.js.
+Ask your agent: `Please install https://github.com/BurntRoses/handoffglass`. It follows the [installation requirements](INSTALL_AGENT.md), connects its own host and installs the guidance rules. The sections below are for manual configuration and troubleshooting.
+
+HandoffGlass exposes a **local MCP server**. Skills provide invocation guidance; compatible hosts start the server using Node.js.
 
 ## Print the configuration for your machine
 
@@ -20,11 +22,11 @@ Merge the `mcpServers.handoffglass` member into your existing JSON config. Do **
 
 ## Codex
 
-Paste the printed `[mcp_servers.handoffglass]` fragment into your existing `~/.codex/config.toml` (merge, do not replace). Confirm your Codex version supports MCP and restart it. See `examples/codex.toml` for a template.
+Run `node scripts/install-host.mjs codex --compact --apply` to merge the MCP entry and install the implicitly discoverable guidance skill. It honors `CODEX_HOME` and preserves other settings. Inspect an existing integration before using `--replace` to upgrade it. Restart Codex to load the tools and skill. See [Codex usage](USE_WITH_CODEX.zh-CN.md).
 
 ## Agent Skill
 
-Copy `skills/visual-handoff/SKILL.md` into your host's supported Skill directory, then enable it according to that host's instructions. The Skill prompts the Agent to ask for human review only when needed, to use screen coordinates only when grounded and to verify results independently after a completed human report.
+Codex's installer includes the skill. For other hosts, copy `skills/visual-handoff/SKILL.md` into the host's supported implicitly discoverable Skill directory, or use its supported persistent rules mechanism. MCP initialization also supplies the shared workflow. The agent chooses when to guide, grounds screen marks in fresh evidence and verifies the original app after a user's completion report.
 
 ## Smoke tests
 
@@ -39,7 +41,7 @@ Multiple MCP hosts may run simultaneously. Their sessions share one local Broker
 
 ## Troubleshooting
 
-- **MCP connects, UI missing:** the host may be on a remote/cloud machine, but Electron needs the **user's actual interactive desktop**. HandoffGlass v0.3 is a local-only renderer, not a cloud remote-browser plugin.
+- **MCP connects, UI missing:** the host may be on a remote/cloud machine, but Electron needs the **user's actual interactive desktop**. HandoffGlass runs locally.
 - **No Electron:** run `npm ci` and ensure GUI display server/desktop session is available.
 - **Control target outside screens:** query `screen_displays` and use global DIP coordinates, not screenshot pixels.
 - **Permission dialog not visible:** ordinary windows cannot guarantee overlay coverage of UAC secure desktop or other protected surfaces. Use a coordinate-free handoff panel where possible.

@@ -1,9 +1,7 @@
-import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage, shell, dialog, clipboard } from 'electron';
-import { hostConfig } from '../config.mjs';
-import { showSetup, registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
+import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage } from 'electron';
+import { registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
 import { showControlCenter, registerCenterIPC } from './center.mjs';
-import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
-import { loadPreferences, savePreferences, VISUAL_STYLES, MOTION_MODES } from '../local/preferences.mjs';
+import { loadPreferences } from '../local/preferences.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { localAnnotations, contains } from '../geometry.mjs';
@@ -67,7 +65,7 @@ function createOverlay(display) {
 }
 function createPanel() {
   const win = new BrowserWindow({
-    width: 440, height: 342, minWidth: 440, minHeight: 342,
+    width: 440, height: 280, minWidth: 440, minHeight: 280,
     show: false, skipTaskbar: true, frame: false, transparent: false,
     alwaysOnTop: true, resizable: false, backgroundColor: '#101923',
     webPreferences: {
@@ -113,7 +111,7 @@ function updateUI(next) {
   const target = current.annotations?.[0];
   const placeLeft = target && target.x > area.x + area.width * 0.55;
   const x = placeLeft ? area.x + 12 : area.x + Math.max(8, area.width - 456);
-  panel.setPosition(Math.round(x), Math.round(area.y + Math.max(8, area.height - 358)));
+  panel.setPosition(Math.round(x), Math.round(area.y + Math.max(8, area.height - 296)));
   if (!panel.webContents.isLoading()) panel.webContents.send('hg:render', current);
   panel.showInactive();
   panel.moveTop();
@@ -156,61 +154,30 @@ async function startDesktop() {
   app.on('before-quit', () => { closing = true; });
   panel = createPanel();
   async function setupTrayAndMenu() {
-    const visualPrefs = await loadPreferences();
-    const styleOptions = VISUAL_STYLES.map(value => ({
-      label: `Visual: ${value}`, type: 'radio', checked: visualPrefs.visualStyle === value,
-      click: async () => { try { await savePreferences({visualStyle: value}); }
-        catch(error) { dialog.showErrorBox('Visual preference', error.message); } }
-    }));
-    const motionOptions = MOTION_MODES.map(value => ({
-      label: `Motion: ${value}`, type: 'radio', checked: visualPrefs.motion === value,
-      click: async () => { try { await savePreferences({motion: value}); }
-        catch(error) { dialog.showErrorBox('Motion preference', error.message); } }
-    }));
-    const item = { label: 'Enable read-only UI element inspection', type: 'checkbox',
-      checked: await getAccessibilityConsent(), click: async menuItem => {
-        try { await setAccessibilityConsent(menuItem.checked); }
-        catch (error) { dialog.showErrorBox('Accessibility setting failed', error.message); menuItem.checked = !menuItem.checked; }
-      }};
-    const languageOptions = [['zh-CN','简体中文'],['en-US','English']].map(([value,label])=>({
-      label,type:'radio',checked:visualPrefs.locale===value,
-      click:async()=>{try{await savePreferences({locale:value});}catch(error){dialog.showErrorBox('Language preference',error.message);}}
-    }));
-    const densityOptions = [['normal','Comfortable'],['compact','Compact']].map(([value,label])=>({
-      label,type:'radio',checked:visualPrefs.density===value,
-      click:async()=>{try{await savePreferences({density:value});}catch(error){dialog.showErrorBox('Density preference',error.message);}}
-    }));
-    const context = Menu.buildFromTemplate([
-      { label: 'Control Center…', click: () => void showControlCenter() },
-      { label: 'First-run setup…', click: () => void showSetup() },
-      { label: 'Show current handoff', click: () => { if (current?.mode === 'handoff') { panel.showInactive(); panel.moveTop(); } } },
-      item,
-      { label: 'Visual style (next handoff)', submenu: styleOptions },
-      { label: 'Animation level (next handoff)', submenu: motionOptions },
-      { label: 'Language (next handoff)', submenu: languageOptions },
-      { label: 'Information density (next handoff)', submenu: densityOptions },
-      { label: 'Copy MCP configuration (Claude/Cursor/Cline)', click: () => {
-        const entry = app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
-        const config = hostConfig('claude',{command:process.execPath,entry,compact:true,
-          envOverrides:{ ELECTRON_RUN_AS_NODE:'1' }});
-        clipboard.writeText(config);
-        dialog.showMessageBox({type:'info',title:'HandoffGlass MCP configuration copied',
-          message:'Paste this mcpServers entry into your local Agent settings. For Codex, use the TOML equivalent.',
-          detail: process.platform==='win32' ? 'For reliable Agent startup on Windows, install the desktop application to a stable path; portable temp directories may change.' :
-            'Use the same macOS user and this application location. No remote/cloud Agent will automatically see your local screen.'});
-      } },
-      { label: 'Accessibility permission settings', click: () => {
-        if (process.platform === 'darwin') void shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
-        else if (process.platform === 'win32') void shell.openExternal('ms-settings:privacy');
-      } },
-      { type: 'separator' },
-      { label: 'Quit HandoffGlass', click: () => app.quit() }
-    ]);
-    Menu.setApplicationMenu(context);
+    const prefs = await loadPreferences(),zh=prefs.locale==='zh-CN';
+    const open=()=>void showControlCenter();
+    const items=[
+      {label:zh?'打开 HandoffGlass':'Open HandoffGlass',click:open},
+      {label:zh?'当前操作':'Current step',click:()=>{if(current?.mode==='handoff'){panel.showInactive();panel.moveTop();}}},
+      {type:'separator'},
+      {label:zh?'退出 HandoffGlass':'Quit HandoffGlass',role:'quit'}
+    ];
+    const context=Menu.buildFromTemplate(items);
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {label:'HandoffGlass',submenu:[{label:zh?'设置…':'Settings…',accelerator:'CmdOrCtrl+,',click:open},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},
+      {role:'editMenu'},{role:'windowMenu'}
+    ]));
     try {
-      const icon = nativeImage.createFromPath(join(here,'assets','tray.png'));
-      if (!icon.isEmpty()) { tray = new Tray(icon); tray.setToolTip('HandoffGlass'); tray.setContextMenu(context); tray.on('double-click', () => { if (current?.mode === 'handoff') panel.showInactive(); else void showControlCenter(); }); }
-    } catch (error) { console.warn('Tray unavailable:',error.message); }
+      if(!tray){
+        const icon=nativeImage.createFromPath(join(here,'assets',process.platform==='darwin'?'tray.png':'app.png'));
+        if(process.platform==='darwin')icon.setTemplateImage(true);
+        if(!icon.isEmpty()){
+          tray=new Tray(process.platform==='darwin'?icon:icon.resize({width:20,height:20}));
+          tray.setToolTip('HandoffGlass');tray.on('double-click',open);
+        }
+      }
+      tray?.setContextMenu(context);
+    }catch(error){console.warn('Tray unavailable:',error.message);}
   }
   registerSetupIPC();
   registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics'),
@@ -219,6 +186,10 @@ async function startDesktop() {
       scaleFactor:d.scaleFactor,primary:d.id===screen.getPrimaryDisplay().id,
       ...(process.platform==='win32'?{physicalBounds:screen.dipToScreenRect(null,d.bounds)}:{})
     }))});
+  app.setName('HandoffGlass');
+  if(process.platform==='darwin'&&!app.isPackaged)app.dock?.setIcon(join(here,'assets','app.png'));
+  app.on('activate',()=>void showControlCenter());
+  app.on('hg:preferences-changed',()=>void setupTrayAndMenu());
   await setupTrayAndMenu();
   syncDisplays();
   void maybeShowFirstRun().catch(error => console.error('First-run setup:', error.message));

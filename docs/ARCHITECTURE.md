@@ -31,7 +31,7 @@ When the installed Electron GUI is the launcher, `src/desktop/app.mjs` hosts the
 
 ## Interfaces
 
-**Default MCP tools (9):** `screen_displays`, `ui_locate`, `visual_show`, `handoff_request`, `visual_scene_update`, `handoff_status`, `handoff_events`, `handoff_wait`, `handoff_cancel`. Optional local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`) load only with `HANDOFFGLASS_EXTRAS=1`. MCP prompt: `assist-with-ui-step`.
+**Default MCP tools (10):** `screen_displays`, `ui_inspect`, `ui_locate`, `visual_show`, `handoff_request`, `visual_scene_update`, `handoff_status`, `handoff_events`, `handoff_wait`, `handoff_cancel`. Optional local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`) load only with `HANDOFFGLASS_EXTRAS=1`. MCP initialization delivers the invocation workflow; Codex installation also includes the implicitly discoverable `visual-handoff` skill. The optional `assist-with-ui-step` prompt remains available.
 
 The single local Bridge has distinct Agent and desktop tokens, loopback-only socket, Host/Origin checks, bounded JSON and polling, and per-owner access checks. Only Agent routes accept the agent token; desktop state, event delivery and human decisions require the desktop token. `src/local/host-activity.mjs` exposes recent authenticated calls with **caller-declared** host labels (not verified application identity).
 

@@ -3,7 +3,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validDisplay, canLocateAll } from './geometry.mjs';
 import { loadPreferences, hasUserPreferences } from './local/preferences.mjs';
 import { compileBlueprint, BLUEPRINT_NAMES } from './local/blueprints.mjs';
-import { locateNative, validateTarget } from './native/locator.mjs';
+import { locateNative, inspectNative, validateTarget } from './native/locator.mjs';
 import { GroundingError } from './visual/grounding.mjs';
 import { HostActivity } from './local/host-activity.mjs';
 import { layoutSignature, compareObservation } from './native/calibration.mjs';
@@ -47,11 +47,12 @@ function readJson(req, byteLimit = 16384) {
  * No queued stale events: reconnecting UIs always receive the current state.
  */
 export class LocalBridge {
-  constructor(manager, { prepare = async () => {}, headless = false, locator = locateNative } = {}) {
+  constructor(manager, { prepare = async () => {}, headless = false, locator = locateNative, inspector = inspectNative } = {}) {
     this.manager = manager;
     this.prepare = prepare;
     this.headless = headless;
     this.locator = locator;
+    this.inspector = inspector;
     this.token = randomBytes(32).toString('hex'); // Desktop-only capability.
     this.agentToken = randomBytes(32).toString('hex'); // MCP client capability.
     this.server = null;
@@ -115,7 +116,7 @@ export class LocalBridge {
     const pathname = parsed.pathname;
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/desktop/diagnostics': 'GET', '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
-      '/agent/displays': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
+      '/agent/displays': 'GET', '/agent/inspect': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
       '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
@@ -171,6 +172,11 @@ export class LocalBridge {
       if (req.method === 'GET' && pathname === '/agent/displays') {
         await this.prepare();
         return sendJson(res, 200, { displays: this.displays, connected: this.connected, headless: this.headless });
+      }
+      if (req.method === 'GET' && pathname === '/agent/inspect') {
+        await this.prepare();
+        if (!this.headless && !this.connected) return sendJson(res,503,{error:'Desktop unavailable',code:'no_desktop'});
+        return sendJson(res,200,await this.inspector(this.displays));
       }
       if (req.method === 'GET' && pathname === '/agent/context') {
         const preferences = await loadPreferences();

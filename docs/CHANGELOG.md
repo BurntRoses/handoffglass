@@ -1,4 +1,23 @@
+## 0.17.0 · 2026-10-20
+
+- 安装入口缩为一句请求；Agent 在项目内读取安装、配置合并、技能接入与检查要求。
+- 首页和安装页移除命令、分支与测试流程，保留安装和日常使用。
+- MCP 初始化直接交付引导规则：用户只说任务，Agent 自己选择工具并安排步骤。
+- 新增 `ui_inspect`，在授权后查看前台控件；不读取输入值，不截屏、不点击。
+- 会话结果保留下一步动作，紧凑输出也能区分等待、重定位、核验和停止。
+- 「连接 Codex」合并现有配置并安装可自动选择的引导技能，备份变更，保留其他服务。
+- 使用示例改为“教我清空废纸篓”，删除逐步编排工具的长提示词。
+
 ## Unreleased — expressive visual guidance
+
+## 0.16.0 · 2026-10-20
+
+- 重做桌面界面、首次设置、操作浮窗和原生菜单，删除宣传文案、常驻配置与重复说明。
+- 导航改用 SVG；统一应用图标，修复开发模式 Dock 图标和 macOS 菜单栏模板图标。
+- 新安装默认使用极简标注，保留已保存的用户偏好。
+- 外观预览复用生产渲染器；定位授权开关即时保存；诊断按需展开。
+- 补充真实窗口回归、截图和 Codex 废纸篓引导提示词。
+
 
 - Reworked production SVG strokes, labels and feathered spotlight masking; added marker ink, corner brackets, check glyph, overlapping pen loops, halo and vector pointer (13 marks / 9 templates).
 - Added local draw, flow, pulse and still effects with bounded per-mark delay/duration and staggered sequence templates.

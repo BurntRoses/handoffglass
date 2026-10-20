@@ -20,34 +20,41 @@ function png(size,pixels){
   return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',header),chunk('IDAT',deflateSync(bytes,{level:9})),chunk('IEND',Buffer.alloc(0))]);
 }
 function roundRect(x,y,cx,cy,w,h,r){const dx=Math.abs(x-cx)-w/2+r;const dy=Math.abs(y-cy)-h/2+r;return Math.hypot(Math.max(dx,0),Math.max(dy,0))+Math.min(Math.max(dx,dy),0)-r;}
-function segment(x,y,ax,ay,bx,by){const dx=bx-ax,dy=by-ay;const t=clamp(((x-ax)*dx+(y-ay)*dy)/(dx*dx+dy*dy));return Math.hypot(x-ax-dx*t,y-ay-dy*t);}
-function composite(base,top,a){const k=clamp(a);for(let i=0;i<3;i++)base[i]=base[i]*(1-k)+top[i]*k;}
-function paint(x,y){
-  const grad=clamp((x+y)/176),tint=[189-53*grad,255-69*grad,232+8*grad];
-  const center=Math.hypot((x-44)/85,(y-35)/86);const color=[12+12*(1-center),19+30*(1-center),29+33*(1-center)];
-  const bg=roundRect(x,y,44,44,86,86,24);
-  if(bg>=0)return [0,0,0,0];
-  composite(color,[103,151,164],clamp(.7-Math.abs(bg+1)/1.6)*.24);
-  const outer=roundRect(x,y,40,44,40,48,7),outerLine=clamp(.88-Math.abs(outer)/1.4);
-  composite(color,tint,outerLine*.75);
-  const back=roundRect(x,y,51.5,47.5,34,40,7);composite(color,tint,clamp(.85-Math.abs(back)/1.25)*.56);
-  const cross=Math.max(clamp(1.55-segment(x,y,30,48,58,48)),clamp(1.55-segment(x,y,44,34,44,61)));
-  composite(color,tint,cross);
-  const ring=Math.hypot(x-44,y-48);composite(color,[16,46,52],clamp(9.4-ring));
-  composite(color,tint,clamp(1.5-Math.abs(ring-8.5)));
-  composite(color,[234,255,247],clamp(3-ring));
-  return [...color.map(v=>Math.round(v)),255];
+// The open circle and separate point match assets/brandmark.svg.
+function arcDistance(x,y){
+ const dx=x-44,dy=y-44,a=Math.atan2(dy,dx)*180/Math.PI;
+ if(a>-78&&a<-30)return Math.min(Math.hypot(x-59.588457,y-35),Math.hypot(x-47.74241,y-26.393343));
+ return Math.abs(Math.hypot(dx,dy)-18);
 }
-function raster(size){
-  const out=Buffer.alloc(size*size*4);const samples=size<=64?3:1;const alpha=1/(samples*samples);
-  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
-    const mix=[0,0,0,0];
-    for(let j=0;j<samples;j++)for(let i=0;i<samples;i++){
-      const rgba=paint((x+(i+.5)/samples)*88/size,(y+(j+.5)/samples)*88/size);
-      for(let k=0;k<4;k++)mix[k]+=rgba[k]*alpha;
-    }
-    for(let k=0;k<4;k++)out[(y*size+x)*4+k]=Math.round(mix[k]);
-  }return png(size,out);
+function paint(x,y){
+ const bg=roundRect(x,y,44,44,70,70,16);
+ if(bg>1)return [0,0,0,0];
+ const cover=clamp(.5-bg),color=[39,47,42];
+ const ring=clamp(2.1-arcDistance(x,y));
+ for(let i=0;i<3;i++)color[i]=color[i]*(1-ring)+[231,239,228][i]*ring;
+ const dot=clamp(3.6-Math.hypot(x-61,y-26));
+ for(let i=0;i<3;i++)color[i]=color[i]*(1-dot)+[156,204,177][i]*dot;
+ return [...color,cover*255];
+}
+function trayPaint(x,y){
+ x=44+(x-44)*.62;y=44+(y-44)*.62;
+ const a=clamp(1.6-arcDistance(x,y)),b=clamp(3.6-Math.hypot(x-61,y-26));
+ return [0,0,0,255*Math.max(a,b)];
+}
+function raster(size,painter=paint,extent=88){
+ const out=Buffer.alloc(size*size*4),samples=size<=64?4:2;
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+  const mix=[0,0,0,0];
+  for(let j=0;j<samples;j++)for(let i=0;i<samples;i++){
+   const rgba=painter((x+(i+.5)/samples)*extent/size,(y+(j+.5)/samples)*extent/size),a=rgba[3]/255;
+   for(let k=0;k<3;k++)mix[k]+=rgba[k]*a;
+   mix[3]+=a;
+  }
+  const offset=(y*size+x)*4;
+  for(let k=0;k<3;k++)out[offset+k]=Math.round(mix[3]?mix[k]/mix[3]:0);
+  out[offset+3]=Math.round(mix[3]*255/(samples*samples));
+ }
+ return png(size,out);
 }
 function ico(images){
   const header=Buffer.alloc(6);header.writeUInt16LE(1,2);header.writeUInt16LE(images.length,4);let offset=6+16*images.length;
@@ -65,6 +72,9 @@ const sizes=[16,32,48,64,128,256,512,1024];const results=[];
 for(const n of sizes){const data=raster(n);results.push({n,data}); if([32,256,512,1024].includes(n))await writeFile(join(output,`icon-${n}.png`),data);}
 await Promise.all([
   writeFile(join(output,'icon.ico'),ico(results.filter(x=>x.n<=256))),
-  writeFile(join(output,'icon.icns'),icns(results.filter(x=>x.n!==48)))
+  writeFile(join(output,'icon.icns'),icns(results.filter(x=>x.n!==48))),
+  writeFile(join(root,'src/desktop/assets/app.png'),results.find(x=>x.n===256).data),
+  writeFile(join(root,'src/desktop/assets/tray.png'),raster(22,trayPaint)),
+  writeFile(join(root,'src/desktop/assets/tray@2x.png'),raster(44,trayPaint))
 ]);
 console.log(`Brand icons generated in ${output}`);

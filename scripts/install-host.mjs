@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-/** Safe opt-in JSON host configuration: preview by default, backup + atomic merge only with --apply. */
+/** Safe opt-in host configuration: preview by default, backup + atomic merge only with --apply. */
 import { homedir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { readFile, mkdir, lstat, writeFile, rename, rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { mergeHostJson } from '../src/host-install.mjs';
+import { installCodex } from '../src/codex-install.mjs';
 
 const args = process.argv.slice(2);
 const host = args.find(x => !x.startsWith('--'));
@@ -28,16 +29,23 @@ function destination() {
       if (process.platform === 'win32' && process.env.APPDATA) return join(process.env.APPDATA, 'Claude', 'claude_desktop_config.json');
       throw new Error('Claude Desktop installer supports macOS and Windows; use configure for Claude Code');
     case 'opencode': throw new Error('OpenCode JSONC may contain comments; use configure.mjs opencode and merge manually');
-    default: throw new Error('Host not eligible for JSON installer; use npm run configure for Codex/other hosts');
+    default: throw new Error('Host not eligible for this installer; use npm run configure');
   }
 }
 if (!host || args.some(x => x.startsWith('--') && !['--apply','--replace','--compact','--workspace'].includes(x)) ||
     (workAt !== -1 && (!args[workAt+1] || args[workAt+1].startsWith('--')))) {
-  console.error('Usage: node scripts/install-host.mjs <cursor|cline|windsurf|gemini|copilot|zed|vscode|claude> [--workspace PATH] [--compact] [--apply] [--replace]');
+  console.error('Usage: node scripts/install-host.mjs <codex|cursor|cline|windsurf|gemini|copilot|zed|vscode|claude> [--workspace PATH] [--compact] [--apply] [--replace]');
   process.exit(2);
 }
 let tmp;
 try {
+  if (host === 'codex') {
+    const result=await installCodex({apply,replace,configOptions:{compact}});
+    console.log(`${apply ? 'Updated' : 'DRY RUN — would update'} ${result.configPath}`);
+    console.log(`${apply ? 'Installed' : 'Would install'} visual-handoff at ${result.skillPath}`);
+    console.log(apply ? 'Restart Codex to load the tools and skill.' : 'Re-run with --apply to write. No files were modified.');
+    process.exit(0);
+  }
   const file = destination();
   let prior = '';
   let existed = false;

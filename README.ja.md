@@ -1,42 +1,36 @@
 <div align="center">
 
-<img src="assets/brandmark.svg" alt="HandoffGlass" width="76" />
+<img src="assets/brandmark.svg" alt="HandoffGlass" width="76" height="76" />
 
 # HandoffGlass
 
-**次の一手を、見えるかたちに。**
+**次の一手を、画面に。**
 
-エージェントの次の操作をデスクトップに表示し、人の判断を受け取り、作業を再開します。
+人の操作が必要なとき、エージェントが画面上で場所を示し、完了を待って作業を続けます。
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
+[English](README.md) · [简体中文](README.zh-CN.md) · [**日本語**](README.ja.md)
 
-<img src="assets/hero.svg" alt="Desktop guidance" width="100%" />
+<img src="assets/interaction-flow.svg" alt="エージェントが案内し、人が操作して、作業を続ける" width="100%" />
 
 </div>
 
-## 見せる。選ぶ。続ける。
+## インストール
 
-HandoffGlass はローカルの AI エージェントとデスクトップをつなぎます。矢印、リング、スポットライト、手描き風アニメーションで対象を示し、専用パネルで操作結果を受け取ります。
+エージェントに送ってください。
 
-<img src="assets/interaction-flow.svg" alt="Interaction flow" width="100%" />
-
-## Codex に引き継ぐ
-
-[Codex 引き継ぎガイド](docs/CODEX_HANDOFF.md)を渡してください。Codex が GitHub からの取得、環境構築、実機テスト、修正、PR 作成まで進めます。
-
-## クイックスタート
-
-```bash
-npm ci
-npm run verify
-npm run configure
-npm run desktop:demo
+```text
+https://github.com/BurntRoses/handoffglass をインストールしてください。
 ```
 
-## エージェント連携
+## 使い方
 
-Codex · Claude · Cursor · VS Code · Gemini CLI · Trae · Cline · Windsurf · OpenCode · Zed · DeepSeek Harness · WorkBuddy
+「ゴミ箱を空にする方法を教えて」と伝えるだけです。他の作業中も、人の操作が必要になれば画面上で案内できます。
 
-[連携一覧](docs/COMPATIBILITY.md) · [設計](docs/ARCHITECTURE.md) · [ビジュアル](docs/VISUAL_LANGUAGE.md) · [文書一覧](docs/INDEX.md)
+<details>
+<summary>ドキュメント</summary>
 
-<sub>非公開開発リポジトリ · v0.15 · UNLICENSED</sub>
+[エージェント向けインストール手順](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [その他のホスト](docs/INTEGRATIONS.md) · [開発](docs/CODEX_HANDOFF.md) · [一覧](docs/INDEX.md)
+
+ローカル macOS / Windows · MCP 対応エージェント · 非公開リポジトリ · UNLICENSED
+
+</details>

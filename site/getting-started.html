@@ -1,13 +1,33 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#0b121a"/><title>Get started · HandoffGlass</title><meta name="description" content="Install HandoffGlass, connect a local MCP agent and begin a visual human handoff."/><link rel="icon" type="image/svg+xml" href="../assets/brandmark.svg"/><link rel="stylesheet" href="./style.css"/><link rel="stylesheet" href="./guide.css"/><script src="./guide.mjs" type="module" defer></script></head><body>
-<div class="guide-halo" aria-hidden="true"></div><header class="guide-header"><a class="guide-brand" href="./index.html"><img src="../assets/brandmark.svg" width="36" height="36" alt=""/><b>handoffglass</b></a><nav class="guide-top"><a href="./index.html" id="home">← Home</a><div class="language"><button data-lang="en" aria-pressed="true">EN</button><button data-lang="zh">中</button><button data-lang="ja">日</button></div><a href="https://github.com/BurntRoses/handoffglass" target="_blank" rel="noopener noreferrer">GitHub ↗</a></nav></header>
-<main class="guide-container"><div class="guide-head"><p class="guide-kicker" id="kicker">THE FIRST FIVE MINUTES</p><h1 id="title">A small setup. <em>A clearer next step.</em></h1><p id="lead">Run locally, connect your agent, then try a visual handoff. No account or remote server is involved.</p></div>
-<div class="guide-grid"><aside class="guide-aside"><span id="tocLabel">ON THIS PAGE</span><a href="#install" id="tocInstall">01 · Install</a><a href="#connect" id="tocConnect">02 · Connect</a><a href="#check" id="tocCheck">03 · Check</a><a href="#next" id="tocNext">04 · Go further</a><div class="guide-mini"><span class="green-signal"></span><span id="preview">Private engineering preview</span></div></aside>
-<div class="guide-content"><section id="install" class="guide-section"><div class="guide-num">01 / 04</div><h2 id="installTitle">Choose how to run it.</h2><p id="installBody">Source mode requires Node.js 22+. Desktop previews are unsigned and available through GitHub Actions.</p><div class="choice-row"><button class="choice is-active" data-mode="source" id="sourceButton">Source · Node 22+</button><button class="choice" data-mode="desktop" id="desktopButton">Desktop preview</button></div><div class="guide-code"><div><span id="codeLabel">TERMINAL</span><button class="copy-action" id="copyCode">Copy ↗</button></div><pre id="codeContent">git clone https://github.com/BurntRoses/handoffglass.git
-cd handoffglass
-npm ci
-npm run verify</pre></div><p class="explain" id="installNote">Complete desktop use requires an interactive Windows or macOS session. Linux GUI support is not yet verified.</p></section>
-<section id="connect" class="guide-section"><div class="guide-num">02 / 04</div><h2 id="connectTitle">Connect your agent.</h2><p id="connectBody">Choose a host. The config generator uses your machine's real installation path.</p><div class="fieldline"><label for="host" id="hostLabel">YOUR AGENT</label><select id="host"><option value="claude">Claude Desktop / Code</option><option value="codex">Codex CLI / IDE</option><option value="cursor">Cursor</option><option value="vscode">VS Code / Copilot</option><option value="trae">TRAE</option><option value="workbuddy">Tencent WorkBuddy</option><option value="deepseek">DeepSeek Harness</option><option value="gemini">Gemini CLI</option><option value="opencode">OpenCode</option><option value="cline">Cline</option><option value="windsurf">Windsurf</option><option value="zed">Zed</option></select></div><div class="guide-code"><div><span id="configLabel">GENERATE YOUR CONFIG</span><button class="copy-action" id="copyConfig">Copy ↗</button></div><pre id="hostCommand">node scripts/configure.mjs claude --compact</pre></div><p class="explain" id="connectNote">Paste the printed settings into your agent's MCP configuration and reload its tools. DeepSeek and WorkBuddy also have optional native integrations.</p></section>
-<section id="check" class="guide-section"><div class="guide-num">03 / 04</div><h2 id="checkTitle">Check the connection.</h2><p id="checkBody">Verify the local service before testing on your actual screen.</p><div class="guide-code"><div><span id="verifyLabel">LOCAL CHECKS</span></div><pre>npm run readiness -- --json
-npm run test:integration
-npm run desktop:demo</pre></div><div class="scope-note"><span>◎</span><p id="checkNote">The demo requires a real desktop. Running Node tests alone cannot prove cursor passthrough, window focus or OS permission behaviour.</p></div></section>
-<section id="next" class="guide-section"><div class="guide-num">04 / 04</div><h2 id="nextTitle">Make it your own.</h2><p id="nextBody">Choose a visual style and preview templates before inviting your agent into the workflow.</p><div class="link-grid"><a href="https://github.com/BurntRoses/handoffglass/blob/main/docs/INTEGRATIONS.md" id="integrationsLink" target="_blank" rel="noopener noreferrer">Integration guide ↗</a><a href="https://github.com/BurntRoses/handoffglass/blob/main/examples/scene-gallery.html" target="_blank" rel="noopener noreferrer" id="galleryLink">Scene gallery ↗</a><a href="https://github.com/BurntRoses/handoffglass/blob/main/docs/DESKTOP_QA.md" id="qaLink" target="_blank" rel="noopener noreferrer">Desktop QA ↗</a></div></section></div></div></main><footer class="guide-footer"><span>handoffglass</span><a href="./index.html" id="backHome">Back to experience ↗</a></footer></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="theme-color" content="#0b121a" />
+<title>Install · HandoffGlass</title>
+<meta name="description" content="Ask your agent to install HandoffGlass, then tell it what you need." />
+<link rel="icon" type="image/svg+xml" href="../assets/brandmark.svg" />
+<link rel="stylesheet" href="./style.css" />
+<link rel="stylesheet" href="./guide.css" />
+<script src="./guide.mjs" type="module" defer></script>
+</head>
+<body>
+<header class="guide-header">
+<a class="guide-brand" href="./index.html"><img src="../assets/brandmark.svg" width="36" height="36" alt="" /><b>handoffglass</b></a>
+<nav class="guide-top"><a href="./index.html" id="home">Home</a><div class="language"><button data-lang="en" aria-pressed="true">EN</button><button data-lang="zh">中</button><button data-lang="ja">日</button></div><a href="https://github.com/BurntRoses/handoffglass" target="_blank" rel="noopener noreferrer">GitHub</a></nav>
+</header>
+<main class="guide-container">
+<section class="guide-section">
+<h1 id="title">Install</h1>
+<p id="lead">Send this to your agent.</p>
+<div class="guide-code"><div><span id="codeLabel">To your agent</span><button class="copy-action" id="copyCode" type="button">Copy</button></div><pre id="codeContent">Please install https://github.com/BurntRoses/handoffglass</pre></div>
+</section>
+<section class="guide-section">
+<h2 id="useTitle">Use</h2>
+<p class="example" id="example">Show me how to empty the Trash.</p>
+<p id="useBody">During other tasks, your agent can also guide you when a step needs your input.</p>
+</section>
+</main>
+<footer class="guide-footer"><a href="./index.html" id="backHome">Home</a></footer>
+</body>
+</html>

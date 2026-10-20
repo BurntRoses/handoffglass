@@ -7,7 +7,7 @@
   "description_en": "Grounded local desktop guidance and human-controlled agent handoff.",
   "source": "handoffglass-local",
   "type": "mcp",
-  "version": "0.15.0",
+  "version": "0.17.0",
   "minWorkbuddyVersion": "5.0.0",
   "examples_zh": [
     "帮我在电脑屏幕上指出需要检查的权限",
