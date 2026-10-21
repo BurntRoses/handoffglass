@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('hgCenter',Object.freeze({
   permission:()=>ipcRenderer.invoke('hg:center:permission'),
   test:()=>ipcRenderer.invoke('hg:center:test'),
   displays:()=>ipcRenderer.invoke('hg:center:displays'),
+  displaySettings:()=>ipcRenderer.invoke('hg:center:display-settings'),
   report:code=>ipcRenderer.invoke('hg:center:report',code),
   lifecycleStatus:host=>ipcRenderer.invoke('hg:center:lifecycle-status',host),
   cleanup:(host,confirm)=>ipcRenderer.invoke('hg:center:cleanup',host,confirm)

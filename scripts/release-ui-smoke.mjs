@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
-import {app} from 'electron';
+import {app,shell} from 'electron';
 import {HandoffManager} from '../src/core.mjs';
 import {LocalBridge} from '../src/bridge.mjs';
 import {savePreferences,loadPreferences} from '../src/local/preferences.mjs';
@@ -17,6 +17,9 @@ void app.whenReady().then(async()=>{
  app.setPath('home',dir);
  delete process.env.HANDOFFGLASS_ENABLE_ACCESSIBILITY;
  const manager=new HandoffManager(),bridge=new LocalBridge(manager),errors=[];
+ const originalOpenExternal=shell.openExternal,openedSettings=[];let settingsFail=false;
+ // Exercise the real IPC without opening or changing the user's OS settings.
+ shell.openExternal=async url=>{openedSettings.push(url);if(settingsFail)throw Error('Settings unavailable');};
  let center,setup;
  try{
   await mkdir(output,{recursive:true});await savePreferences({theme:'light',visualStyle:'minimal'},dir);await bridge.start();
@@ -89,6 +92,29 @@ void app.whenReady().then(async()=>{
   assert.equal((await loadPreferences(dir)).visualStyle,'handdrawn');
   assert.equal(await js('document.querySelector("#motion").selectedOptions[0].textContent'),'Gentle');
   await page('diagnostics');assert.equal(await js('document.querySelector(".diagnostics-details").open'),false);
+  await until(async()=>await js('document.querySelectorAll("#displayMap .monitor-rect").length>0'),'Display map did not load');
+  assert.equal(await js('document.querySelector(".display-card").closest("details")'),null,'Display setup is hidden inside technical details');
+  assert.match(await js('document.querySelector("#displayCount").textContent'),/\d+ displays? detected/);
+  const settingsUrl=process.platform==='darwin'?'x-apple.systempreferences:com.apple.Displays-Settings.extension':
+    process.platform==='win32'?'ms-settings:display':null;
+  await js('document.querySelector("#displaySettings").click()');
+  await until(async()=>await js('!document.querySelector("#displaySettings").disabled'),'Settings request did not finish');
+  if(settingsUrl){
+   assert.deepEqual(openedSettings,[settingsUrl]);
+   assert.match(await js('document.querySelector("#displaySettingsResult").textContent'),/Finish arranging/);
+   await js('window.hgCenter.displaySettings("https://invalid.example/")');
+   assert.deepEqual(openedSettings,[settingsUrl,settingsUrl],'Renderer changed the settings destination');
+  }else assert.deepEqual(openedSettings,[]);
+  settingsFail=true;await js('document.querySelector("#displaySettings").click()');
+  await until(async()=>await js('!document.querySelector("#displaySettings").disabled'),'Settings failure did not finish');
+  assert.match(await js('document.querySelector("#displaySettingsResult").textContent'),/manually/);
+  await capture('display-settings-unavailable');settingsFail=false;
+  if(settingsUrl){
+   await js('document.querySelector("#displaySettings").click()');
+   await until(async()=>await js('!document.querySelector("#displaySettings").disabled'),'Settings retry did not finish');
+  }
+  await js('document.querySelector("#refreshDisplays").click()');
+  await capture('displays-dark');
   await js('document.querySelector("#accessibility").click()');
   await until(()=>getAccessibilityConsent({dir,env:{}}),'Permission checkbox did not save');
   await capture('help-dark');
@@ -96,6 +122,11 @@ void app.whenReady().then(async()=>{
   await until(async()=>await js('document.documentElement.lang==="zh-CN"'),'Locale did not restore');
   center.setSize(740,620);await capture('appearance-small');
   assert.equal(await js('document.documentElement.scrollWidth>innerWidth'),false,'Small window overflowed');
+  await page('diagnostics');await js('document.querySelector(".display-card").scrollIntoView({block:"start"})');
+  await capture('displays-small');
+  assert.equal(await js('document.documentElement.scrollWidth>innerWidth'),false,'Display guide overflowed');
+  assert.match(await js('document.querySelector("#displayCount").textContent'),/检测到 \d+ 块屏幕/);
+  assert.equal(await js('document.querySelector("#displayMap").getAttribute("aria-label")'),'显示器相对位置');
   const {showSetup}=await import('../src/desktop/setup.mjs');setup=await showSetup();
   setup.webContents.on('console-message',(_e,_l,message)=>{if(/Uncaught|Refused to|Failed to load/i.test(message))errors.push(message);});
   await until(async()=>await setup.webContents.executeJavaScript('!document.querySelector("#copy").disabled'),'Setup did not load');
@@ -134,6 +165,6 @@ void app.whenReady().then(async()=>{
   manager.resolve(continuous.id,'completed');manager.verify(continuous.id,'local',true,true);
   await until(()=>!panel.isVisible(),'Final verified session did not close');
   assert.deepEqual(errors,[],'Renderer errors');
-  console.log(`PASS release UI: Codex install/remove/reconnect, WorkBuddy bundle preparation/removal in center and setup, immediate global disable, continuous report/verification/next-step, choice cards in disposable home, live preview, preferences, language, permission, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
- }finally{setup?.close();center?.close();manager.close();await bridge.stop();await rm(dir,{recursive:true,force:true});}
+  console.log(`PASS release UI: Codex install/remove/reconnect, WorkBuddy bundle preparation/removal in center and setup, immediate global disable, continuous report/verification/next-step, choice cards in disposable home, live preview, preferences, language, permission, visible display setup, fixed settings URL and failure recovery, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
+ }finally{shell.openExternal=originalOpenExternal;setup?.close();center?.close();manager.close();await bridge.stop();await rm(dir,{recursive:true,force:true});}
 }).then(()=>app.exit(0),error=>{console.error(error);app.exit(1);});

@@ -5,7 +5,7 @@ Use this procedure when the user asks to install this repository. The request is
 ## Install
 
 1. Identify the current agent host and the machine with the user's desktop. Desktop guidance supports local macOS and Windows sessions. A cloud-only host cannot guide a different machine's screen through this local service. Do not claim it is connected in that case.
-2. Use the default `main` branch of `https://github.com/BurntRoses/handoffglass`. Reuse an existing installation after verifying its origin; update only with a clean working tree and a fast-forward. Preserve local changes. For a new installation, clone into a persistent per-user application directory, not a temporary checkout. The MCP configuration references this directory, so keep it after installation. Check repository access. If GitHub denies access, use existing authorized authentication or report the access requirement without requesting a token in chat. Do not claim a private repository is available to every community user.
+2. Use the default `main` branch of `https://github.com/BurntRoses/handoffglass`, unless the user supplies a specific branch or commit for testing. Honor that ref and record the installed commit. Reuse an existing installation after verifying its origin; update only with a clean working tree and a fast-forward. Preserve local changes. For a new installation, clone into a persistent per-user application directory, not a temporary checkout. The MCP configuration references this directory, so keep it after installation. Check repository access. If GitHub denies access, use existing authorized authentication or report the access requirement without requesting a token in chat. Do not claim a private repository is available to every community user.
 3. Check Node.js 22+ and npm. Reuse an existing suitable runtime, or install a maintained Node.js release into the user's application directory using the available package manager or official distribution. Keep the Node executable available at a stable absolute path. Do not replace an unrelated system runtime.
 4. In the repository, run:
 
@@ -29,6 +29,18 @@ node scripts/install-host.mjs codex --compact --apply
 This merges the HandoffGlass MCP entry into `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`) and installs the implicitly discoverable `visual-handoff` skill under `~/.agents/skills/`. Other settings are preserved and changed files are backed up. It uses the running Node executable and repository's absolute path.
 
 For an upgrade, inspect the existing HandoffGlass entry and skill first. Add `--replace` only when updating this project's existing integration; preserve deliberate customizations. If the installer rejects an unusual TOML layout, inspect and merge only the HandoffGlass table while preserving unrelated values, then install the same bundled skill. Do not replace the entire configuration.
+
+### WorkBuddy
+
+Generate the local **MCP + Skill** connector from the persistent installation:
+
+```bash
+npm run connector:workbuddy
+```
+
+The output is `dist/workbuddy-local/`, containing one MCP server, connector metadata, an icon and the guidance Skill. Its executable paths belong to this machine. Use WorkBuddy's documented local-connector import flow, then guide the user through any trust, enablement or reload steps shown by that version. Generating the folder does not install or enable it in WorkBuddy. Do not guess private host configuration paths, combine this connector with a CLI, or claim these user-controlled steps happened automatically. HandoffGlass itself does not require OAuth or an account binding. If WorkBuddy requests a host-side action, report its actual state.
+
+For the packaged app, **Connections → WorkBuddy → Prepare connector → Open folder** generates the equivalent local bundle. After import and host reload, make one actual read-only tool call before reporting the connection verified. See [WorkBuddy connector details](CHINA_HARNESS_INTEGRATION.md#workbuddy-local-mcp--skill).
 
 ### Other local MCP hosts
 

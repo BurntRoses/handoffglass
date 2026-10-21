@@ -58,6 +58,12 @@ The application does not scan or delete host memories, other MCP configurations,
 
 ## Gate a supported public release
 
+Signing is independent of the source license. Unsigned engineering previews and source installations are allowed by this project's release policy. The following gate is our quality requirement for a supported public installer; it is not a claim that source-available or open-source projects legally must buy a certificate.
+
+For macOS distribution outside the App Store, plan for Developer ID signing and notarization. Apple allows individual enrollment as well as organizations; a company is not required. Apple Developer Program membership is USD 99 per year, or the local enrollment price. See [Apple enrollment](https://developer.apple.com/programs/enroll/) and [Developer ID](https://developer.apple.com/developer-id/).
+
+Windows public signing requires a suitable certificate or signing service. Cost and individual eligibility vary by provider and country. Microsoft's Artifact Signing currently accepts individual Public Trust applicants in the US and Canada only; its organization list is broader. It requires a paid Azure subscription, and signing alone does not guarantee that SmartScreen warnings disappear. Verify [current eligibility](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart), [billing and SmartScreen FAQ](https://learn.microsoft.com/en-us/azure/artifact-signing/faq) and [pricing](https://azure.microsoft.com/en-us/pricing/details/trusted-signing/) before choosing a provider. Do not assume an individual in another country is eligible or quote a price not shown for their plan.
+
 ```sh
 npm run release:check -- --public
 ```

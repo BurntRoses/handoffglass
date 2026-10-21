@@ -58,9 +58,15 @@
         <div class="permission-row"><label class="consent"><input type="checkbox" id="accessibility" form="preferences"><span data-i="inspect">允许定位屏幕控件</span></label><button type="button" class="quiet-button" id="permission" data-i="openPermission">系统设置</button></div>
         <p class="permission-hint" data-i="inspectDesc">定位需要辅助功能权限。</p>
         <div class="selftest"><div class="selftest-head"><strong id="selftestTitle" data-i="selfTestTitle">连接检查</strong><button type="button" class="quiet-button" id="testMcp" data-i="selfTestRun">检查</button></div><p class="selftest-result" id="testResult" role="status" aria-live="polite"></p><p class="selftest-hint" id="testHint"></p></div>
+        <section class="display-card card" aria-labelledby="displayTitle">
+          <div class="selftest-head"><h2 id="displayTitle" data-i="displayTitle">多屏使用</h2><span id="displayCount" class="display-count" role="status" aria-live="polite"></span></div>
+          <ol class="display-steps"><li id="displaySetupMode"></li><li data-i="displayArrange">在系统设置中，把屏幕排列成与桌上一致的位置。</li><li data-i="displayTry">把一个普通窗口移到另一块屏幕，再发起引导，检查提示是否跟随。</li></ol>
+          <div class="display-actions"><button type="button" class="quiet-button" id="displaySettings" data-i="displaySettings">打开显示设置</button><button type="button" class="quiet-button" id="refreshDisplays" data-i="displayRefresh">刷新检测</button></div>
+          <p id="displaySettingsResult" class="selftest-hint" role="status" aria-live="polite"></p>
+          <svg id="displayMap" role="img" aria-label="显示器相对位置" data-label="displayMapLabel" viewBox="0 0 700 260"></svg><p class="display-note" id="displayNote"></p><div class="layout-health" id="layoutHealth" role="status" aria-live="polite"></div>
+        </section>
         <details class="disclosure diagnostics-details"><summary data-i="technicalDetails">详细信息</summary>
           <div class="diagnosis"><div class="diag-row"><span data-i="checkBroker">本地服务</span><strong id="diagBroker">—</strong></div><div class="diag-row"><span data-i="checkDesktop">桌面引导</span><strong id="diagDesktop">—</strong></div><div class="diag-row"><span data-i="checkAgent">最近请求</span><strong id="diagAgent">—</strong></div><div class="diag-row"><span data-i="checkDisplays">显示器</span><strong id="diagDisplays">—</strong></div><div class="diag-row"><span data-i="checkSession">当前操作</span><strong id="diagSession">—</strong></div><div class="diag-row"><span data-i="checkPermission">控件定位</span><strong id="diagPermission">—</strong></div></div>
-          <div class="display-card"><h2 id="displayTitle" data-i="displayTitle">显示器</h2><svg id="displayMap" role="img" aria-label="Relative monitor layout" viewBox="0 0 700 260"></svg><p class="display-note" id="displayNote"></p><div class="layout-health" id="layoutHealth" role="status" aria-live="polite"></div></div>
           <h2 id="timelineTitle" data-i="timelineTitle">操作记录</h2><ol id="handoffTimeline" class="timeline-list" aria-live="polite"></ol>
           <div class="card-bottom"><span class="version" id="appVersion">—</span><button type="button" class="quiet-button" id="copyReport" data-i="reportCopy">复制诊断信息</button></div>
         </details>

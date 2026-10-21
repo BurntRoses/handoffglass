@@ -11,7 +11,17 @@ Open the app, or choose **Open HandoffGlass** from the menu bar. Double-clicking
 | Guidance | Desktop readiness, current step and recent requests | Authenticated loopback read-only diagnostics |
 | Connections | Connect Codex; collapsed configuration preview; recent calls | Merges one MCP server and installs the guidance skill after a click; other hosts use configuration copy |
 | Appearance | Live drawing preview, theme, locale, style, motion and spacing | Private local preferences; explicit user save |
-| Help | Immediate lookup opt-in, connection check; collapsed diagnostics, displays and support report | Desktop runtime display geometry; no screen pixels or task content |
+| Help | Lookup opt-in, connection check, visible multi-display setup; collapsed diagnostics and support report | Desktop runtime display geometry; no screen pixels or task content |
+
+## Set up multiple displays
+
+In **Help → Displays**, connect an external monitor and choose an extended desktop in system settings (Windows: **Win + P → Extend**). A laptop's built-in display plus one external monitor counts as two displays. Mirroring repeats the same content.
+
+Use **Open display settings** to arrange the screens as they sit on your desk. The button opens a fixed local settings destination on macOS or Windows; it does not change arrangement, scaling or permissions. If the system cannot open it, the card shows the manual settings path. Return to the app and choose **Refresh displays**; returning focus and the top refresh button also update the map. Guidance uses the system-reported coordinates without asking for manual pixel values.
+
+Move an ordinary window to each screen and ask the Agent for guidance. Check that marks follow the target, including after moving/resizing the window. The map confirms detection and layout metadata only. Physical acceptance separately checks actual monitors, negative coordinates, mixed DPI, hotplug and native tracking; see [desktop QA](DESKTOP_QA.md).
+
+Official setup instructions: [Apple — extend or mirror the desktop](https://support.apple.com/guide/mac-help/extend-mirror-mac-desktop-multiple-displays-mchlb5f905a1/mac), [Microsoft — multiple monitors](https://support.microsoft.com/en-us/windows/how-to-use-multiple-monitors-in-windows-329c6962-5a4d-b481-7baa-bec9671f728a).
 
 ## Correct reading of connection status
 

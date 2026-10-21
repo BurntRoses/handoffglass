@@ -87,9 +87,23 @@ const lex = {
   "selfTestTimeout": "连接超时",
   "selfTestTimeoutHint": "请重启 HandoffGlass 后重试。",
   "selfTestBusy": "正在检查…",
-  "displayTitle": "显示器",
+  "displayTitle": "多屏使用",
   "displayNone": "未检测到显示器",
-  "displayNote": "",
+  "displayNote": "图示来自系统报告的位置；是否准确跟随，还需在实际屏幕上试用。",
+  "displayCount": "检测到 {count} 块屏幕",
+  "displayOne": "检测到 1 块屏幕",
+  "displayMapLabel": "显示器相对位置",
+  "displaySetupMac": "接上外屏，在显示器设置中选择扩展显示器。镜像会显示相同内容。",
+  "displaySetupWindows": "接上外屏，按 Win + P 选择“扩展”。",
+  "displaySetupOther": "接上外屏，在系统显示设置中选择扩展桌面。",
+  "displayArrange": "在系统设置中，把屏幕排列成与桌上一致的位置。",
+  "displayTry": "把一个普通窗口移到另一块屏幕，再发起引导，检查提示是否跟随。",
+  "displaySettings": "打开显示设置",
+  "displayRefresh": "刷新检测",
+  "displaySettingsOpened": "在系统设置中完成调整，返回后刷新检测。",
+  "displaySettingsMacFailed": "请手动打开系统设置 → 显示器。",
+  "displaySettingsWindowsFailed": "请手动打开设置 → 系统 → 屏幕。",
+  "displaySettingsFailed": "请手动打开系统的显示设置。",
   "displayLabel": "显示器",
   "reportCopy": "复制诊断信息",
   "reportCopied": "已复制",
@@ -98,7 +112,7 @@ const lex = {
   "ago": "秒前",
   "calls": "次请求",
   "unknownHost": "其他应用",
-  "layoutConsistent": "布局正常",
+  "layoutConsistent": "显示布局数据一致",
   "layoutInconsistent": "显示器布局异常，请重新连接。",
   "layoutUnknown": "布局暂不可用",
   "timelineTitle": "操作记录",
@@ -223,7 +237,21 @@ const lex = {
   "selfTestBusy": "Checking…",
   "displayTitle": "Displays",
   "displayNone": "No displays detected",
-  "displayNote": "",
+  "displayNote": "The diagram uses positions reported by your system. Try guidance on each screen to check tracking.",
+  "displayCount": "{count} displays detected",
+  "displayOne": "1 display detected",
+  "displayMapLabel": "Relative display positions",
+  "displaySetupMac": "Connect a display, then choose extended display in Displays settings. Mirroring shows the same content.",
+  "displaySetupWindows": "Connect a display, then press Win + P and choose Extend.",
+  "displaySetupOther": "Connect a display and choose an extended desktop in system display settings.",
+  "displayArrange": "In system settings, arrange the displays to match their positions on your desk.",
+  "displayTry": "Move an ordinary window to the other screen, then start guidance and check that the marks follow.",
+  "displaySettings": "Open display settings",
+  "displayRefresh": "Refresh displays",
+  "displaySettingsOpened": "Finish arranging your displays in system settings, then return and refresh.",
+  "displaySettingsMacFailed": "Open System Settings → Displays manually.",
+  "displaySettingsWindowsFailed": "Open Settings → System → Display manually.",
+  "displaySettingsFailed": "Open your system display settings manually.",
   "displayLabel": "Display",
   "reportCopy": "Copy diagnostics",
   "reportCopied": "Copied",
@@ -232,7 +260,7 @@ const lex = {
   "ago": "seconds ago",
   "calls": "requests",
   "unknownHost": "Other app",
-  "layoutConsistent": "Layout ready",
+  "layoutConsistent": "Display layout data is consistent",
   "layoutInconsistent": "Display layout mismatch. Reconnect your display.",
   "layoutUnknown": "Layout unavailable",
   "timelineTitle": "Activity",
@@ -274,8 +302,9 @@ const lex = {
 const $=id=>document.getElementById(id);
 upgradeChoices();
 let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false,testBusy=false,testLast=null;
+let hostPlatform=null,lastDisplays=null,displaySettingsState=null;
 const translateKey=key=>(lex[prefs?.locale]||lex['zh-CN'])[key]||key;
-function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();}
+function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();renderDisplays(lastDisplays);}
 function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=translateKey(page);if(page==='connections'){void preview();void refresh();void inspectIntegration();}if(page==='diagnostics'||page==='overview')void refresh();if(page==='diagnostics')void refreshDisplays();if(page==='appearance')requestAnimationFrame(renderPreview);}
 function value(id,text){$(id).textContent=text;}
 let observedHosts=[];
@@ -324,7 +353,7 @@ function showState(d){
 }
 let toastTimeout;
 function toast(message){const el=$('toast');document.querySelector(`[data-view="${currentPage}"]`).append(el);el.textContent=message;el.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('visible'),5000);}
-async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}value('appVersion',r.appVersion?`v${r.appVersion}`:'—');if(!prefs||(!settingsDirty&&!busy)){
+async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}hostPlatform=r.platform;value('appVersion',r.appVersion?`v${r.appVersion}`:'—');if(!prefs||(!settingsDirty&&!busy)){
       prefs={...r.preferences,accessibility:r.accessibility};$('permission').hidden=r.platform!==undefined&&r.platform!=='darwin';
       for(const name of ['visualStyle','motion','theme','locale','density'])$(name).value=prefs[name];
       $('accessibility').checked=prefs.accessibility; $('enabled').checked=prefs.enabled!==false; $('continuous').checked=prefs.continuous!==false;
@@ -339,7 +368,8 @@ function integrationLabel(state){return state==='installed'?'integrationInstalle
 function renderIntegration(result){$('cleanupItems').replaceChildren();value('cleanupNote','');const node=$('integrationState');if(!result?.ok){node.textContent=translateKey('integrationUnsupported');node.dataset.state='unsupported';$('confirmCleanup').hidden=true;return;}const status=result.status||{};node.textContent=translateKey(integrationLabel(status.state));node.dataset.state=status.state||'unknown';$('confirmCleanup').hidden=true;}
 async function inspectIntegration(){const host=$('host').value;try{const result=await window.hgCenter.lifecycleStatus(host);if(host!==$('host').value)return;renderIntegration(result);}catch{value('integrationState',translateKey('failed'));$('confirmCleanup').hidden=true;}}
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>showPage(button.dataset.page)));
- $('refresh').addEventListener('click',refresh);$('host').addEventListener('change',()=>{preview();inspectIntegration();});
+function refreshPage(){void refresh();if(currentPage==='diagnostics')void refreshDisplays();}
+ $('refresh').addEventListener('click',refreshPage);$('host').addEventListener('change',()=>{preview();inspectIntegration();});
 $('copy').addEventListener('click',async()=>{
  const host=$('host').value;
  if(!['codex','workbuddy'].includes(host)){try{const r=await window.hgCenter.copy(host);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}return;}
@@ -362,7 +392,7 @@ $('enabled').addEventListener('change',async()=>{if(!prefs)return;const node=$('
 $('permission').addEventListener('click',async()=>{try{const r=await window.hgCenter.permission();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
 $('preferences').addEventListener('change',event=>{if(!['visualStyle','motion','theme','locale','density'].includes(event.target.id))return;settingsDirty=true;document.documentElement.dataset.theme=$('theme').value;renderPreview();});
 $('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked,enabled:$('enabled').checked,continuous:$('continuous').checked};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};settingsDirty=false;applyLocale();toast(translateKey('saved'));}catch{toast(translateKey('failed'));}finally{busy=false;$('save').disabled=false;}});
-window.addEventListener('focus',refresh);
+window.addEventListener('focus',refreshPage);
 void refresh();setInterval(()=>{if(document.visibilityState==='visible'&&['overview','diagnostics'].includes(currentPage))void refresh();},8000);
 
 function renderSelfTest(result){
@@ -390,11 +420,17 @@ async function refreshDisplays(){
   let data;
   try{data=await window.hgCenter.displays();}catch{data=null;}
   if(serial!==displaySerial||currentPage!=='diagnostics')return;
+  lastDisplays=data;renderDisplays(data);
+}
+function renderDisplays(data){
+  value('displaySetupMode',translateKey(hostPlatform==='darwin'?'displaySetupMac':hostPlatform==='win32'?'displaySetupWindows':'displaySetupOther'));
+  value('displaySettingsResult',displaySettingsState?translateKey(displaySettingsState):'');
   const svg=$('displayMap');svg.replaceChildren();
   const ds=Array.isArray(data?.displays)?data.displays.slice(0,16):[];
   const valid=ds.filter(d=>d?.bounds&&[d.bounds.x,d.bounds.y,d.bounds.width,d.bounds.height,d.scaleFactor].every(Number.isFinite)&&
       d.bounds.width>0&&d.bounds.height>0&&d.bounds.width<=20000&&d.bounds.height<=20000&&d.scaleFactor>0&&d.scaleFactor<=8);
-  if(!valid.length){value('displayNote',translateKey('displayNone'));value('layoutHealth',translateKey('layoutUnknown'));return;}
+  value('displayCount',data?.ok?translateKey(valid.length===1?'displayOne':'displayCount').replace('{count}',String(valid.length)):'—');
+  if(!valid.length){value('displayNote',translateKey('displayNone'));value('layoutHealth',translateKey('layoutUnknown'));$('layoutHealth').dataset.state='warning';return;}
   const lowX=Math.min(...valid.map(d=>d.bounds.x)),lowY=Math.min(...valid.map(d=>d.bounds.y));
   const highX=Math.max(...valid.map(d=>d.bounds.x+d.bounds.width)),highY=Math.max(...valid.map(d=>d.bounds.y+d.bounds.height));
   const scale=Math.min(656/(highX-lowX),216/(highY-lowY));
@@ -416,6 +452,14 @@ async function refreshDisplays(){
   value('layoutHealth',translateKey(label));
   $('layoutHealth').dataset.state=status==='metadata_consistent'?'consistent':'warning';
 }
+$('refreshDisplays').addEventListener('click',refreshDisplays);
+$('displaySettings').addEventListener('click',async()=>{
+  const button=$('displaySettings');if(button.disabled)return;button.disabled=true;
+  const failure=hostPlatform==='darwin'?'displaySettingsMacFailed':hostPlatform==='win32'?'displaySettingsWindowsFailed':'displaySettingsFailed';
+  try{const result=await window.hgCenter.displaySettings();displaySettingsState=result?.ok?'displaySettingsOpened':failure;}
+  catch{displaySettingsState=failure;}
+  finally{button.disabled=false;value('displaySettingsResult',translateKey(displaySettingsState));}
+});
 
 $('copyReport').addEventListener('click',async()=>{
   try{const result=await window.hgCenter.report(testLast?.code||'not_run');toast(translateKey(result?.ok?'reportCopied':'failed'));}

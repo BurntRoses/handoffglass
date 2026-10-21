@@ -35,6 +35,10 @@ Different hosts require different configuration structures. The setup uses the s
 
 For WorkBuddy, the generated package is MCP + Skill only and contains one local stdio MCP server. The user must install or import the connector, trust and enable it in WorkBuddy, then reconnect or reload tools. A cloud-hosted WorkBuddy agent cannot see the local desktop without a separately authorized bridge.
 
+## Multiple displays
+
+For multiple monitors, open **Help → Displays**. It explains extended desktop setup, opens the system display settings and shows the detected layout with a refresh action. See [multi-display setup](CONTROL_CENTER.md#set-up-multiple-displays). This setup help does not replace physical tracking/DPI acceptance.
+
 ## Privacy defaults
 
 Read-only UI element lookup is off unless the user explicitly enables it. Choosing a theme, style, motion level, language and density creates a private local preferences file; it does not collect account names, passwords, screenshots, previous actions, or the contents of accessible controls. macOS system-level Accessibility permission remains independently controlled by the operating system.

@@ -117,6 +117,14 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
     try {await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');return {ok:true};}
     catch {return {ok:false,error:'Unable to open system preferences'};}
   });
+  ipcMain.handle('hg:center:display-settings',async event=>{
+    if(!authorized(event))return {ok:false,code:'unauthorized'};
+    const url=process.platform==='darwin'?'x-apple.systempreferences:com.apple.Displays-Settings.extension':
+      process.platform==='win32'?'ms-settings:display':null;
+    if(!url)return {ok:false,code:'unsupported_platform'};
+    try{await shell.openExternal(url);return {ok:true};}
+    catch{return {ok:false,code:'settings_unavailable'};}
+  });
   ipcMain.handle('hg:center:lifecycle-status',async(event,host)=>{
     if(!authorized(event)||typeof host!=='string')return {ok:false,code:'unauthorized'};
     try{return {ok:true,status:await integrationStatus(host,{root:projectRoot,userHome:app.getPath('home')}),guide:lifecycleGuide(host)};}
