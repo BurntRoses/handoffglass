@@ -41,6 +41,6 @@
 2. 运行 `npm ci`、`npm run handoff:check`、`npm run test:integration`、`npm run connection:check`。
 3. 在本地运行 `npm run desktop:demo`，完成 [桌面验收](docs/DESKTOP_QA.md)。
 4. 修复可复现的问题，编写回归测试。
-5. 推送分支并创建 PR，附上执行结果和下一项工作。
+5. 推送分支并创建 PR，附上执行结果和下一项工作。用户已明确要求合并或整合 GitHub 时，检查通过后合并到主分支、删除已合并分支并同步本地；不把代码合并当作正式版本发布或实机验收通过。
 
 [系统架构](docs/ARCHITECTURE.md) · [开发路线图](docs/ROADMAP.md) · [文档索引](docs/INDEX.md)

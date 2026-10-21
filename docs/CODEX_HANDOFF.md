@@ -61,4 +61,6 @@ npm run desktop:demo
 
 每轮完成 `npm run handoff:check`、MCP 集成测试和对应实机检查；推送独立分支并创建 PR，写清修改文件、测试结果、实际表现和下一步。
 
+用户明确要求合并或整理 GitHub 时，检查当前 PR 的 CI 和分支差异，通过后合并至 `main`、删除已合并分支并同步本地。保留仍未完成的验收待办；合并代码不代表已发布签名安装包。
+
 [架构](ARCHITECTURE.md) · [桌面验收](DESKTOP_QA.md) · [交互事件](INTERACTION_EVENTS.md) · [路线图](ROADMAP.md) · [文档索引](INDEX.md)
