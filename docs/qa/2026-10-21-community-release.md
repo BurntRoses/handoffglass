@@ -28,7 +28,7 @@
 - macOS arm64 ZIP 构建、包内版本/架构/资源/许可检查、15 工具 MCP、临时 Codex 安装和 WorkBuddy 生成/清理通过。构建明确标记为未签名工程预览。
 - 打包前后同一版本对比：下载 ZIP 约 259 MB → 133 MB；不是模型推理速度或桌面实际绘制基准。
 - 篡改构建回执后，下载验证按预期拒绝；恢复回执后正常通过。
-- 三个 YAML 文件解析通过。新增 PR 打包矩阵包含 macOS arm64、macOS Intel、Windows x64；远端执行结果另见 PR，不把本地构建当作其他平台已通过。
+- 三个 YAML 文件解析通过。新增 PR 打包矩阵包含 macOS arm64、macOS Intel、Windows x64；提交 `5882c12` 的三个平台打包与 Linux/macOS/Windows 主验证均已在 GitHub Actions 通过，包含包内资源、MCP、下载校验；这不代表 Windows 或 Intel 物理桌面任务验收。
 - 依赖审计：运行依赖（含 Electron 可选安装）无已报告漏洞；完整开发依赖剩 8 项中等报告，来自 `@electron/get → global-agent → roarr → sprintf-js` 链。`sprintf-js` 当前上游最高为 1.1.3，未有修复；这些构建依赖不随成品交付。未使用 `audit fix --force` 降级构建器。
 - `release:check --public` 按预期失败：许可证阻塞已解除，签名和实机宿主证据仍待完成。
 
