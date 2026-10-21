@@ -1,6 +1,7 @@
 /** Machine-readable continuation survives compact output. */
 export function continuationFor(session) {
   if (!session) return 'check_session';
+  if (session.nextAction) return session.nextAction;
   if (session.status === 'completed') return 'verify_in_app';
   if (['declined','cancelled','expired','superseded'].includes(session.status)) return 'stop';
   if (session.targetTracking?.status === 'desktop_unavailable') return 'check_desktop_connection';
@@ -11,8 +12,8 @@ export function continuationFor(session) {
 }
 function compactSession(session) {
   if (!session) return null;
-  const { id, status, mode, timeoutAt, verified, completionSource, sceneRevision, targetTracking } = session;
-  return { id, status, mode, timeoutAt, verified, completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}) };
+  const { id, status, mode, phase, nextAction, continuous, step, timeoutAt, verified, completionSource, sceneRevision, targetTracking } = session;
+  return { id, status, mode, ...(continuous?{continuous,step}:{}), ...(phase ? { phase } : {}), ...(nextAction ? { nextAction } : {}), timeoutAt, verified, completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}) };
 }
 export function formatToolResult(value, { compact = false } = {}) {
   if (!value || typeof value !== 'object') return value;

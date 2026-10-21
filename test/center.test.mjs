@@ -52,6 +52,8 @@ test('diagnostics endpoint has desktop-only capability and no host identity or p
     assert.ok(updated.lastAgentActivityAt > 0);
     assert.equal(updated.handoff.status,'awaiting_user');
     assert.ok(!JSON.stringify(updated).includes('Private title'));
+    assert.ok(!JSON.stringify(updated).includes('sessionId'));
+    assert.ok(!JSON.stringify(updated).includes(manager.active().id));
     assert.ok(!JSON.stringify(updated).includes(owner));
     assert.ok(!JSON.stringify(updated).includes(bridge.agentToken));
   } finally {await bridge.stop();manager.close();}
@@ -77,4 +79,11 @@ test('desktop control center is a separate sandboxed surface with narrow IPC',as
   assert.match(html,/id=\"hostEvidence\"/);
   assert.match(ui,/config_declared|observedHosts/);
   assert.doesNotMatch(ui,/innerHTML\s*=/);
+});
+
+test('diagnostic phase and continuation are finite codes, never arbitrary model text',()=>{
+ const safe=summarizeDiagnostics(state({handoff:{status:'user_action_reported',phase:'verifying',nextAction:'verify_in_app'}}),now);
+ assert.equal(safe.session.phase,'verifying');
+ const untrusted=summarizeDiagnostics(state({handoff:{status:'awaiting_user',phase:'private task content',nextAction:'private account path'}}),now);
+ assert.equal(untrusted.session.phase,undefined);assert.equal(untrusted.session.nextAction,undefined);
 });

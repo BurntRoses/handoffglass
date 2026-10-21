@@ -1,35 +1,30 @@
-# Agent 接入
+# Agent 接入与验证范围
 
-HandoffGlass 使用统一的本地 stdio MCP 服务，不同 Harness 通过各自的配置接入。
+HandoffGlass 提供本地 stdio MCP 服务。下表表示已实现的配置生成方式；它不表示在每个宿主中都完成了任务验收。
 
-| Host | 生成配置 | 入口 |
+| Host | 生成配置 / 接入方式 | 自动移除范围 |
 |---|---|---|
-| Codex CLI / IDE | `node scripts/configure.mjs codex` | `~/.codex/config.toml` |
-| Claude Desktop / Code | `node scripts/configure.mjs claude` | `mcpServers` |
-| Cursor | `node scripts/configure.mjs cursor` | `.cursor/mcp.json` |
-| VS Code | `node scripts/configure.mjs vscode` | `.vscode/mcp.json` |
-| Gemini CLI | `node scripts/configure.mjs gemini` | `~/.gemini/settings.json` |
-| OpenCode | `node scripts/configure.mjs opencode` | `mcp.local.command` |
-| Cline | `node scripts/configure.mjs cline` | 本地 stdio MCP |
-| Windsurf | `node scripts/configure.mjs windsurf` | 本地 stdio MCP |
-| Zed | `node scripts/configure.mjs zed` | `context_servers` |
-| Trae | `node scripts/configure.mjs trae` | 本地 stdio MCP |
-| WorkBuddy | `npm run connector:workbuddy` | MCP + Skill |
-| DeepSeek Harness | `npm run harness:deepseek` | Cordis 插件 / MCP |
+| Codex CLI / IDE / App | `node scripts/configure.mjs codex`；安装器合并 `config.toml` 与 Skill | 有记录的配置与 Skill |
+| Claude Desktop | `node scripts/configure.mjs claude`；`mcpServers` | 手动移除本工具条目 |
+| Claude Code | 按宿主 MCP 命令注册 stdio 服务；不使用 Desktop 配置文件 | 通过宿主移除 |
+| Cursor | `node scripts/configure.mjs cursor` | 手动移除本工具条目 |
+| VS Code | `node scripts/configure.mjs vscode`；`servers` | 手动移除本工具条目 |
+| Gemini CLI | `node scripts/configure.mjs gemini` | 手动移除本工具条目 |
+| OpenCode | `node scripts/configure.mjs opencode` | 手动移除本工具条目 |
+| Cline / Windsurf / Zed / Trae | `node scripts/configure.mjs <host>` | 手动移除本工具条目 |
+| WorkBuddy | `npm run connector:workbuddy`；本机 MCP + Skill | 有记录的本地包；已导入连接器需在宿主移除 |
+| DeepSeek Harness | `npm run harness:deepseek`；实验性 Cordis 插件 | 通过宿主移除 |
 
-## Codex 从 GitHub 接手
+[Agent 安装](INSTALL_AGENT.md)用于安装；[Codex 接手](CODEX_HANDOFF.md)用于继续开发。
 
-直接将 [Codex 接手指南](CODEX_HANDOFF.md) 交给 Codex。它会自行克隆或更新仓库、安装依赖、生成 MCP 配置并完成真实调用测试。
+## 自动测试证明什么
 
-## 本地验证
+| 检查 | 能证明的内容 | 不包含的内容 |
+|---|---|---|
+| `npm run verify` | 配置解析、状态机、权限策略和本地逻辑 | 外部宿主加载 |
+| `npm run test:integration` / `test:extras` / `test:legacy` | 真实 MCP SDK 初始化、工具 Schema 与本地 Broker 行为 | 宿主信任、工具审批和模型选择 |
+| `npm run connection:check` | 隔离服务可启动并列出所需工具；`hostVerified:false` | 当前宿主已连接 |
+| `npm run test:packaged` | 构建包内的 MCP、原生资源和连接文件 | 原生桌面视觉验收 |
+| 实机宿主任务 | 对应版本和系统上的加载、操作回传、核验与继续 | 未测试的系统和宿主版本 |
 
-```bash
-npm run verify
-npm run test:integration
-npm run connection:check
-npm run host:matrix
-```
-
-集成验证依次覆盖：**生成配置 → MCP 初始化 → 宿主实际调用 → 桌面交接 → Agent 核验与继续任务**。
-
-[宿主集成细节](INTEGRATIONS.md) · [国产 Harness 插件](CHINA_HARNESS_INTEGRATION.md) · [桌面验收](DESKTOP_QA.md)。
+正式宿主、物理多屏和 Windows 实机验收仍在 [发布状态](COMMUNITY_RELEASE.md)中单独跟踪。更多配置细节见 [集成指南](INTEGRATIONS.md)。

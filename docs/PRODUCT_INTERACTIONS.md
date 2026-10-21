@@ -4,19 +4,19 @@ This is an implementation contract for an Agent-friendly overlay, not a roadmap 
 
 ## Three moments
 
-1. **Explain** (passive `visual_show`): the Agent has measured coordinates and supplies a semantic template or Scene v1; a click-through overlay shows the target and disappears at the session TTL or owner cancellation. No forced interrupt.
-2. **Ask** (`handoff_request`): the Agent needs human judgment or an operation it should not perform. A dedicated panel explains the action with **Complete / Decline / Cancel**. All three choices are first-class; 'Complete' means only user-reported action.
-3. **Continue** (`handoff_wait`/`handoff_status`): the Agent independently checks the external app after the user reports completion. If it cannot check, say that the result is unverified. Do not presume authorization, purchase or policy acceptance.
+1. **Explain** (passive `session_start(mode:"guide")`): the Agent has measured coordinates and supplies a semantic template or Scene v1; a click-through overlay shows the target and disappears at the session TTL or owner cancellation. No forced interrupt.
+2. **Ask** (`session_start`): the Agent needs human judgment or an operation it should not perform. A dedicated panel explains the action with **Complete / Decline / Cancel**. All three choices are first-class; 'Complete' means only user-reported action. The same session remains visible during verification and the next step.
+3. **Continue** (`session_wait` → `session_verify` → `session_present`): the Agent independently checks the external app after the user reports completion. If it cannot check, say that the result is unverified. Do not presume authorization, purchase or policy acceptance.
 
 ## Agent decision table
 
 | Observed condition | Agent action | Overlay behavior |
 | --- | --- | --- |
-| UI target precisely grounded | `visual_show` with `template` | Brief semantic mark, no modal panel |
-| UI target ambiguous | `handoff_request` without coords | Describe task, allow rejection, no guessed arrow |
-| MFA, payment, consent, personal data | `handoff_request`, optionally `caution` with measured bounds | Warn what is requested; user is free to decline |
+| UI target precisely grounded | `session_start(mode:"guide")` with `template` | Brief semantic mark, no modal panel |
+| UI target ambiguous | `session_start` without coords | Describe task, allow rejection, no guessed arrow |
+| MFA, payment, consent, personal data | `session_start`, optionally `caution` with measured bounds | Warn what is requested; user is free to decline |
 | Agent can operate safely and quickly | Do not call HandoffGlass | No added UI friction |
-| Agent needs to revise a multi-step visual | `visual_scene_update` with expectedRevision | Modify scene without resetting the human's session |
+| Agent needs to revise a multi-step visual | `session_update` with expectedRevision | Modify scene without resetting the human's session |
 | Multiple agents contend for UI | One returns `busy`; wait or coordinate | Existing owner's instructions remain |
 | User declines | Stop that dependent branch or ask for alternative | Do not retry approval prompt blindly |
 | User reports completion | Independently verify | Never assert success solely from `completed` |
@@ -39,7 +39,7 @@ This is an implementation contract for an Agent-friendly overlay, not a roadmap 
 ## Non-goals and future capability gates
 
 - Auto-click, CAPTCHA bypass, MFA automation, automatic consent: **not a product objective**.
-- OS-native AX/UIA element targeting: future opt-in separate adapter, with stale/ambiguous/occluded checks and permission gating.
+- OS-native AX/UIA element targeting: available as an opt-in adapter, with stale/ambiguous/occluded checks and permission gating.
 - Real-time voice/video: future *optional* capability, only after proving that simple event-driven guidance is insufficient. Never require a second model subscription to use MCP.
 - Installer: separate OS build and real desktop smoke tests required; headless CI does not satisfy this criterion.
 

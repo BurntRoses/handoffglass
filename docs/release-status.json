@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "channel": "engineering-preview",
+  "evidence": {
+    "macosSigning": { "status": "pending", "record": null },
+    "windowsSigning": { "status": "pending", "record": null },
+    "windowsDesktop": { "status": "pending", "record": null },
+    "multiDisplay": { "status": "pending", "record": null },
+    "codexHost": { "status": "pending", "record": null },
+    "workbuddyHost": { "status": "pending", "record": null }
+  }
+}

@@ -25,15 +25,32 @@ When the installed Electron GUI is the launcher, `src/desktop/app.mjs` hosts the
 
 ## Ownership and lifecycle
 
-`HandoffManager` is authoritative. Statuses: `awaiting_user → completed | declined | cancelled | expired | superseded`. A new request by the *same* owner can supersede; another owner sees `busy`. A stable `requestId` deduplicates retries **within** an owner. An MCP client restart receives a new owner ID and cannot recover somebody else's session by presenting a session ID. Terminal state is immutable; user-reported completion has `completionSource=user_report` and `verified=false`.
+`HandoffManager` is authoritative. Continuous tools keep one session ID and screen owner through:
 
-`src/local/interaction-journal.mjs` stores short-lived, bounded status events (e.g. target lost/restored, human decided) for incremental `handoff_events` polling. No task text or screen pixels are required in that log. The Broker retains sessions only in memory: restarting it discards them. User display preferences are stored separately, locally, and are never written by the Agent.
+```text
+awaiting_user (waiting_user / presenting)
+  → user_action_reported (verifying)
+  → observing (next_step)
+  → awaiting_user (next step)
+  → completed, declined, cancelled, expired or superseded
+```
+
+A completion button is a user report. The Agent checks the original app and calls `session_verify`; `verified:true, finish:true` ends a continuous workflow. Otherwise `session_present(sessionId, …)` advances it without renewing its original timeout. A new request by the same owner can supersede; another owner sees `busy`. `requestId` deduplicates retries within an owner and step. A new MCP process has a new owner ID and cannot reclaim an earlier process's session. Legacy `handoff_request` retains the one-step completion contract.
+
+The in-memory journal retains bounded cursor events. `session_wait` immediately returns available meaningful events, otherwise waits for journal changes; it does not wait for a terminal session first. Consecutive target movements are coalesced and do not independently wake an Agent waiter. Timeout/disconnect removes listeners. `truncated:true` reports dropped history. Restarting the Broker discards sessions and events.
+
+The desktop receives authenticated SSE snapshots over `/desktop/stream`, with a bounded connection count, heartbeat and slow-reader limit. Reconnection starts from the current snapshot. The old `/poll` route remains for existing desktop adapters, but the production desktop uses push. Native target following remains local.
+
+User preferences persist locally. `integration_set_enabled` changes only the global switch on a user request; disabling immediately cancels active guidance and clears tracking. Accessibility consent remains an app-only user choice, separate from OS permission. See [lifecycle and cleanup](INTEGRATION_LIFECYCLE.md).
 
 ## Interfaces
 
-**Default MCP tools (10):** `screen_displays`, `ui_inspect`, `ui_locate`, `visual_show`, `handoff_request`, `visual_scene_update`, `handoff_status`, `handoff_events`, `handoff_wait`, `handoff_cancel`. Optional local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`) load only with `HANDOFFGLASS_EXTRAS=1`. MCP initialization delivers the invocation workflow; Codex installation also includes the implicitly discoverable `visual-handoff` skill. The optional `assist-with-ui-step` prompt remains available.
+**Default MCP tools (15):** `screen_displays`, `ui_inspect`, `ui_locate`, `capability_manifest`, `session_start`, `session_present`, `session_wait`, `session_update`, `session_verify`, `session_stop`, `connection_status`, `permission_status`, `integration_status`, `integration_cleanup` and `integration_set_enabled`. Tool results include machine-readable `structuredContent` and a text fallback. Installers enable compact output.
 
-The single local Bridge has distinct Agent and desktop tokens, loopback-only socket, Host/Origin checks, bounded JSON and polling, and per-owner access checks. Only Agent routes accept the agent token; desktop state, event delivery and human decisions require the desktop token. `src/local/host-activity.mjs` exposes recent authenticated calls with **caller-declared** host labels (not verified application identity).
+`HANDOFFGLASS_LEGACY_TOOLS=1` adds the seven old one-step/scene aliases for existing clients. They are excluded from the normal tool catalog. `HANDOFFGLASS_EXTRAS=1` adds the three local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`). Initialization includes the core workflow in fewer than 512 characters; `capability_manifest` exposes conditions, inputs, recovery actions and host/transport limits. The installed Skill provides a short routing table without asking the model to reread a manual each step.
+
+
+The single local Bridge has distinct Agent and desktop tokens, loopback-only socket, Host/Origin checks, bounded JSON, event streams and waits, and per-owner access checks. Only Agent routes accept the agent token; desktop state, event delivery and human decisions require the desktop token. `src/local/host-activity.mjs` exposes recent authenticated calls with **caller-declared** host labels (not verified application identity).
 
 ## Coordinates, scenes and rendering
 

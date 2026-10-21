@@ -14,6 +14,8 @@ When your agent needs you to act, it points out where, waits, and continues the 
 
 </div>
 
+Source available · Free for noncommercial use · [License](LICENSE)
+
 ## Install
 
 Send this to your agent:
@@ -26,11 +28,15 @@ Please install https://github.com/BurntRoses/handoffglass
 
 Tell your agent what you need: “Show me how to empty the Trash.” During other tasks, it can also guide you when a step needs your input.
 
+To disable or remove a connection, tell the agent to “disable HandoffGlass” or “clean HandoffGlass from Codex.” It checks the integration first and removes only HandoffGlass-owned content. The same actions are available from the app’s Connections page.
+
 <details>
 <summary>Documentation</summary>
 
 [Agent installation instructions](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [Other hosts](docs/INTEGRATIONS.md) · [Development](docs/CODEX_HANDOFF.md) · [All docs](docs/INDEX.md)
 
-Local macOS / Windows · MCP-capable agent · Private repository · UNLICENSED
+Local macOS / Windows · MCP-capable agent · Engineering preview
+
+[Builds, upgrades and release status](docs/COMMUNITY_RELEASE.md). Free for noncommercial use, modification and redistribution under the [PolyForm Noncommercial License](LICENSE). Commercial use requires separate permission.
 
 </details>

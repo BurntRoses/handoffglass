@@ -1,8 +1,8 @@
 /** Persistent settings center; isolated from handoff actions and sensitive IPC. */
 import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { connection, connectCodex } from './setup.mjs';
+import { connection, connectHost, revealWorkbuddyConnector } from './setup.mjs';
 import { HOSTS } from '../config.mjs';
 import { loadPreferences, savePreferences } from '../local/preferences.mjs';
 import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
@@ -11,7 +11,9 @@ import { checkLocalMcp } from '../local/mcp-probe.mjs';
 import { makeSupportReport } from '../local/support-report.mjs';
 import { inspectLayout } from '../native/calibration.mjs';
 import metadata from '../../package.json' with { type: 'json' };
+import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled } from '../integration-lifecycle.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
+const projectRoot = resolve(here, '../..');
 const HOSTS_SET = new Set(Object.keys(HOSTS));
 let center = null;
 let checkRunning = false;
@@ -45,24 +47,35 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
   });
   ipcMain.handle('hg:center:save',async(event,settings)=>{
     if(!authorized(event)||!settings||typeof settings!=='object'||Array.isArray(settings)) return {ok:false,error:'Invalid request'};
-    const {visualStyle,motion,locale,density,theme,accessibility,...extra}=settings;
-    if(Object.keys(extra).length || typeof accessibility!=='boolean')return {ok:false,error:'Invalid setting'};
+    const {visualStyle,motion,locale,density,theme,accessibility,enabled,continuous,...extra}=settings;
+    if(Object.keys(extra).length || typeof accessibility!=='boolean' || typeof enabled!=='boolean' || typeof continuous!=='boolean')return {ok:false,error:'Invalid setting'};
     try {
-      const preferences=await savePreferences({visualStyle,motion,locale,density,theme});
+      const preferences=await savePreferences({visualStyle,motion,locale,density,theme,enabled,continuous});
       await setAccessibilityConsent(accessibility);
+      await fetch(`http://127.0.0.1:${process.env.HANDOFFGLASS_PORT}/desktop/preferences`,{method:'POST',headers:{authorization:`Bearer ${process.env.HANDOFFGLASS_SECRET}`,'content-type':'application/json'},body:'{}'}).then(r=>{if(!r.ok)throw Error('Could not update active guidance');});
       app.emit('hg:preferences-changed');
       return {ok:true,preferences,accessibility};
     } catch(error) {return {ok:false,error:error.message};}
+  });
+  ipcMain.handle('hg:center:enabled',async(event,enabled)=>{
+    if(!authorized(event)||typeof enabled!=='boolean')return {ok:false,code:'invalid_request'};
+    try{
+      await setIntegrationEnabled(enabled);
+      const r=await fetch(`http://127.0.0.1:${process.env.HANDOFFGLASS_PORT}/desktop/preferences`,{method:'POST',headers:{authorization:`Bearer ${process.env.HANDOFFGLASS_SECRET}`,'content-type':'application/json'},body:'{}'});
+      if(!r.ok)throw Error();
+      app.emit('hg:preferences-changed');return {ok:true,enabled};
+    }catch{return {ok:false,code:'update_failed'};}
   });
   ipcMain.handle('hg:center:copy',async(event,host)=>{
     if(!authorized(event)||typeof host!=='string'||!HOSTS_SET.has(host))return {ok:false,error:'Unknown host'};
     try {clipboard.writeText(connection(host));return {ok:true};}
     catch {return {ok:false,error:'Cannot generate this host configuration'};}
   });
-  ipcMain.handle('hg:center:connect',async event=>{
+  ipcMain.handle('hg:center:connect',async(event,host='codex')=>{
     if(!authorized(event))return {ok:false,code:'unauthorized'};
-    return connectCodex();
+    return connectHost(host);
   });
+  ipcMain.handle('hg:center:reveal-connector',event=>authorized(event)?revealWorkbuddyConnector():{ok:false,code:'unauthorized'});
   ipcMain.handle('hg:center:preview',async(event,host)=>{
     if(!authorized(event)||typeof host!=='string'||!HOSTS_SET.has(host))return {ok:false,error:'Unknown host'};
     try {return {ok:true,content:connection(host)};}
@@ -103,5 +116,23 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
     if(process.platform!=='darwin')return {ok:false,error:'Open Accessibility settings manually on this system'};
     try {await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');return {ok:true};}
     catch {return {ok:false,error:'Unable to open system preferences'};}
+  });
+  ipcMain.handle('hg:center:display-settings',async event=>{
+    if(!authorized(event))return {ok:false,code:'unauthorized'};
+    const url=process.platform==='darwin'?'x-apple.systempreferences:com.apple.Displays-Settings.extension':
+      process.platform==='win32'?'ms-settings:display':null;
+    if(!url)return {ok:false,code:'unsupported_platform'};
+    try{await shell.openExternal(url);return {ok:true};}
+    catch{return {ok:false,code:'settings_unavailable'};}
+  });
+  ipcMain.handle('hg:center:lifecycle-status',async(event,host)=>{
+    if(!authorized(event)||typeof host!=='string')return {ok:false,code:'unauthorized'};
+    try{return {ok:true,status:await integrationStatus(host,{root:projectRoot,userHome:app.getPath('home')}),guide:lifecycleGuide(host)};}
+    catch(error){return {ok:false,code:'unsupported_integration'};}
+  });
+  ipcMain.handle('hg:center:cleanup',async(event,host,confirm)=>{
+    if(!authorized(event)||typeof host!=='string'||typeof confirm!=='boolean')return {ok:false,code:'unauthorized'};
+    try{return {ok:true,result:await cleanupIntegration(host,{root:projectRoot,userHome:app.getPath('home'),confirm})};}
+    catch(error){return {ok:false,code:'cleanup_refused'};}
   });
 }

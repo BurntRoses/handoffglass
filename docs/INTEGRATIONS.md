@@ -46,3 +46,7 @@ Multiple MCP hosts may run simultaneously. Their sessions share one local Broker
 - **Control target outside screens:** query `screen_displays` and use global DIP coordinates, not screenshot pixels.
 - **Permission dialog not visible:** ordinary windows cannot guarantee overlay coverage of UAC secure desktop or other protected surfaces. Use a coordinate-free handoff panel where possible.
 - **Busy:** ask the original Agent to end its handoff or let it expire; no other Agent should dismiss it silently.
+
+## Pause or remove a connection
+
+Use the app Connections page or the shared lifecycle tools and CLI. Removal is receipt-based and preserves user edits. WorkBuddy host removal is a separate user action. See [lifecycle](INTEGRATION_LIFECYCLE.md).

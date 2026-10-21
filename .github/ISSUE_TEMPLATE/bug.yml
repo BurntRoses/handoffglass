@@ -1,0 +1,33 @@
+name: Bug report / 问题反馈
+description: Report a reproducible connection, guidance or installation problem.
+body:
+  - type: markdown
+    attributes:
+      value: "Include only a redacted report. Do not post credentials, screen contents or private configuration. Security issues: see docs/SECURITY.md."
+  - type: input
+    id: version
+    attributes:
+      label: HandoffGlass version / 版本
+      placeholder: "0.17.0; source commit or preview filename"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: System and host / 系统与宿主
+      placeholder: "macOS / Windows version, architecture; Codex / WorkBuddy version"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps and result / 操作步骤与结果
+      description: What you did, what you expected, and what happened. For connection problems, say whether writing config, trust/enablement, reload or the first call failed.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Redacted support report / 脱敏诊断
+      description: Use Copy report in the app, or paste the relevant error. Review the contents before posting.
+      render: text

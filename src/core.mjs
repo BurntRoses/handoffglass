@@ -10,6 +10,7 @@ const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, m
 export function normalizeRequest(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Request must be an object');
   const mode = input.mode ?? 'handoff';
+  if(input.continuous!==undefined && typeof input.continuous!=='boolean')throw new TypeError('Invalid continuous flag');
   const locale = input.locale ?? 'zh-CN';
   const density = input.density ?? 'normal';
   const theme = input.theme ?? 'system';
@@ -60,7 +61,7 @@ export function normalizeRequest(input) {
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
+  return { continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
 }
 function copySession(session) {
   if (!session) return null;
@@ -107,7 +108,10 @@ export class HandoffManager extends EventEmitter {
       message: normalized.message, annotations: normalized.annotations,
       visualStyle: normalized.visualStyle, motion: normalized.motion, locale:normalized.locale, density:normalized.density, theme:normalized.theme,
       ...(normalized.scene ? {scene:normalized.scene, sceneRevision:1} : {}),
-      status: 'awaiting_user', createdAt: now, updatedAt: now,
+      continuous: input.continuous === true, step: 1,
+      status: 'awaiting_user', phase: normalized.mode === 'guide' ? 'presenting' : 'waiting_user',
+      nextAction: normalized.mode === 'guide' ? 'observe_app' : 'wait_for_user',
+      createdAt: now, updatedAt: now,
       timeoutAt: now + normalized.timeoutSeconds * 1000,
       completionSource: null, verified: false
     };
@@ -141,9 +145,58 @@ export class HandoffManager extends EventEmitter {
     this.get(id); // expiry always wins over a late response
     if (TERMINAL.has(session.status)) return { error: 'already_final', session: copySession(session) };
     if (this.activeId !== id) return { error: 'not_active' };
-    this.#finish(session, status);
+    if(status==='completed' && session.continuous){
+      if(session.status!=='awaiting_user')return {error:'verification_due',session:copySession(session)};
+      session.status='user_action_reported';session.phase='verifying';session.nextAction='verify_in_app';
+      session.completionSource='user_report';session.updatedAt=this.clock();session.annotations=[];
+      this.emit('change',copySession(session));
+    }else this.#finish(session, status);
     return { session: copySession(session) };
   }
+  /** Record an independent check performed by the host Agent after a user report. */
+  verify(id, owner, verified = false, finish = false) {
+    const session = this.sessions.get(id);
+    if (!session || this.owners.get(id) !== owner) return { error: 'not_found' };
+    this.get(id);
+    if (!['completed','user_action_reported'].includes(session.status) || session.phase !== 'verifying')
+      return { error: 'verification_not_due', session: copySession(session) };
+    session.verified = verified === true;
+    if(session.continuous){
+      if(verified && finish){this.#finish(session,'completed');session.phase='complete';session.nextAction='stop';}
+      else{session.status='observing';session.phase='next_step';session.nextAction=verified?'present_next_step':'observe_app';}
+    }else{
+      session.phase = verified === true ? 'complete' : 'next_step';
+      session.nextAction = verified === true ? 'stop' : 'observe_app';
+    }
+    session.updatedAt = this.clock();
+    this.emit('change', copySession(session));
+    return { session: copySession(session) };
+  }
+  /** Advance an owned workflow without releasing screen ownership or renewing its TTL. */
+  present(id, input, owner) {
+    const current=this.getOwned(id,owner);
+    if(!current)return {error:'not_found'};
+    if(!current.continuous)return {error:'not_continuous'};
+    const normalized=normalizeRequest(input),session=this.sessions.get(id);
+    const key=normalized.requestId===null?null:JSON.stringify([owner,normalized.requestId]);
+    if(key && this.requestKeys.has(key)){
+      const saved=this.requestKeys.get(key);
+      if(saved.id!==id||saved.payload!==JSON.stringify(normalized))throw new TypeError('requestId was reused with different content');
+      return {session:this.get(id)};
+    }
+    if(TERMINAL.has(current.status)||this.activeId!==id)return {error:'already_final'};
+    if(current.phase==='verifying')return {error:'verification_due'};
+    for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme']) session[field]=normalized[field];
+    session.sceneRevision=(session.sceneRevision||0)+1;
+    if(normalized.scene)session.scene=normalized.scene;
+    else delete session.scene;
+    delete session.targetTracking;
+    session.step++;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
+    session.nextAction=normalized.mode==='guide'?'observe_app':'wait_for_user';session.verified=false;session.completionSource=null;session.updatedAt=this.clock();
+    if(key)this.requestKeys.set(key,{id,payload:JSON.stringify(normalized)});
+    this.emit('show',copySession(session));return {session:copySession(session)};
+  }
+  stopActive() {const session=this.activeId&&this.sessions.get(this.activeId);if(session)this.#finish(session,'cancelled');}
   /** Optimistic, owner-scoped and atomic scene change; never renews the handoff TTL. */
   updateScene(id, owner, expectedRevision, operations) {
     if (this.owners.get(id) !== owner) return { error: 'not_found' };
@@ -151,6 +204,7 @@ export class HandoffManager extends EventEmitter {
     this.get(id); // Re-evaluate expiration first.
     if (TERMINAL.has(session.status) || this.activeId !== id) return { error: 'already_final' };
     if (!session.scene) return { error: 'scene_not_enabled' };
+    if(session.continuous && session.status!=='awaiting_user')return {error:'verification_due'};
     if (['lost','layout_changed','desktop_unavailable'].includes(session.targetTracking?.status))
       return { error: 'target_unavailable' };
     if (!Number.isInteger(expectedRevision) || expectedRevision !== session.sceneRevision) {
@@ -164,6 +218,8 @@ export class HandoffManager extends EventEmitter {
     // A manual scene edit transfers control from native auto-follow to the Agent.
     if (session.targetTracking) session.targetTracking = { status: 'manual', observedAt: null };
     session.sceneRevision++;
+    session.phase = session.mode==='handoff'?'waiting_user':'presenting';
+    session.nextAction = session.mode==='handoff'?'wait_for_user':'observe_app';
     session.updatedAt = this.clock();
     this.emit('show', copySession(session));
     return { session: copySession(session) };
@@ -182,6 +238,9 @@ export class HandoffManager extends EventEmitter {
       session.scene=scene;session.sceneRevision++;
     }
     session.targetTracking={status,observedAt,signature,...(reason?{reason}:{})};
+    session.phase = status === 'tracking' ? (session.mode==='handoff'?'waiting_user':'presenting') : 'blocked';
+    session.nextAction = status === 'tracking' ? (session.mode==='handoff'?'wait_for_user':'observe_app') :
+      (reason === 'consent_required' || reason === 'permission_denied' ? 'check_accessibility_permission' : 'reobserve_target');
     session.updatedAt=this.clock();
     this.emit('show',copySession(session));
     return {session:copySession(session),changed:true};
@@ -192,6 +251,8 @@ export class HandoffManager extends EventEmitter {
     if (timer) clearTimeout(timer);
     this.timers.delete(session.id);
     session.status = status;
+    session.phase = status === 'completed' ? (session.continuous?'complete':'verifying') : 'finished';
+    session.nextAction = status === 'completed' && !session.continuous ? 'verify_in_app' : 'stop';
     session.updatedAt = this.clock();
     session.completionSource = status === 'completed' ? 'user_report' : null;
     if (this.activeId === session.id) this.activeId = null;

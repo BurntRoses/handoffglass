@@ -2,13 +2,15 @@
  * Never put bearer tokens, window titles, task text or private paths in this view.
  */
 export const STATUS_FIELDS = Object.freeze(['schemaVersion','broker','desktopConnected','lastAgentActivityAt','displays','pendingPolls','handoff','hostActivity','timeline']);
-const SAFE_TIMELINE_TYPES = new Set(['started','target_acquired','target_moved','target_lost','target_restored','display_changed','desktop_unavailable','scene_changed','tracking_released','completed','declined','cancelled','expired','superseded']);
+const SAFE_TIMELINE_TYPES = new Set(['session_started','scene_updated','session_finished','user_action','verification_required','agent_ready','started','target_acquired','target_moved','target_lost','target_restored','display_changed','desktop_unavailable','scene_changed','tracking_released','completed','declined','cancelled','expired','superseded']);
 export function summarizeDiagnostics(input, now = Date.now()) {
   if (!input || input.schemaVersion !== 1 || input.broker !== 'running') throw new TypeError('Unavailable broker diagnostics');
   const recent = Number.isFinite(input.lastAgentActivityAt) && input.lastAgentActivityAt > 0 && input.lastAgentActivityAt <= now
     ? now - input.lastAgentActivityAt < 120000 : false;
-  const session = input.handoff?.status === 'awaiting_user' ? {
-    state: 'awaiting_user', mode: input.handoff.mode === 'guide' ? 'guide' : 'handoff',
+  const session = ['awaiting_user','user_action_reported','observing'].includes(input.handoff?.status) ? {
+    state: input.handoff.status, mode: input.handoff.mode === 'guide' ? 'guide' : 'handoff',
+    ...(['waiting_user','presenting','blocked','verifying','next_step'].includes(input.handoff.phase) ? { phase: input.handoff.phase } : {}),
+    ...(['wait_for_user','observe_app','verify_in_app','present_next_step','reobserve_target','check_accessibility_permission'].includes(input.handoff.nextAction) ? { nextAction: input.handoff.nextAction } : {}),
     expiresIn: Number.isFinite(input.handoff.timeoutAt) ? Math.max(0, Math.ceil((input.handoff.timeoutAt - now) / 1000)) : null
   } : { state: 'idle' };
   const hosts = Array.isArray(input.hostActivity) ? input.hostActivity.slice(0,16)
