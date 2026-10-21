@@ -21,7 +21,9 @@ test('all referenced home-page assets and localized READMEs exist',async()=>{
     const contents=await readFile(join(root,name),'utf8');
     const links=[...contents.matchAll(/\]\(([^)#]+)(?:#[^)]*)?\)/g)].map(x=>x[1]);
     for(const link of links)if(!/^https?:\/\//.test(link))await access(join(root,link));
-    assert.ok(contents.includes('UNLICENSED'));
+    assert.ok(contents.includes('PolyForm'));
+    assert.ok(contents.includes('(LICENSE)'));
+    assert.ok(!contents.includes('UNLICENSED'));
   }
 });
 test('browser preview does not claim to be a desktop screenshot or published open-source package',async()=>{

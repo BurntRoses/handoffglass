@@ -6,6 +6,12 @@ on:
     paths:
       - 'src/**'
       - 'native/**'
+      - 'skills/**'
+      - 'integrations/workbuddy/**'
+      - 'assets/**'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'docs/release-status.json'
       - 'electron-builder.config.cjs'
       - 'package.json'
       - 'package-lock.json'
@@ -14,16 +20,52 @@ on:
       - 'scripts/verify-package.mjs'
       - 'scripts/verify-dist.mjs'
       - 'scripts/packaged-mcp-smoke.mjs'
+      - 'scripts/build-notices.mjs'
+      - 'scripts/release-check.mjs'
+      - 'scripts/release-build-receipt.mjs'
+      - '.github/workflows/desktop-packages.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'native/**'
+      - 'skills/**'
+      - 'integrations/workbuddy/**'
+      - 'assets/**'
+      - 'LICENSE'
+      - 'NOTICE'
+      - 'docs/release-status.json'
+      - 'electron-builder.config.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/build-overlay.mjs'
+      - 'scripts/build-native-macos.mjs'
+      - 'scripts/verify-package.mjs'
+      - 'scripts/verify-dist.mjs'
+      - 'scripts/packaged-mcp-smoke.mjs'
+      - 'scripts/build-notices.mjs'
+      - 'scripts/release-check.mjs'
+      - 'scripts/release-build-receipt.mjs'
       - '.github/workflows/desktop-packages.yml'
 permissions:
   contents: read
+concurrency:
+  group: desktop-preview-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   package:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            target: darwin-arm64
+          - os: macos-15-intel
+            target: darwin-x64
+          - os: windows-latest
+            target: win32-x64
+    env:
+      HANDOFFGLASS_DIST_DIR: dist/desktop-${{ matrix.target }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -33,11 +75,15 @@ jobs:
           cache: 'npm'
       - name: Install pinned project dependencies
         run: npm ci --no-audit --no-fund
+      - name: Audit build and runtime dependencies for high and critical advisories
+        run: npm audit --audit-level=high
       - name: Build macOS AX locator executable
         if: runner.os == 'macOS'
         run: npm run native:macos
       - name: Verify unit, IPC and platform parser
         run: npm run verify
+      - name: Report preview release policy
+        run: npm run release:check -- --preview
       - name: Validate Windows PowerShell script parses
         if: runner.os == 'Windows'
         shell: pwsh
@@ -56,6 +102,7 @@ jobs:
       - name: Upload unsigned engineering preview (NOT a verified installer)
         uses: actions/upload-artifact@v4
         with:
-          name: HandoffGlass-unsigned-${{ runner.os }}
-          path: dist/
+          name: HandoffGlass-unsigned-${{ matrix.target }}
+          path: ${{ env.HANDOFFGLASS_DIST_DIR }}/release/
+          if-no-files-found: error
           retention-days: 7

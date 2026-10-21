@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { platform } from 'node:os';
 import { runtimeDir, readManifest, probe } from '../src/runtime.mjs';
 import { assessReadiness } from '../src/local/readiness.mjs';
+import { desktopRuntimeStatus } from '../src/local/desktop-runtime.mjs';
 const require=createRequire(import.meta.url);
 const installed=p=>{try{return Boolean(require.resolve(p))}catch{return false}};
 const hasDesktop = platform() === 'win32' ? Boolean(process.env.SESSIONNAME &&
@@ -14,7 +15,7 @@ const broker=await readManifest(runtimeDir()).catch(()=>null);
 const result=assessReadiness({
   nodeMajor:Number(process.versions.node.split('.')[0]), platform:platform(),
   coreAvailable:installed('@modelcontextprotocol/server') && installed('zod'),
-  electronAvailable:installed('electron'), desktopSession:hasDesktop,
+  electronAvailable:desktopRuntimeStatus().available, desktopSession:hasDesktop,
   brokerConnected:broker ? await probe(broker):false,
   accessibilityOptIn:process.env.HANDOFFGLASS_ENABLE_ACCESSIBILITY==='1',
   accessibilityReady:false // No OS accessibility probe is silently performed.

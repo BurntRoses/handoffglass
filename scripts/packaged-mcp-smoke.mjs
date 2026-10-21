@@ -11,17 +11,9 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
-const dist=resolve('dist');
-let appBinary, entry;
-if(process.platform==='darwin'){
-  const d=(await readdir(dist)).find(x=>x.startsWith('mac'));
-  const p=join(dist,d,'HandoffGlass.app','Contents');
-  appBinary=join(p,'MacOS','HandoffGlass');
-  entry=join(p,'Resources','app.asar','src','mcp.mjs');
-}else if(process.platform==='win32'){
-  appBinary=join(dist,'win-unpacked','HandoffGlass.exe');
-  entry=join(dist,'win-unpacked','resources','app.asar','src','mcp.mjs');
-}else throw new Error('macOS/Windows only');
+import { packagedRuntime } from '../src/release-contract.mjs';
+const dist=resolve(process.env.HANDOFFGLASS_DIST_DIR || `dist/desktop-${process.platform}-${process.arch}`);
+const {binary:appBinary,entry}=await packagedRuntime(dist);
 await access(appBinary); // do not stat virtual files inside asar
 // The packaged MCP entry bypasses app.mjs. Its native helper must still resolve
 // outside ASAR, without relying on a system Node/Swift installation.

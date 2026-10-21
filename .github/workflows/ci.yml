@@ -4,6 +4,9 @@ on:
   pull_request:
 permissions:
   contents: read
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   verify:
     runs-on: ${{ matrix.os }}
@@ -19,6 +22,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --omit=optional --no-audit --no-fund
+      - name: Audit dependencies for high and critical advisories
+        run: npm audit --audit-level=high
       - name: Syntax and unit/integration bridge tests
         run: npm run verify
       - name: Real MCP SDK stdio handshake smoke test (headless)
@@ -27,7 +32,13 @@ jobs:
         run: npm run connection:check
       - name: MCP optional local-context and deterministic blueprint smoke
         run: npm run test:extras
+      - name: Explicit legacy MCP catalog
+        run: npm run test:legacy
+      - name: Preview release policy (reports outstanding public release blockers)
+        run: npm run release:check -- --preview
       - name: Host configuration and lightweight broker benchmark
         run: |
           node scripts/configure.mjs all --compact
           npm run bench:broker
+      - name: Local continuous event benchmark (excludes host and model latency)
+        run: npm run bench:continuity

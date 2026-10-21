@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const HOSTS = Object.freeze({
-  claude: { label: 'Claude Desktop / Claude Code', family: 'mcpServers' },
-  codex: { label: 'OpenAI Codex CLI / IDE', family: 'toml' },
+  claude: { label: 'Claude Desktop', family: 'mcpServers' },
+  codex: { label: 'OpenAI Codex CLI / IDE / App', family: 'toml' },
   cursor: { label: 'Cursor', family: 'mcpServers' },
   vscode: { label: 'VS Code', family: 'servers' },
   copilot: { label: 'GitHub Copilot CLI / agent harness', family: 'mcpServers' },
@@ -45,7 +45,7 @@ export function hostConfig(host, options = {}) {
       enabled:true, ...(entry.env ? { environment:entry.env } : {}) } } }, null, 2);
   }
   const payload = spec.family === 'servers' ? { type: 'stdio', ...entry } : entry;
-  if (host === 'gemini') payload.timeout = 60000; // handoff_wait can consume 30 sec
+  if (host === 'gemini') payload.timeout = 60000; // session_wait can consume 30 sec
   return JSON.stringify({ [spec.family]: { handoffglass: payload } }, null, 2);
 }
 export const claudeConfig = options => hostConfig('claude', options);

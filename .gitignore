@@ -10,4 +10,5 @@ dist/
 
 # Generated packaging artifacts and native helpers
 build/icons/
+build/notices/
 native/macos/hg-locate

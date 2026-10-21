@@ -26,4 +26,4 @@ HandoffGlass never clicks, types credentials, extracts OTPs, bypasses CAPTCHA, a
 
 ## Reporting
 
-Report problems privately through the GitHub repository's Issues. Do not include real bearer tokens, OTPs, account identifiers or sensitive screenshots.
+For security reports, use GitHub private vulnerability reporting at https://github.com/BurntRoses/handoffglass/security/advisories/new when enabled. Public Issues are not private. If private reporting is unavailable, ask the maintainer for a private reporting channel without posting exploit details. Do not include real bearer tokens, OTPs, account identifiers or sensitive screenshots.

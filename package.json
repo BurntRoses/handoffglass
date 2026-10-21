@@ -40,8 +40,8 @@
     "scene:lint": "node scripts/scene.mjs validate examples/scenes/access-review.json && node scripts/scene.mjs validate examples/scenes/tutorial.json && node scripts/scene.mjs validate examples/scenes/multi-monitor.json",
     "build:overlay": "node scripts/build-overlay.mjs",
     "native:macos": "node scripts/build-native-macos.mjs",
-    "build:desktop": "npm run build:icons && node scripts/build-overlay.mjs && npx --yes electron-builder@26.0.12 --dir --config electron-builder.config.cjs",
-    "dist:desktop": "npm run build:icons && node scripts/build-overlay.mjs && npx --yes electron-builder@26.0.12 --config electron-builder.config.cjs",
+    "build:desktop": "npm run build:icons && npm run build:notices && node scripts/build-overlay.mjs && electron-builder --dir --config electron-builder.config.cjs",
+    "dist:desktop": "npm run build:icons && npm run build:notices && node scripts/build-overlay.mjs && electron-builder --config electron-builder.config.cjs",
     "accessibility": "node scripts/accessibility.mjs status",
     "configure:opencode": "node scripts/configure.mjs opencode",
     "configure:cline": "node scripts/configure.mjs cline",
@@ -66,16 +66,20 @@
     "visual:trial": "node scripts/visual-trial.mjs",
     "test:visual": "node scripts/visual-trial.mjs --smoke",
     "test:release-ui": "electron scripts/release-ui-smoke.mjs",
-    "bench:continuity": "node scripts/benchmark-continuity.mjs"
+    "bench:continuity": "node scripts/benchmark-continuity.mjs",
+    "test:legacy": "node scripts/mcp-smoke.mjs --legacy",
+    "release:check": "node scripts/release-check.mjs",
+    "build:notices": "node scripts/build-notices.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",
     "smol-toml": "^1.9.1",
     "zod": "^4.0.0"
   },
-  "license": "UNLICENSED",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.3.1"
+    "@modelcontextprotocol/client": "^2.3.1",
+    "electron-builder": "26.15.3"
   },
   "optionalDependencies": {
     "electron": "^44.8.0"

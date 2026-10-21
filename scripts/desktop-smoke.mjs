@@ -11,21 +11,16 @@ import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { readManifest, probe } from '../src/runtime.mjs';
 import { savePreferences } from '../src/local/preferences.mjs';
+import { packagedRuntime } from '../src/release-contract.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const packaged = process.argv.includes('--packaged');
 let electron, entryRoot = root;
 if (packaged) {
-  if (process.platform === 'darwin') {
-    const dir = (await readdir(join(root, 'dist'))).find(name => name.startsWith('mac'));
-    assert.ok(dir, 'Build the macOS app first');
-    const contents = join(root, 'dist', dir, 'HandoffGlass.app', 'Contents');
-    electron = join(contents, 'MacOS', 'HandoffGlass');
-    entryRoot = join(contents, 'Resources', 'app.asar');
-  } else if (process.platform === 'win32') {
-    electron = join(root, 'dist/win-unpacked/HandoffGlass.exe');
-    entryRoot = join(root, 'dist/win-unpacked/resources/app.asar');
-  } else throw new Error('Packaged desktop check currently supports macOS/Windows');
+  const dist = resolve(process.env.HANDOFFGLASS_DIST_DIR || `dist/desktop-${process.platform}-${process.arch}`);
+  const runtime = await packagedRuntime(dist);
+  electron = runtime.binary;
+  entryRoot = join(runtime.resources, 'app.asar');
   await access(electron);
 } else electron = (await import('electron')).default;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));

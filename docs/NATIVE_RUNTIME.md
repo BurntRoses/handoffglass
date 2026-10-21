@@ -32,7 +32,7 @@ Inspection is **disabled by default**. Enable locally in Help or `node scripts/a
 
 ## Package engineering preview
 
-`npm run native:macos` then `npm run build:desktop` on macOS; `npm run build:desktop` on Windows. Uses pinned electron-builder 26.0.12 (downloaded as a build-time tool by npx). The unpacked package is checked by `scripts/verify-package.mjs`; CI builds are **unsigned** and are not proof of real GUI performance. For a distributable archive run `npm run dist:desktop` on the target OS; then `npm run verify:dist` produces `dist/SHA256SUMS.txt`. The CI uploads unsigned macOS ZIP, Windows assisted NSIS installer and Windows Portable EXE engineering previews.
+`npm run native:macos` then `npm run build:desktop` on macOS; `npm run build:desktop` on Windows. Uses pinned electron-builder 26.15.3 from the project lockfile. The unpacked package is checked by `scripts/verify-package.mjs`; CI builds are **unsigned** and are not proof of real GUI performance. For a distributable archive run `npm run dist:desktop` on the target OS; then `npm run verify:dist` produces checksums and a manifest under `dist/desktop-<platform>-<arch>/release/`. The CI uploads unsigned macOS ZIP, Windows assisted NSIS installer and Windows Portable EXE engineering previews.
 
 Signed/notarized builds, installed-binary launch tests, macOS hardened runtime/entitlements, Windows trust prompts and UI positioning evidence are pending real-machine QA. See `docs/DESKTOP_QA.md` and GitHub Issues #1, #3 and #4.
 
@@ -47,3 +47,5 @@ Signed/notarized builds, installed-binary launch tests, macOS hardened runtime/e
 ### MCP without a system Node installation
 
 On a stable installed desktop binary, choose tray/menu > **Copy MCP configuration**. Paste the generated `mcpServers.handoffglass` into Claude/Cursor/Cline/Windsurf configuration. It points to the bundled Electron executable and `app.asar/src/mcp.mjs` with `ELECTRON_RUN_AS_NODE=1`. Codex needs equivalent TOML values. **Windows Portable EXE may unpack to a temporary path**; use a stable installed location for reliable host startup. `scripts/packaged-mcp-smoke.mjs` is run in CI to actually perform the MCP initialize/list-tools exchange using the packaged binary.
+
+See [community builds](COMMUNITY_RELEASE.md) for the complete verification order and supported release targets.

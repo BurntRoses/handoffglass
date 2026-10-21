@@ -14,6 +14,8 @@ Agent 需要你操作时，在屏幕上指出位置，等待你完成，再继�
 
 </div>
 
+源码可用 · 非商业用途免费 · [许可证](LICENSE)
+
 ## 安装
 
 发给你的 Agent：
@@ -33,6 +35,8 @@ Agent 需要你操作时，在屏幕上指出位置，等待你完成，再继�
 
 [Agent 安装要求](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [其他宿主](docs/INTEGRATIONS.md) · [开发](docs/CODEX_HANDOFF.md) · [全部文档](docs/INDEX.md)
 
-本地 macOS / Windows · 支持 MCP 的 Agent · 私有仓库 · UNLICENSED
+本地 macOS / Windows · 支持 MCP 的 Agent · 测试预览
+
+[构建、升级与发布状态](docs/COMMUNITY_RELEASE.md)。依据 [PolyForm 非商业许可](LICENSE)，可免费用于非商业使用、修改和再分发；商用需另行授权。详见[许可说明](docs/LICENSING.md)。
 
 </details>
