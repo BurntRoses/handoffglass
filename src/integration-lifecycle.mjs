@@ -1,7 +1,7 @@
 /** Shared, ownership-aware lifecycle service for app, MCP and CLI. */
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { readdir, rmdir, lstat, mkdtemp, writeFile, copyFile, open } from 'node:fs/promises';
+import { readdir, rmdir, lstat, mkdtemp, writeFile, copyFile, open, appendFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { planApplicationFiles } from './application-installation.mjs';
@@ -111,6 +111,7 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
   try{child=spawnFn(windows?'powershell.exe':process.execPath,
     windows?['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script,planPath]:[script,planPath],
     {detached:true,windowsHide:true,stdio:['ignore',workerLog.fd,workerLog.fd],env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
+    child.once('exit',(code,signal)=>{void appendFile(workerLogPath,`worker_exit:${code ?? signal}\n`).catch(()=>{});});
     await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();
   }finally{await workerLog.close();}
   // App/MCP callers quit after returning their result. The standalone CLI must
