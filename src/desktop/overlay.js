@@ -70,19 +70,22 @@ function label(group, box, accent) {
 function buildMark(a, accent, visualStyle, viewport, box) {
   const { x, y } = a, rw = a.width ?? 112, rh = a.height ?? 56;
   const ink = visualStyle === 'handdrawn' || a.shape === 'scribble';
-  const effect = a.effect ?? (a.shape === 'halo' ? 'pulse' : 'draw');
+  const effect = a.effect ?? (['halo', 'ripple'].includes(a.shape) ? 'pulse' : a.shape === 'glow' ? 'fade' : 'draw');
   const group = node('g', { opacity: clamp(a.opacity ?? 1, 0, 1), class: `hg-mark hg-mark-${a.shape}`,
+    'data-exit': a.exit ?? (['ring','scribble','underline','strike','double_ring'].includes(a.shape) ? 'retract' : ['dot','ripple','check','cross','badge'].includes(a.shape) ? 'shrink' : 'fade'),
     'data-shape': a.shape, 'data-layer': a.layerId ?? 'legacy', 'data-effect': effect });
+  styles(group, {'transform-origin': `${x}px ${y}px`, '--hg-accent': accent});
   const stroke = { stroke: accent, fill: 'none', 'stroke-width': ink ? 2.3 : 1.8,
     'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
   const rect = { x: x - rw / 2 - 7, y: y - rh / 2 - 7, width: rw + 14, height: rh + 14, rx: Math.min(14, rh / 3 + 5) };
-  if (a.shape === 'ring' || a.shape === 'scribble') {
+  if (a.shape === 'ring' || a.shape === 'scribble' || a.shape === 'double_ring') {
     const rx = rw / 2 + 9, ry = rh / 2 + 9;
-    if (ink) {
+    if (ink && a.shape !== 'double_ring') {
       trace(group, 'path', { d: inkLoop(x, y, rx, ry), ...stroke });
       trace(group, 'path', { d: inkLoop(x + 1.4, y + 1.1, rx + 2, ry + 1, true), ...stroke, 'stroke-width': 1, opacity: .48 }, 'hg-second-stroke');
     } else {
       trace(group, 'ellipse', { cx: x, cy: y, rx, ry, ...stroke });
+      if (a.shape === 'double_ring') trace(group, 'ellipse', {cx:x,cy:y,rx:rx+5,ry:ry+5,...stroke,'stroke-width':.9,opacity:.65}, 'hg-second-stroke');
       group.append(node('ellipse', { cx: x, cy: y, rx: rx + 5, ry: ry + 5, ...stroke, 'stroke-width': .6, opacity: .2, class: 'hg-aura' }));
     }
   } else if (a.shape === 'box' || a.shape === 'spotlight') {
@@ -93,6 +96,23 @@ function buildMark(a, accent, visualStyle, viewport, box) {
       trace(group, 'rect', { ...rect, ...stroke, 'stroke-opacity': .92 });
       if (a.shape === 'spotlight') group.append(node('rect', { ...rect, ...stroke, 'stroke-width': 7, opacity: .1, class: 'hg-edge-light' }));
     }
+  } else if (a.shape === 'glow') {
+    group.append(node('rect', {...rect,fill:accent,'fill-opacity':.16,stroke:accent,'stroke-width':12,'stroke-opacity':.14,class:'hg-soft-fill'}));
+    trace(group,'rect',{...rect,...stroke,'stroke-opacity':.65,'stroke-width':1});
+  } else if (a.shape === 'dot' || a.shape === 'ripple') {
+    group.append(node('circle',{cx:x,cy:y,r:13,fill:accent,'fill-opacity':.12,class:'hg-dot-well'}));
+    group.append(node('circle',{cx:x,cy:y,r:5,fill:accent,stroke:'#10251f','stroke-width':1.5}));
+    if (a.shape === 'ripple') for (let i=0;i<2;i++) {
+      const wave=node('circle',{cx:x,cy:y,r:13+i*9,...stroke,'stroke-width':1.3,opacity:.4-i*.15,class:'hg-wave'});
+      styles(wave,{'--hg-wave-offset':`${i*700}ms`});group.append(wave);
+    }
+  } else if (a.shape === 'strike') {
+    trace(group,'path',{d:`M ${x-rw/2} ${y+1} Q ${x} ${y-2} ${x+rw/2} ${y-1}`,...stroke,'stroke-width':ink?2.8:1.8});
+  } else if (a.shape === 'cross') {
+    const size=Math.min(17,rw/2,rh/2+4);
+    group.append(node('circle',{cx:x,cy:y,r:size+12,fill:'#1f242b','fill-opacity':.9,stroke:accent,'stroke-opacity':.35}));
+    trace(group,'path',{d:`M ${x-size*.55} ${y-size*.55} L ${x+size*.55} ${y+size*.55}`,...stroke,'stroke-width':2.6});
+    trace(group,'path',{d:`M ${x+size*.55} ${y-size*.55} L ${x-size*.55} ${y+size*.55}`,...stroke,'stroke-width':2.6},'hg-second-stroke');
   } else if (a.shape === 'arrow') {
     const side = x > viewport.width - 210 ? -1 : 1, vertical = y < 155 ? 1 : -1;
     const sx = clamp(x + side * (rw / 2 + 82), 24, viewport.width - 24);
@@ -141,6 +161,19 @@ function buildMark(a, accent, visualStyle, viewport, box) {
     const t = node('text', { x: bx, y: by + 4.2, 'font-size': 11.5, 'font-weight': 650, 'font-family': 'system-ui,sans-serif', 'text-anchor': 'middle', fill: accent });
     t.textContent = [...String(a.label || '•')].slice(0, 3).join(''); group.append(t);
   }
+  if (visualStyle === 'luminous') {
+    const underlay=node('g',{class:'hg-contrast-edge','aria-hidden':'true'});
+    for(const path of group.querySelectorAll('.hg-trace')) {
+      if (path.getAttribute('class')?.includes('hg-marker-ink') || Number(path.getAttribute('stroke-width'))>8) continue;
+      const copy=node(path.tagName ?? path.tag);
+      for(const key of ['d','x','y','width','height','rx','ry','cx','cy','r','x1','y1','x2','y2','pathLength']) {
+        const value=path.getAttribute(key);if(value!==null)copy.setAttribute(key,value);
+      }
+      for(const [key,value] of Object.entries({class:path.getAttribute('class'),fill:'none',stroke:'#07131c','stroke-opacity':.45,'stroke-width':Number(path.getAttribute('stroke-width')||1.8)+2,'stroke-linecap':'round','stroke-linejoin':'round'}))copy.setAttribute(key,value);
+      underlay.append(copy);
+    }
+    group.insertBefore(underlay,group.children[0]||null);
+  }
   label(group, box, accent);
   return group;
 }
@@ -148,6 +181,27 @@ function syncChildren(parent, wanted) {
   // Preserve unchanged SVG nodes: snapshot polls must not restart CSS animations.
   for (const old of Array.from(parent.children)) if (!wanted.includes(old)) old.remove();
   wanted.forEach((n, i) => { if (parent.children[i] !== n) parent.insertBefore(n, parent.children[i] || null); });
+}
+function clearSurface(svg, state) {
+  clearTimeout(state?.exitTimer); svg.replaceChildren(); states.delete(svg);
+}
+function retireSurface(svg, state, onEmpty) {
+  if (state.exiting) { state.onEmpty=onEmpty; return; }
+  state.exiting=true; state.onEmpty=onEmpty;
+  for (const {group} of state.marks.values()) {
+    const opacity=globalThis.getComputedStyle?.(group)?.opacity ?? group.getAttribute('opacity') ?? 1;
+    styles(group,{'--hg-exit-opacity':opacity});
+    styles(group,{'--hg-exit-transform':globalThis.getComputedStyle?.(group)?.transform ?? 'scale(1)'});
+    for (const text of group.querySelectorAll('.hg-label')) styles(text,{'--hg-exit-label-opacity':globalThis.getComputedStyle?.(text)?.opacity ?? 1});
+    for (const path of group.querySelectorAll('.hg-trace')) styles(path,{'--hg-exit-dash':globalThis.getComputedStyle?.(path)?.strokeDashoffset ?? 0});
+    group.setAttribute('class',`${group.getAttribute('class')} hg-exiting`);
+  }
+  if(state.veil) {styles(state.veil,{'--hg-veil-opacity':globalThis.getComputedStyle?.(state.veil)?.opacity ?? 1});state.veil.setAttribute('class','hg-veil hg-veil-exit');}
+  state.exitTimer=setTimeout(()=>{
+    if(states.get(svg)!==state)return;
+    clearSurface(svg,state);state.onEmpty?.();
+  },200);
+  state.exitTimer.unref?.();
 }
 /** UI snapshots are repeatable. Moving targets retain their original drawing clock. */
 function renderOverlay(svg, input, viewport = {}) {
@@ -157,9 +211,15 @@ function renderOverlay(svg, input, viewport = {}) {
   svg.setAttribute('data-style', visualStyle); svg.setAttribute('data-motion', motion);
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   const marks = (Array.isArray(input?.annotations) ? input.annotations : []).filter(a => Number.isFinite(a.x) && Number.isFinite(a.y) && (a.opacity ?? 1) > 0);
-  if (!marks.length) { svg.replaceChildren(); states.delete(svg); return; }
+  if (!marks.length) {
+    const state=states.get(svg);
+    const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if(input?.animateExit===true && state?.marks.size && motion!=='off' && !reduced && [...state.marks.values()].some(({group})=>group.getAttribute('data-effect')!=='still')) {retireSurface(svg,state,viewport.onEmpty);return;}
+    clearSurface(svg,state);viewport.onEmpty?.();return;
+  }
   const session = input?.sessionId ?? input?.id ?? 'preview';
   let state = states.get(svg);
+  if (state?.exiting) {clearSurface(svg,state);state=null;}
   if (!state || state.session !== session) { state = { session, uid: `hg-${++nextSurface}`, marks: new Map() }; states.set(svg, state); }
   const now = performance.now(), wanted = [], next = new Map();
   const defs = node('defs');
@@ -173,12 +233,12 @@ function renderOverlay(svg, input, viewport = {}) {
     mask.append(node('rect', { x: 0, y: 0, width, height, fill: 'white' }));
     for (const a of spots) mask.append(node('rect', { x: a.x - (a.width ?? 112) / 2 - 12,
       y: a.y - (a.height ?? 56) / 2 - 12, width: (a.width ?? 112) + 24, height: (a.height ?? 56) + 24,
-      rx: 18, fill: 'black', filter: `url(#${state.uid}-feather)`, opacity: a.opacity ?? 1 }));
+      rx: a.maskStyle==='crisp'?8:18, fill: 'black', ...(a.maskStyle==='crisp'?{}:{filter: `url(#${state.uid}-feather)`}) }));
     defs.append(mask);
   }
   wanted.push(defs);
   if (spots.length) wanted.push(state.veil ??= node('rect', { x: 0, y: 0, width, height, fill: '#07131c', 'fill-opacity': .32, mask: `url(#${state.uid}-mask)`, class: 'hg-veil' }));
-  if (state.veil) { state.veil.setAttribute('width', width); state.veil.setAttribute('height', height); }
+  if (state.veil) { state.veil.setAttribute('fill-opacity', spots.some(a=>a.maskStyle==='deep') ? .56 : .32); state.veil.setAttribute('width', width); state.veil.setAttribute('height', height); }
   if (!spots.length) state.veil = null;
   const occupied = marks.map(a => {
     if (a.shape === 'badge') { const p = badgePosition(a, {width, height}); return {x:p.x-15,y:p.y-15,width:30,height:30}; }
@@ -195,14 +255,15 @@ function renderOverlay(svg, input, viewport = {}) {
     let group = old?.fingerprint === fingerprint ? old.group : null;
     if (!group) {
       group = buildMark(a, accent, visualStyle, { width, height }, box);
+      for (const soft of group.querySelectorAll('.hg-soft-fill')) soft.setAttribute('filter', `url(#${state.uid}-feather)`);
       for (const edge of group.querySelectorAll('.hg-edge-light')) edge.setAttribute('filter', `url(#${state.uid}-glow)`);
-      const elapsed = now - start;
+      const elapsed = now - start, effect=group.getAttribute('data-effect');
       styles(group, { '--hg-opacity': clamp(a.opacity ?? 1, 0, 1), '--hg-delay': `${(a.delayMs ?? 0) - elapsed}ms`,
-        '--hg-duration': `${a.durationMs ?? (visualStyle === 'handdrawn' ? 1050 : 760)}ms` });
+        '--hg-duration': `${a.durationMs ?? (effect==='fade'?300:effect==='pop'?360:visualStyle === 'handdrawn' ? 1050 : 760)}ms` });
     }
     next.set(key, { fingerprint, group, start }); wanted.push(group);
   }
   syncChildren(svg, wanted); state.marks = next;
 }
 
-window.handoffglass?.onRender?.(snapshot => renderOverlay(document.getElementById('canvas'),snapshot));
+window.handoffglass?.onRender?.(snapshot => renderOverlay(document.getElementById('canvas'),snapshot,{onEmpty:()=>window.handoffglass?.overlayCleared?.(snapshot.renderToken)}));

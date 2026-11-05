@@ -39,6 +39,16 @@
       <section data-view="appearance" class="view" hidden>
         <h1 data-i="styleTitle">外观</h1>
         <div class="style-preview" aria-label="标注预览" data-label="preview"><div class="preview-window"><div class="preview-toolbar"><i></i><i></i><i></i></div><div class="preview-lines"><span></span><span></span></div><span class="preview-target" data-i="previewTarget">继续</span></div><svg id="stylePreview" viewBox="0 0 600 190" aria-hidden="true"></svg><button type="button" class="icon-button preview-replay" id="replay" aria-label="重播" data-label="replay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 8a8 8 0 1 0 1 7M19 3v5h-5"/></svg></button></div>
+        <div class="mark-library">
+          <div class="mark-categories" id="markCategories" role="tablist" aria-label="标记用途" data-label="markCategories"></div>
+          <div class="mark-choices" id="markChoices" role="radiogroup" aria-label="标记"></div>
+          <div class="preview-controls">
+            <label><span data-i="entrance">出现与停留</span><select id="previewEffect"><option value="draw" data-option="draw">描绘</option><option value="fade" data-option="fadeIn">渐显</option><option value="pop" data-option="pop">轻弹</option><option value="pulse" data-option="pulse">呼吸</option><option value="flow" data-option="flow">流线</option><option value="still" data-option="still">静态</option></select></label>
+            <label><span data-i="exitStyle">收起</span><select id="previewExit"><option value="fade" data-option="fadeOut">渐隐</option><option value="retract" data-option="retract">收笔</option><option value="shrink" data-option="shrink">缩隐</option></select></label>
+            <label id="previewMaskRow"><span data-i="maskStyle">遮罩</span><select id="previewMask"><option value="soft" data-option="maskSoft">柔边</option><option value="crisp" data-option="maskCrisp">清晰边缘</option><option value="deep" data-option="maskDeep">深色</option></select></label>
+          </div>
+          <div class="preview-footer"><span data-i="previewHint">样式库仅用于预览，实际标记按当前步骤选用。</span><button type="button" class="quiet-button" id="previewDismiss" data-i="dismiss">收起预览</button></div>
+        </div>
         <form id="preferences" novalidate><div class="settings-list">
           <label class="setting"><span data-i="visual">标注</span><select name="visualStyle" id="visualStyle"><option value="minimal" data-option="minimal">极简</option><option value="handdrawn" data-option="handdrawn">手绘</option><option value="luminous" data-option="luminous">柔光</option></select></label>
           <label class="setting"><span data-i="motion">动态</span><select name="motion" id="motion"><option value="gentle" data-option="gentle">柔和</option><option value="expressive" data-option="expressive">丰富</option><option value="off" data-option="off">关闭</option></select></label>

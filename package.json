@@ -65,6 +65,7 @@
     "handoff:check": "npm run verify && npm run scene:lint",
     "visual:trial": "node scripts/visual-trial.mjs",
     "test:visual": "node scripts/visual-trial.mjs --smoke",
+    "test:motion": "electron scripts/overlay-motion-smoke.mjs",
     "test:release-ui": "electron scripts/release-ui-smoke.mjs",
     "bench:continuity": "node scripts/benchmark-continuity.mjs",
     "test:legacy": "node scripts/mcp-smoke.mjs --legacy",

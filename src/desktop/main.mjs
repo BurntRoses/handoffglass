@@ -8,6 +8,8 @@ import { placePanel } from './panel-layout.mjs';
 import { localAnnotations, contains } from '../geometry.mjs';
 import { readDesktopManifest, runtimeDir } from '../runtime.mjs';
 
+const overlayHides=new WeakMap();
+let overlayRenderToken=0;
 const here = dirname(fileURLToPath(import.meta.url));
 let port = Number(process.env.HANDOFFGLASS_PORT);
 let secret = process.env.HANDOFFGLASS_SECRET;
@@ -84,7 +86,7 @@ function createPanel() {
   win.webContents.on('did-finish-load', () => { if (current) win.webContents.send('hg:render', current); });
   return win;
 }
-function draw(win, display) {
+function draw(win, display, animateExit=false) {
   if (win.isDestroyed() || win.webContents.isLoading()) return;
   const b = { id: String(display.id), x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height };
   const annotations = current ? localAnnotations(b, current.annotations) : [];
@@ -94,9 +96,15 @@ function draw(win, display) {
     const focus = annotations[0];
     annotations.unshift({ ...focus, id: '__session_spotlight', shape: 'spotlight', opacity: .45, effect: 'still', label: '' });
   }
-  // Clear the renderer's playback cache when a target is lost, even while hidden.
-  win.webContents.send('hg:render', { sessionId: current?.id, annotations, visualStyle: current?.visualStyle, motion: current?.motion });
-  if (!annotations.length) { win.hide(); return; }
+  const previous=overlayHides.get(win);clearTimeout(previous?.timer);overlayHides.delete(win);
+  const renderToken=++overlayRenderToken;
+  win.webContents.send('hg:render', { sessionId: current?.id, annotations, visualStyle: current?.visualStyle, motion: current?.motion, animateExit, renderToken });
+  if (!annotations.length) {
+    if(!animateExit || current?.motion==='off'){win.hide();return;}
+    // The renderer acknowledges actual teardown; the timeout bounds a stalled renderer.
+    const timer=setTimeout(()=>{if(overlayHides.get(win)?.token===renderToken){overlayHides.delete(win);if(!win.isDestroyed())win.hide();}},300);
+    timer.unref?.();overlayHides.set(win,{token:renderToken,timer});return;
+  }
   win.showInactive();
 }
 function findTargetDisplay(active) {
@@ -121,10 +129,11 @@ function layoutPanel(){
   panelPosition=position;
 }
 function updateUI(next) {
+  const animateExit=current?.id===next?.id && current?.status!=='paused' && next?.phase==='verifying' && next?.completionSource==='user_report' && next?.desktopConnection!=='reconnecting';
   const oldKey=current?`${current.id}:${current.step}`:null;
   current=next&&['awaiting_user','user_action_reported','observing','paused'].includes(next.status)?next:null;
   if(oldKey!==(current?`${current.id}:${current.step}`:null))panelPosition=null;
-  for(const {win,display} of overlays)draw(win,display);
+  for(const {win,display} of overlays)draw(win,display,animateExit);
   if(!panel)return;
   // Legacy visual_show remains nonblocking; continuous guide sessions have controls.
   if(!current||(current.mode==='guide'&&!current.continuous)){panel.hide();return;}
@@ -264,6 +273,12 @@ async function startDesktop() {
       console.error('[handoffglass] decision failed:', error.message);
       return { ok: false, error: 'Could not deliver decision; please retry after checking the panel' };
     }
+  });
+  ipcMain.on('hg:overlay-empty',(event,token)=>{
+    const overlay=overlays.find(({win})=>!win.isDestroyed()&&win.webContents===event.sender);
+    const pending=overlay&&overlayHides.get(overlay.win);
+    if(!pending || pending.token!==token)return;
+    clearTimeout(pending.timer);overlayHides.delete(overlay.win);overlay.win.hide();
   });
   ipcMain.on('hg:panel-size',(event,data)=>{
     if(!panel||event.sender!==panel.webContents||!Number.isFinite(data?.height)||typeof data.compact!=='boolean')return;

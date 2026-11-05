@@ -3,9 +3,11 @@
  * short: the host should learn the workflow once during MCP initialization,
  * while the broker owns geometry, retries and permission state locally.
  */
+import { VISUAL_CAPABILITIES } from './visual/catalog.mjs';
 export const CAPABILITY_MANIFEST = Object.freeze({
   schemaVersion: 1,
-  version: 3,
+  version: 4,
+  visuals: VISUAL_CAPABILITIES,
   workflow: Object.freeze(['observe', 'present', 'wait', 'verify']),
   lifecycle: Object.freeze(['integration_status', 'integration_cleanup', 'integration_set_enabled', 'integration_uninstall', 'permission_status']),
   hosts: Object.freeze([

@@ -5,7 +5,7 @@ export function upgradeChoices(root=document){
     if(select.dataset.upgraded)continue;select.dataset.upgraded='true';select.hidden=true;
     let field=select.parentElement;
     if(field.tagName==='LABEL'){
-      const div=document.createElement('div');div.className=field.className;
+      const div=document.createElement('div');for(const {name,value} of field.attributes)if(name!=='for')div.setAttribute(name,value);
       field.replaceWith(div);div.append(...field.childNodes);field=div;
     }
     const group=document.createElement('div');group.className=select.id==='host'?'choice-group host-choices':select.id==='visualStyle'?'choice-group style-choices':'choice-group segments';

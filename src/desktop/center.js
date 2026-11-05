@@ -1,9 +1,12 @@
 'use strict';
 import { upgradeChoices, syncChoices } from './choice-controls.mjs';
 import { renderConnectionSteps, permissionLabel } from './connection-view.mjs';
+import { createMarkPicker } from './mark-picker.mjs';
 import { renderOverlay } from './overlay-renderer.mjs';
 const lex = {
  "zh-CN": {
+  "markCategories":"标记用途","entrance":"出现与停留","exitStyle":"收起","maskStyle":"遮罩","draw":"描绘","fade":"渐变","fadeIn":"渐显","fadeOut":"渐隐","pop":"轻弹","pulse":"呼吸","flow":"流线","still":"静态","retract":"收笔","shrink":"缩隐","maskSoft":"柔边","maskCrisp":"清晰边缘","maskDeep":"深色","dismiss":"收起预览","restore":"显示预览","previewHint":"样式库仅用于预览，实际标记按当前步骤选用。",
+
   "event_session_started":"引导已开始","event_scene_updated":"已显示下一步","event_session_finished":"引导已结束","event_user_action":"已提交操作结果","event_verification_required":"等待核实","event_agent_ready":"准备下一步",
   "phase_verifying":"等待核实","phase_next_step":"准备下一步","pausedTitle":"引导已停用","pausedDesc":"连接和设置仍保留。需要时可在连接页重新启用。",
   "overview": "引导",
@@ -152,6 +155,8 @@ const lex = {
   "offlineDesc": "桌面引导暂不可用，请稍后重试。"
  },
  "en-US": {
+  "markCategories":"Mark purpose","entrance":"Entrance & hold","exitStyle":"Exit","maskStyle":"Shade","draw":"Draw","fade":"Fade","fadeIn":"Fade in","fadeOut":"Fade out","pop":"Pop","pulse":"Pulse","flow":"Flow","still":"Still","retract":"Retract","shrink":"Shrink","maskSoft":"Soft","maskCrisp":"Crisp","maskDeep":"Deep","dismiss":"Hide preview","restore":"Show preview","previewHint":"Preview library. Each step chooses its own marks.",
+
   "event_session_started":"Guidance started","event_scene_updated":"Next step shown","event_session_finished":"Guidance ended","event_user_action":"Action reported","event_verification_required":"Awaiting verification","event_agent_ready":"Preparing next step",
   "phase_verifying":"Awaiting verification","phase_next_step":"Preparing next step","pausedTitle":"Guidance is paused","pausedDesc":"Connections and settings are kept. Re-enable it in Connections when needed.",
   "overview": "Guidance",
@@ -313,7 +318,7 @@ let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false,te
 let hostPlatform=null,lastDisplays=null,displaySettingsState=null,lastPermission=null;
 const connectionStates={};
 const translateKey=key=>(lex[prefs?.locale]||lex['zh-CN'])[key]||key;
-function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();renderDisplays(lastDisplays);renderConnection();renderPermission();}
+function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();renderDisplays(lastDisplays);renderConnection();renderPermission();if(currentPage==='appearance')renderPreview();}
 function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=translateKey(page);if(page==='connections'){void preview();void refresh();void inspectIntegration();void refreshConnection();}if(page==='diagnostics'||page==='overview')void refresh();if(page==='diagnostics'){void refreshDisplays();void refreshPermission();}if(page==='appearance')requestAnimationFrame(renderPreview);}
 function value(id,text){$(id).textContent=text;}
 let observedHosts=[];
@@ -494,16 +499,22 @@ $('copyReport').addEventListener('click',async()=>{
 });
 
 // The in-window preview shares the production renderer and motion rules.
-let previewRevision=0;
+let previewRevision=0,previewHidden=false,previewLocale;
+const markPicker=createMarkPicker({categories:$('markCategories'),choices:$('markChoices'),locale:()=>document.documentElement.lang, onChange:()=>{previewHidden=false;previewRevision++;renderPreview();}});
 function renderPreview(){
  if(currentPage!=='appearance')return;
+ if(previewLocale!==document.documentElement.lang){previewLocale=document.documentElement.lang;markPicker.refresh();}
  const svg=$('stylePreview'),bounds=svg.getBoundingClientRect(),target=document.querySelector('.preview-target').getBoundingClientRect();
  if(!bounds.width||!target.width)return;
- renderOverlay(svg,{sessionId:`settings-${previewRevision}`,visualStyle:$('visualStyle').value,motion:$('motion').value,
-  annotations:[{id:'preview',x:target.x-bounds.x+target.width/2,y:target.y-bounds.y+target.height/2,width:target.width,height:target.height,shape:'ring',color:getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()}]},
+ $('previewMaskRow').hidden=markPicker.shape!=='spotlight';
+ value('previewDismiss',translateKey(previewHidden?'restore':'dismiss'));
+ renderOverlay(svg,{sessionId:`settings-${previewRevision}`,visualStyle:$('visualStyle').value,motion:$('motion').value,animateExit:previewHidden,
+  annotations:previewHidden?[]:[{id:'preview',x:target.x-bounds.x+target.width/2,y:target.y-bounds.y+target.height/2,width:target.width,height:target.height,shape:markPicker.shape,effect:$('previewEffect').value,exit:$('previewExit').value,maskStyle:$('previewMask').value,label:markPicker.shape==='badge'?'2':'',color:getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()}]},
   {width:bounds.width,height:bounds.height});
 }
-$('replay').addEventListener('click',()=>{previewRevision++;renderPreview();});
+$('replay').addEventListener('click',()=>{previewRevision++;previewHidden=false;renderPreview();});
+$('previewDismiss').addEventListener('click',()=>{previewHidden=!previewHidden;if(!previewHidden)previewRevision++;renderPreview();});
+for(const id of ['previewEffect','previewExit','previewMask'])$(id).addEventListener('change',()=>{previewRevision++;previewHidden=false;renderPreview();});
 new ResizeObserver(()=>renderPreview()).observe(document.querySelector('.style-preview'));
 for(const switchId of ['accessibility','continuous'])$(switchId).addEventListener('change',async()=>{
  if(!prefs)return;

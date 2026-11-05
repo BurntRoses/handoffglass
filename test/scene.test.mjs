@@ -10,8 +10,8 @@ const source = () => ({ version:1,layers:[
 ]});
 test('template catalogue renders meaningful, strictly bounded reusable marks', () => {
   assert.equal(SCENE_VERSION, 1);
-  assert.equal(TEMPLATE_NAMES.length,9);
-  assert.equal(SHAPES.length,13);
+  assert.equal(TEMPLATE_NAMES.length,13);
+  assert.equal(SHAPES.length,19);
   for (const name of TEMPLATE_NAMES) {
     const s=composeTemplate(name,[target]);
     assert.equal(s.version,1);
@@ -103,4 +103,15 @@ test('animation hints survive normalization, flattening and atomic updates with 
   const steps=flattenScene(composeTemplate('sequence',[target,{...target,x:300}]));
   assert.deepEqual(steps.filter(a=>a.shape==='ring').map(a=>a.delayMs),[0,420]);
   assert.deepEqual(steps.filter(a=>a.shape==='badge').map(a=>[a.width,a.height]),[[124,42],[124,42]]);
+});
+
+test('mask and exit hints stay bounded across normalization and scene patches',()=>{
+  const a=normalizeAnnotation({...target,shape:'spotlight',maskStyle:'crisp',exit:'shrink',effect:'pop'});
+  const s=normalizeScene({version:1,layers:[{id:'focus',annotations:[{...a,id:'target'}]}]});
+  const next=patchScene(s,[{op:'upsert_annotation',layerId:'focus',annotation:{...a,id:'target',maskStyle:'deep'}}]);
+  const template=normalizeRequest({...basic,x:10,y:20,template:'focus',maskStyle:'deep',exit:'retract',effect:'pop'});
+  assert.equal(template.annotations[0].maskStyle,'deep');assert.equal(template.annotations[0].exit,'retract');assert.equal(template.annotations[0].effect,'pop');
+  assert.equal(flattenScene(next)[0].maskStyle,'deep');assert.equal(flattenScene(next)[0].exit,'shrink');
+  assert.throws(()=>normalizeAnnotation({...target,maskStyle:'none'}),/maskStyle/);
+  assert.throws(()=>normalizeAnnotation({...target,exit:'fly'}),/exit/);
 });
