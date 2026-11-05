@@ -7,8 +7,9 @@ import {registerApplicationInstallation,planApplicationFiles,readApplicationInst
 import {uninstallApplication} from '../src/integration-lifecycle.mjs';
 import {installCodex} from '../src/codex-install.mjs';
 import {removeOwnedFiles} from '../scripts/remove-owned-files.mjs';
-import {spawn} from 'node:child_process';
-import {fileURLToPath} from 'node:url';
+import {spawn,execFile} from 'node:child_process';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {promisify} from 'node:util';
 import {readManifest,probe} from '../src/runtime.mjs';
 const isolated=async run=>{const userHome=await mkdtemp(join(tmpdir(),'hg-uninstall-'));try{await run({userHome,dir:join(userHome,'.handoffglass'),codexHome:join(userHome,'.codex'),root:join(userHome,'source'),platform:'darwin'});}finally{await rm(userHome,{recursive:true,force:true});}};
 async function workerResult(applied){
@@ -61,4 +62,20 @@ test('standalone uninstall shuts down its authenticated Broker before deleting r
   assert.ok(child.exitCode!==null||child.signalCode!==null,'Broker must exit');
   await assert.rejects(readdir(options.dir),{code:'ENOENT'});await rm(dirname(applied.resultPath),{recursive:true,force:true});
  }finally{if(child.exitCode===null&&child.signalCode===null)child.kill();}
+}));
+
+test('external removal finishes after the calling process has exited',()=>isolated(async options=>{
+ const applicationURL=pathToFileURL(fileURLToPath(new URL('../src/application-installation.mjs',import.meta.url))).href;
+ const lifecycleURL=pathToFileURL(fileURLToPath(new URL('../src/integration-lifecycle.mjs',import.meta.url))).href;
+ const {stdout}=await promisify(execFile)(process.execPath,['--input-type=module','-e',`
+  const {registerApplicationInstallation}=await import(${JSON.stringify(applicationURL)});
+  const {uninstallApplication}=await import(${JSON.stringify(lifecycleURL)});
+  const options=${JSON.stringify(options)};
+  await registerApplicationInstallation(options);
+  console.log(JSON.stringify(await uninstallApplication({...options,confirm:true})));
+ `],{timeout:15000});
+ const applied=JSON.parse(stdout),result=await workerResult(applied);
+ assert.equal(result.complete,true,JSON.stringify(result));
+ await assert.rejects(readdir(options.dir),{code:'ENOENT'});
+ await rm(dirname(applied.resultPath),{recursive:true,force:true});
 }));
