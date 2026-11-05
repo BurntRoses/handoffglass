@@ -11,7 +11,7 @@ if ((body.match(/export function renderOverlay\(/g)||[]).length!==1 || /^\s*impo
   throw new Error('Unsupported overlay-renderer API; keep renderer self-contained or upgrade build-overlay.mjs');
 }
 body=body.replace('export function renderOverlay(', 'function renderOverlay(');
-const bundled = `/* GENERATED — scripts/build-overlay.mjs; do not edit. */\n'use strict';\n${body}\nwindow.handoffglass?.onRender?.(snapshot => renderOverlay(document.getElementById('canvas'),snapshot));\n`;
+const bundled = `/* GENERATED — scripts/build-overlay.mjs; do not edit. */\n'use strict';\n${body}\nwindow.handoffglass?.onRender?.(snapshot => renderOverlay(document.getElementById('canvas'),snapshot,{onEmpty:()=>window.handoffglass?.overlayCleared?.(snapshot.renderToken)}));\n`;
 if(process.argv.includes('--check')) {
   if((await readFile(output,'utf8')).replace(/\r\n/g,'\n')!==bundled) throw new Error('Desktop overlay bundle out of date: npm run build:overlay');
   console.log('Overlay bundle is current');

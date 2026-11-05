@@ -124,6 +124,10 @@ void app.whenReady().then(async()=>{
    const panel=await until(()=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/panel.html')&&w.isVisible()),'Decision panel did not appear');
    await until(()=>panel.webContents.executeJavaScript('!document.getElementById("done").disabled'),'Decision panel did not become interactive');
    await panel.webContents.executeJavaScript('document.getElementById("done").click()');
+   const retiring=await until(()=>overlays().find(w=>w.isVisible()),'Overlay hid before its exit');
+   await until(()=>retiring.webContents.executeJavaScript('!!document.querySelector(".hg-exiting")'),'User report did not animate retirement');
+   await until(()=>!retiring.isVisible(),'Retired overlay did not hide');
+   report.userReportExit=true;
    await until(verifyDecision,'Decision did not return over MCP');
    assert.deepEqual({...report.result,events:undefined},{status:'completed',completionSource:'user_report',verified:true,applicationOpened:true,events:undefined});
    assert.ok(report.result.events.includes('completed'));

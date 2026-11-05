@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { renderOverlay } from '../src/desktop/overlay-renderer.mjs';
-import { SHAPES, TONES, normalizeScene, flattenScene } from '../src/visual/scene.mjs';
+import { SHAPES, TONES, MASK_STYLES, EXIT_STYLES, EFFECTS, normalizeScene, flattenScene } from '../src/visual/scene.mjs';
 import { SvgNode, walk, documentStub } from './helpers/svg-dom.mjs';
 const orig=globalThis.document;
 globalThis.document=documentStub;
@@ -31,6 +31,7 @@ test('documented sample scenes load and shared palette/schema stay in sync',asyn
   const schema=JSON.parse(await readFile(fileURLToPath(new URL('../schemas/scene-v1.schema.json',import.meta.url)),'utf8'));
   assert.deepEqual(schema.$defs.annotation.properties.shape.enum,SHAPES);
   assert.deepEqual(schema.$defs.annotation.properties.tone.enum,Object.keys(TONES));
+  for(const [key,values] of [['effect',EFFECTS],['exit',EXIT_STYLES],['maskStyle',MASK_STYLES]])assert.deepEqual(schema.$defs.annotation.properties[key].enum,values);
   for(const filename of ['access-review','tutorial','multi-monitor']){
     const data=JSON.parse(await readFile(fileURLToPath(new URL(`../examples/scenes/${filename}.json`,import.meta.url)),'utf8'));
     const scene=normalizeScene(data);
@@ -83,4 +84,49 @@ test('label boxes avoid other grounded targets and stay inside the viewport',()=
   }
   const first=labels[0].children[0].attrs;
   assert.ok(+first.y>=240,'occupied space above the first target should move the label below it');
+});
+
+test('shared catalog covers every mark exactly once',async()=>{
+  const {MARK_CATEGORIES,MARK_NAMES}=await import('../src/visual/catalog.mjs');
+  assert.deepEqual(MARK_CATEGORIES.flatMap(c=>c.shapes).sort(),[...SHAPES].sort());
+  assert.deepEqual(Object.keys(MARK_NAMES).sort(),[...SHAPES].sort());
+});
+test('mask treatment keeps holes clear at low contour opacity and uses strongest shade once',()=>{
+  const svg=new SvgNode('svg');renderOverlay(svg,{annotations:[
+    {shape:'spotlight',x:100,y:120,maskStyle:'crisp',opacity:.2},
+    {shape:'spotlight',x:400,y:120,maskStyle:'deep'}]},{width:600,height:400});
+  const holes=walk(svg,n=>n.attrs.fill==='black');
+  assert.equal(holes[0].attrs.filter,undefined);assert.equal(holes[0].attrs.opacity,undefined);
+  assert.ok(holes[1].attrs.filter);assert.equal(walk(svg,n=>n.attrs.class==='hg-veil')[0].attrs['fill-opacity'],'0.56');
+});
+test('normal retirement finishes once, while repeated empty snapshots keep its clock',async()=>{
+  const svg=new SvgNode('svg'),viewport={width:500,height:300};let first=0,latest=0;
+  renderOverlay(svg,{annotations:[{id:'a',shape:'scribble',x:200,y:160}]},viewport);
+  renderOverlay(svg,{annotations:[],animateExit:true},{...viewport,onEmpty:()=>first++});
+  assert.equal(walk(svg,n=>n.attrs.class?.includes('hg-exiting')).length,1);
+  await new Promise(r=>setTimeout(r,80));
+  renderOverlay(svg,{annotations:[],animateExit:true},{...viewport,onEmpty:()=>latest++});
+  await new Promise(r=>setTimeout(r,140));
+  assert.equal(svg.children.length,0);assert.equal(first,0);assert.equal(latest,1);
+});
+test('new presentation cancels retirement; safety clear cancels outgoing geometry immediately',async()=>{
+  const svg=new SvgNode('svg'),viewport={width:500,height:300};let drained=0;
+  const a={id:'a',shape:'ring',x:200,y:160};
+  renderOverlay(svg,{sessionId:'same',annotations:[a]},viewport);
+  renderOverlay(svg,{annotations:[],animateExit:true},{...viewport,onEmpty:()=>drained++});
+  renderOverlay(svg,{sessionId:'same',annotations:[{...a,x:210}]},viewport);
+  await new Promise(r=>setTimeout(r,220));
+  assert.equal(drained,0);assert.equal(walk(svg,n=>n.attrs['data-shape']==='ring').length,1);
+  renderOverlay(svg,{annotations:[],animateExit:true},viewport);
+  renderOverlay(svg,{annotations:[]},viewport);assert.equal(svg.children.length,0);
+});
+test('motion off, still and reduced-motion clear synchronously',()=>{
+  const svg=new SvgNode('svg'),viewport={width:500,height:300};
+  const previous=globalThis.matchMedia;
+  try{for(const settings of [{motion:'off'},{effect:'still'},{reduced:true}]){
+    globalThis.matchMedia=()=>({matches:!!settings.reduced});
+    renderOverlay(svg,{annotations:[{x:100,y:100,shape:'dot',effect:settings.effect}]},viewport);
+    let cleared=false;renderOverlay(svg,{annotations:[],animateExit:true,motion:settings.motion},{...viewport,onEmpty:()=>cleared=true});
+    assert.equal(svg.children.length,0);assert.equal(cleared,true);
+  }}finally{globalThis.matchMedia=previous;}
 });

@@ -1,27 +1,46 @@
-.hg-mark{filter:drop-shadow(0 1px 1px #07131c44);animation:hg-mark-arrive 240ms ease-out var(--hg-delay,0ms) both}
+/* Shared by desktop, settings and the gallery. Motion never changes the target. */
+.hg-mark{filter:drop-shadow(0 1px 1px #07131c44);animation:hg-mark-arrive 240ms ease-out var(--hg-delay,0ms) both;transform-box:view-box}
 .hg-trace{stroke-dasharray:1;stroke-dashoffset:0;animation:hg-handwrite var(--hg-duration,760ms) cubic-bezier(.25,.1,.2,1) var(--hg-delay,0ms) both}
 .hg-second-stroke{animation-delay:calc(var(--hg-delay,0ms) + 160ms)}
 .hg-arrow-head{animation-duration:250ms;animation-delay:calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)*.72)}
-.hg-label{animation:hg-arrive 220ms ease-out calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)*.55) both;filter:drop-shadow(0 3px 8px #07131c22)}
+.hg-label{animation:hg-arrive 220ms ease-out calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)*.55) both;filter:drop-shadow(0 3px 8px #07131c33)}
 .hg-aura,.hg-beacon{transform-box:fill-box;transform-origin:center;animation:hg-breathe 3s ease-in-out calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)) infinite}
 .hg-beacon-outer{animation-delay:calc(var(--hg-delay,0ms) + var(--hg-duration,760ms) + 420ms)}
+.hg-wave{transform-box:fill-box;transform-origin:center;animation:hg-wave 3200ms ease-out calc(var(--hg-delay,0ms) + var(--hg-duration,760ms) + var(--hg-wave-offset,0ms)) infinite both}
 .hg-flow{stroke-dasharray:.045 .955;stroke-dashoffset:1;animation:hg-flow 2400ms linear calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)) infinite;opacity:0;pointer-events:none}
-.hg-veil{animation:hg-veil 400ms ease-out both}
+.hg-veil{animation:hg-veil 320ms ease-out both}
 .hg-mark[data-effect=pulse] .hg-trace{animation:hg-handwrite var(--hg-duration,760ms) ease-out var(--hg-delay,0ms) both,hg-emphasis 2800ms ease-in-out calc(var(--hg-delay,0ms) + var(--hg-duration,760ms)) infinite}
+.hg-mark[data-effect=fade]{animation:hg-mark-arrive var(--hg-duration,300ms) ease-out var(--hg-delay,0ms) both}
+.hg-mark[data-effect=pop]{animation:hg-pop var(--hg-duration,360ms) cubic-bezier(.2,.8,.3,1) var(--hg-delay,0ms) both}
+.hg-mark[data-effect=fade] .hg-trace,.hg-mark[data-effect=pop] .hg-trace{animation:none;stroke-dashoffset:0}
 svg[data-style=handdrawn] .hg-trace{stroke-linecap:round}
 svg[data-style=minimal] .hg-mark,svg[data-style=handdrawn] .hg-mark{filter:none}
 svg[data-style=minimal] .hg-aura,svg[data-style=minimal] .hg-edge-light{display:none}
 svg[data-motion=expressive] .hg-flow{animation-duration:1700ms}
 svg[data-motion=expressive] .hg-beacon{animation-name:hg-ripple;animation-duration:2400ms}
+svg[data-motion=expressive] .hg-wave{animation-duration:2400ms}
+/* The exit starts from the current computed opacity/dash, even mid-entrance. */
+.hg-mark.hg-exiting{animation:hg-exit 180ms ease-in both!important}
+.hg-mark.hg-exiting[data-exit=shrink]{animation-name:hg-shrink!important}
+.hg-mark.hg-exiting .hg-label{animation:hg-label-exit 120ms ease-in both!important}
+.hg-mark.hg-exiting[data-exit=retract] .hg-trace{animation:hg-retract 180ms ease-in both!important}
+.hg-veil.hg-veil-exit{animation:hg-veil-exit 180ms ease-in both}
 svg[data-motion=off] *,svg .hg-mark[data-effect=still],svg .hg-mark[data-effect=still] *{animation:none!important;transition:none!important;stroke-dashoffset:0!important}
 svg[data-motion=off] .hg-flow,svg .hg-mark[data-effect=still] .hg-flow{display:none}
 @keyframes hg-handwrite{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 @keyframes hg-mark-arrive{from{opacity:0}to{opacity:var(--hg-opacity,1)}}
 @keyframes hg-arrive{from{opacity:0}to{opacity:1}}
 @keyframes hg-veil{from{opacity:0}to{opacity:1}}
+@keyframes hg-pop{from{opacity:0;transform:scale(.92)}to{opacity:var(--hg-opacity,1);transform:scale(1)}}
 @keyframes hg-flow{0%{stroke-dashoffset:1;opacity:0}12%,75%{opacity:.85}100%{stroke-dashoffset:0;opacity:0}}
 @keyframes hg-breathe{0%,100%{opacity:.18}50%{opacity:.55}}
 @keyframes hg-emphasis{0%,100%{stroke-opacity:.72}50%{stroke-opacity:1}}
 @keyframes hg-ripple{0%{opacity:.5;transform:scale(.93)}100%{opacity:0;transform:scale(1.26)}}
+@keyframes hg-wave{0%{opacity:0;transform:scale(.7)}12%{opacity:.45}70%,100%{opacity:0;transform:scale(1.8)}}
+@keyframes hg-exit{from{opacity:var(--hg-exit-opacity,1)}to{opacity:0}}
+@keyframes hg-shrink{from{opacity:var(--hg-exit-opacity,1);transform:var(--hg-exit-transform,scale(1))}to{opacity:0;transform:scale(.94)}}
+@keyframes hg-retract{from{stroke-dashoffset:var(--hg-exit-dash,0)}to{stroke-dashoffset:1}}
+@keyframes hg-label-exit{from{opacity:var(--hg-exit-label-opacity,1)}to{opacity:0}}
+@keyframes hg-veil-exit{from{opacity:var(--hg-veil-opacity,1)}to{opacity:0}}
 @media(prefers-reduced-motion:reduce){svg *,svg *::before,svg *::after{animation:none!important;transition:none!important;stroke-dashoffset:0!important}.hg-flow{display:none}}
-@media(forced-colors:active){.hg-aura,.hg-edge-light,.hg-veil{display:none}.hg-trace{stroke:Highlight}.hg-label rect{fill:Canvas;stroke:CanvasText}.hg-label text{fill:CanvasText}}
+@media(forced-colors:active){.hg-aura,.hg-edge-light,.hg-veil,.hg-soft-fill,.hg-contrast-edge{display:none}.hg-trace{stroke:Highlight}.hg-target-dot,.hg-dot-well{fill:Highlight}.hg-label rect{fill:Canvas;stroke:CanvasText}.hg-label text{fill:CanvasText}}

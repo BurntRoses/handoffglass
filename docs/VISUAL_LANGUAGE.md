@@ -23,7 +23,7 @@ This is a **production design contract**, not a mock. The gallery loads the prod
 
 Colors are validated as 6-digit hexadecimal and never interpolated into HTML. Text is rendered using `textContent`. Prefer text + shape redundancy for color-vision accessibility. No display-capture, PII, remote font or telemetry dependencies.
 
-## Primitive marks (13)
+## Primitive marks (19)
 
 | Shape | Intended use | Rendering behavior |
 | --- | --- | --- |
@@ -39,9 +39,15 @@ Colors are validated as 6-digit hexadecimal and never interpolated into HTML. Te
 | `check` | Visually mark a point to review | Drawn check glyph; never proof of completion |
 | `scribble` | Human ink emphasis | Two open, overlapping pen gestures |
 | `halo` | Attention at a point | Local breathing/ripple rings |
+| `dot` | Mark a small exact point | Small solid dot with a translucent well |
+| `ripple` | Draw attention to a point | Two staggered waves with a fixed center |
+| `double_ring` | Emphasize a boundary | Two concentric contours, drawn in order |
+| `glow` | Light a region without dimming surroundings | Soft translucent fill with a fine edge |
+| `strike` | Ignore text or a row | Single grounded strike-through |
+| `cross` | Mark an exclusion | Two strokes on a neutral chip; not a decision |
 | `cursor` | Demonstrate a location | Vector pointer; does not move the real cursor |
 
-## Reusable templates (9)
+## Reusable templates (13)
 
 | Template | Purpose | Composition |
 | --- | --- | --- |
@@ -53,6 +59,10 @@ Colors are validated as 6-digit hexadecimal and never interpolated into HTML. Te
 | `verify` | Check a target after a human action | Crosshair + label; **not automatic verification** |
 | `sketch` | Personal ink emphasis | Double pen loop, 1100 ms reveal |
 | `highlight` | Read a measured text area | Caution marker stroke, 850 ms reveal |
+| `beacon` | Locate a point | Ripple with a small pop entrance |
+| `region` | Emphasize an area | Soft region glow with fade |
+| `acknowledge` | Visual feedback only | Check glyph with pop; no verification state change |
+| `exclude` | Indicate an exclusion | Neutral cross glyph |
 | `bracket` | Keep central content readable | Corner frame with gentle emphasis |
 
 Templates are programs rather than SVG files: `composeTemplate(name, groundedTargets)` returns an editable Scene v1 with stable layer and mark IDs. All templates share the same renderer.
@@ -69,6 +79,8 @@ Templates are programs rather than SVG files: `composeTemplate(name, groundedTar
 
 ## Layout & typography
 
+The compact capability catalog at `capability_manifest.visuals` uses the same category definitions as the App and gallery. See [motion and mask options](VISUAL_MOTION.md).
+
 - Annotation stroke: typically 1.8–2.3 device-independent px with rounded ends.
 - Caption: compact system UI font (11.5px), dark backed label, at most 48 visible Unicode code points; not intended for paragraphs.
 - Explain longer guidance through the panel message (up to 1000 chars), not over target buttons.
@@ -77,7 +89,7 @@ Templates are programs rather than SVG files: `composeTemplate(name, groundedTar
 
 ## Preview
 
-Run `npm run gallery`, open the printed loopback URL and compare thirteen marks, three styles, four effects and staggered sequences. Individual specimen tiles scope their spotlight to the tile; exported scenes use the normal shared desktop mask. This gallery intentionally uses the same renderer as Electron. It does **not** imply that real desktop click-through and multi-monitor behavior are already validated.
+Run `npm run gallery`, open the printed loopback URL and compare nineteen marks in five categories, three styles, six effects, three exits and staggered sequences. Individual specimen tiles scope their spotlight to the tile; exported scenes use the normal shared desktop mask. This gallery intentionally uses the same renderer as Electron. It does **not** imply that real desktop click-through and multi-monitor behavior are already validated.
 
 ### Native Electron packaging detail
 

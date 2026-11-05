@@ -32,7 +32,7 @@ void app.whenReady().then(async()=>{
   center.webContents.on('render-process-gone',(_e,d)=>errors.push(d.reason));
   const js=async source=>{try{return await center.webContents.executeJavaScript(source);}catch(error){throw new Error('UI script failed: '+source,{cause:error});}};
   await until(async()=>await js('document.querySelector("#appVersion").textContent.startsWith("v")'),'Settings did not load');
-  async function capture(name){await pause(300);await writeFile(join(output,`${name}.png`),(await center.webContents.capturePage()).toPNG());}
+  async function capture(name){await pause(name.startsWith('appearance')?1250:300);await writeFile(join(output,`${name}.png`),(await center.webContents.capturePage()).toPNG());}
   async function page(name){await js(`document.querySelector('[data-page="${name}"]').click()`);await pause(100);}
   async function set(id,value){await js(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);}
   await capture('guidance-light');
@@ -100,6 +100,18 @@ void app.whenReady().then(async()=>{
   await assert.rejects(readFile(join(bundle,'mcp.json')),{code:'ENOENT'});
   await set('host','codex');
   await page('appearance');await until(async()=>await js('document.querySelectorAll("#stylePreview .hg-mark").length===1'),'Shared preview did not render');
+  assert.equal(await js('document.querySelectorAll("#markCategories button").length'),5);
+  await js('document.querySelector("#markChoices [data-shape=glow]").click()');
+  assert.equal(await js('document.querySelector("#stylePreview .hg-mark").dataset.shape'),'glow');
+  await js('document.querySelector("#previewDismiss").click()');await pause(240);
+  assert.equal(await js('document.querySelectorAll("#stylePreview .hg-mark").length'),0);
+  await js('document.querySelector("#previewDismiss").click()');
+  assert.equal(await js('document.querySelectorAll("#stylePreview .hg-mark").length'),1);
+  await js('document.querySelector("#markCategories [data-category=focus]").focus();document.activeElement.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowRight",bubbles:true}))');
+  assert.equal(await js('document.activeElement.dataset.category'),'point','Keyboard category selection lost focus');
+  await js('document.querySelector("#markCategories [data-category=ink]").click()');
+  await js('document.querySelector("#markChoices [data-shape=double_ring]").click()');
+  assert.equal(await js('document.querySelector("#stylePreview .hg-mark").dataset.shape'),'double_ring');
   await js(`document.querySelector('.style-choices [data-value="handdrawn"]').click()`);
   assert.equal(await js('document.querySelector("#stylePreview").dataset.style'),'handdrawn');
   assert.equal((await loadPreferences(dir)).visualStyle,'minimal','Unsaved preview changed preferences');
@@ -108,6 +120,7 @@ void app.whenReady().then(async()=>{
   await js(`document.querySelector('.segments [data-value="en-US"]').click()`);await js('document.querySelector("#save").click()');
   await until(async()=>await js('document.documentElement.lang==="en-US"'),'Language did not update');
   assert.equal((await loadPreferences(dir)).visualStyle,'handdrawn');
+  assert.equal(await js('document.querySelector("#markChoices [aria-checked=true] span").textContent'),'Double ring');
   assert.equal(await js('document.querySelector("#motion").selectedOptions[0].textContent'),'Gentle');
   await page('diagnostics');assert.equal(await js('document.querySelector(".diagnostics-details").open'),false);
   await until(async()=>await js('document.querySelectorAll("#displayMap .monitor-rect").length>0'),'Display map did not load');
@@ -185,26 +198,44 @@ void app.whenReady().then(async()=>{
   assert.equal(await panel.webContents.executeJavaScript('document.querySelector("#timer").hidden'),true);
   await panel.webContents.executeJavaScript('document.querySelector("#decline").click()');
   await until(()=>manager.get(session.id).status==='declined','Decline did not reach broker');
-  const continuous=manager.show({title:'第一步',message:'完成后核实，再继续下一步。',mode:'handoff',continuous:true,timeoutSeconds:120});
+  const fixture=new BrowserWindow({show:false,width:420,height:260,focusable:false,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
+  await fixture.loadURL('data:text/html,<button style="margin:70px 120px">Continue</button>');fixture.showInactive();
+  const measured=await fixture.webContents.executeJavaScript('(()=>{const b=document.querySelector("button").getBoundingClientRect();return {x:b.x+b.width/2,y:b.y+b.height/2,width:b.width,height:b.height}})()');
+  const fixtureBounds=fixture.getContentBounds(),marks=[{id:'fixture_target',...measured,x:measured.x+fixtureBounds.x,y:measured.y+fixtureBounds.y,shape:'ring',exit:'retract'}];
+  const continuous=manager.show({title:'第一步',message:'完成后核实，再继续下一步。',mode:'handoff',continuous:true,timeoutSeconds:120,annotations:marks});
+  const overlay=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/overlay.html')&&w.getBounds().x<=marks[0].x&&w.getBounds().x+w.getBounds().width>=marks[0].x);
+  await until(()=>overlay.isVisible(),'Grounded overlay did not appear');
+  await overlay.webContents.executeJavaScript('window.handoffglass.onRender(s=>window.lastRenderToken=s.renderToken)');
+  await pause(850);
   await until(()=>panel.isVisible(),'Continuous panel did not appear');
   const responseStarted=performance.now();
   await panel.webContents.executeJavaScript('document.querySelector("#done").click()');
   await until(()=>manager.get(continuous.id).phase==='verifying','Completion did not enter verification');
   const localReportMs=performance.now()-responseStarted;
-  await pause(250);
+  assert.equal(overlay.isVisible(),true,'Overlay hid before completing its exit');
+  assert.equal(await overlay.webContents.executeJavaScript('!!document.querySelector(".hg-exiting")'),true,'Normal user report did not retire marks');
+  const retiredToken=await overlay.webContents.executeJavaScript('window.lastRenderToken');
+  await until(()=>!overlay.isVisible(),'Retired overlay did not hide');
+  assert.equal(await overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark").length'),0);
   assert.equal(panel.isVisible(),true,'Panel disappeared during verification');
   await until(async()=>await panel.webContents.executeJavaScript('document.querySelector("#done").hidden'),'Verification still allows duplicate completion');
   await until(()=>panel.getBounds().height<130,'Verification did not collapse to a strip');
   await writeFile(join(output,'verifying.png'),(await panel.webContents.capturePage()).toPNG());
   manager.verify(continuous.id,'local',true);
-  manager.present(continuous.id,{title:'第二步',message:'同一会话中的后续步骤。',mode:'handoff',continuous:true},'local');
+  manager.present(continuous.id,{title:'第二步',message:'同一会话中的后续步骤。',mode:'handoff',continuous:true,annotations:marks},'local');
   await until(async()=>await panel.webContents.executeJavaScript('document.querySelector("#title").textContent==="第二步"'),'Next step did not render');
+  await until(()=>overlay.isVisible(),'Next step overlay did not appear');
+  await overlay.webContents.executeJavaScript(`window.handoffglass.overlayCleared(${retiredToken})`);await pause(30);
+  assert.equal(overlay.isVisible(),true,'Old renderer teardown acknowledgement hid the next step');
   const stale=await panel.webContents.executeJavaScript(`window.handoffglass.decide(${JSON.stringify(continuous.id)},'completed',1)`);
   assert.equal(stale.ok,false,'Stale step report accepted');
   assert.equal(manager.get(continuous.id).status,'awaiting_user');
   await panel.webContents.executeJavaScript('document.querySelector("#pause").click()');
   await until(()=>manager.get(continuous.id).status==='paused','Pause did not reach broker');
   assert.deepEqual(manager.get(continuous.id).annotations,[]);
+  await until(()=>!overlay.isVisible(),'Paused overlay was not hidden immediately');
+  assert.equal(await overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark").length'),0);
+  fixture.destroy();
   await until(()=>panel.getBounds().height<130,'Paused panel did not collapse');
   await writeFile(join(output,'paused.png'),(await panel.webContents.capturePage()).toPNG());
   await panel.webContents.executeJavaScript('document.querySelector("#pause").click()');
@@ -221,6 +252,6 @@ void app.whenReady().then(async()=>{
   await until(()=>!panel.isVisible(),'Final verified session did not close');
   assert.deepEqual(errors,[],'Renderer errors');
   console.log(`Local renderer action → observed Broker transition: ${localReportMs.toFixed(1)}ms (single UI regression sample, includes test polling).`);
-  console.log(`PASS release UI: Codex install/remove/reconnect, WorkBuddy bundle preparation/removal in center and setup, immediate global disable, three-step local trial, continuous report/verification/next-step, pause/resume, collapsed strip, stale step rejection, long text, removal preview, display policy, choice cards in disposable home, live preview, preferences, language, permission, visible display setup, fixed settings URL and failure recovery, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
+  console.log(`PASS release UI: Codex install/remove/reconnect, WorkBuddy bundle preparation/removal in center and setup, immediate global disable, three-step local trial, continuous report/verification/next-step, visible overlay retirement and stale teardown rejection, pause clearing, five-category mark library, pause/resume, collapsed strip, stale step rejection, long text, removal preview, display policy, choice cards in disposable home, live preview, preferences, language, permission, visible display setup, fixed settings URL and failure recovery, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
  }finally{shell.openExternal=originalOpenExternal;setup?.close();center?.close();manager.close();await bridge.stop();await rm(dir,{recursive:true,force:true});await rm(uiProfile,{recursive:true,force:true});}
 }).then(()=>app.exit(0),error=>{console.error(error);app.exit(1);});

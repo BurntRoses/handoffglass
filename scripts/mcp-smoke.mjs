@@ -43,6 +43,8 @@ try {
   if (extras) names.push('handoff_context', 'handoff_blueprint', 'handoff_assess');
   assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());
   const {manifest}=await invoke(a,'capability_manifest',{});
+  assert.deepEqual(manifest.visuals.categories.flatMap(c=>c.shapes).sort(),[...SHAPES].sort());
+  assert.deepEqual(manifest.visuals.effects,EFFECTS);
   for(const example of manifest.quickstart){
     const tool=tools.find(t=>t.name===example.tool);
     assert.ok(tool,`Unknown quickstart tool: ${example.tool}`);
@@ -94,10 +96,11 @@ try {
   assert.notEqual(id, second.session.id);
   assert.equal((await invoke(b, 'session_stop', { sessionId: second.session.id })).session.status, 'cancelled');
   const painted = await invoke(a, 'session_start', {mode:'guide', title:'Visual scene', message:'Review the highlight',
-    scene:{version:1,layers:[{id:'focus',annotations:SHAPES.map((shape,i)=>({id:`mark_${i}`,x:10+i*20,y:20,shape,tone:'info',effect:EFFECTS[i%EFFECTS.length],delayMs:i*120,durationMs:1100}))}]}});
+    scene:{version:1,layers:[{id:'focus',annotations:SHAPES.map((shape,i)=>({id:`mark_${i}`,x:10+i*20,y:20,shape,tone:'info',effect:EFFECTS[i%EFFECTS.length],delayMs:i*120,durationMs:1100,exit:'retract',maskStyle:'deep'}))}]}});
   assert.equal(painted.session.sceneRevision,1);
   assert.deepEqual(painted.session.annotations.map(a=>a.shape),SHAPES);
   assert.equal(painted.session.annotations[3].effect,'still');
+  assert.equal(painted.session.annotations[3].maskStyle,'deep');assert.equal(painted.session.annotations[3].exit,'retract');
   assert.equal(painted.session.annotations[3].delayMs,360);
   assert.equal(painted.session.annotations[3].durationMs,1100);
   const invalidEffect=await a.callTool({name:'session_start',arguments:{title:'Invalid',message:'Invalid effect must fail',annotations:[{x:10,y:20,effect:'spin'}]}});

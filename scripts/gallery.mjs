@@ -11,12 +11,23 @@ const files = new Map([
   ['/examples/scene-gallery.js', ['examples/scene-gallery.js', 'text/javascript']],
   ['/src/visual/scene.mjs', ['src/visual/scene.mjs', 'text/javascript']],
   ['/src/desktop/overlay-renderer.mjs', ['src/desktop/overlay-renderer.mjs', 'text/javascript']],
+  ['/src/desktop/mark-picker.mjs', ['src/desktop/mark-picker.mjs', 'text/javascript']],
+  ['/src/desktop/choice-controls.mjs', ['src/desktop/choice-controls.mjs', 'text/javascript']],
+  ['/src/desktop/choice-controls.css', ['src/desktop/choice-controls.css', 'text/css']],
+  ['/src/visual/catalog.mjs', ['src/visual/catalog.mjs', 'text/javascript']],
+  ['/src/desktop/marks.css', ['src/desktop/marks.css', 'text/css']],
   ['/src/desktop/overlay.css', ['src/desktop/overlay.css', 'text/css']]
 ]);
+export async function startGallery(){
 const srv=http.createServer(async(req,res)=>{
   const item=files.get(req.url);
   if(req.method!=='GET'||!item){res.writeHead(404).end();return;}
   try {const data=await readFile(resolve(root,item[0]));res.writeHead(200,{'Content-Type':item[1]+'; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; frame-ancestors 'none'"}).end(data);}
   catch{res.writeHead(500).end('Preview file unavailable');}
 });
-srv.listen(0,'127.0.0.1',()=>console.log(`HandoffGlass scene gallery: http://127.0.0.1:${srv.address().port}/`));
+await new Promise(resolve=>srv.listen(0,'127.0.0.1',resolve));
+return srv;
+}
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+  const srv=await startGallery();console.log(`HandoffGlass scene gallery: http://127.0.0.1:${srv.address().port}/`);
+}

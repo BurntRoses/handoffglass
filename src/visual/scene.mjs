@@ -5,13 +5,15 @@ export const SCENE_VERSION = 1;
 export const MAX_LAYERS = 12;
 export const MAX_MARKS = 24;
 export const SHAPES = Object.freeze(['arrow', 'ring', 'box', 'spotlight', 'badge', 'underline', 'crosshair',
-  'highlight', 'bracket', 'check', 'scribble', 'halo', 'cursor']);
-export const EFFECTS = Object.freeze(['draw', 'pulse', 'flow', 'still']);
+  'highlight', 'bracket', 'check', 'scribble', 'halo', 'cursor', 'dot', 'ripple', 'double_ring', 'glow', 'strike', 'cross']);
+export const EFFECTS = Object.freeze(['draw', 'pulse', 'flow', 'still', 'fade', 'pop']);
+export const MASK_STYLES = Object.freeze(['soft', 'crisp', 'deep']);
+export const EXIT_STYLES = Object.freeze(['fade', 'retract', 'shrink']);
 export const TONES = Object.freeze({
   accent: '#50dbb4', info: '#75b9ff', success: '#5bd5a0',
   caution: '#ffc16e', danger: '#ff8585', neutral: '#d1d9e5'
 });
-export const TEMPLATE_NAMES = Object.freeze(['focus', 'point', 'inspect', 'caution', 'sequence', 'verify', 'sketch', 'highlight', 'bracket']);
+export const TEMPLATE_NAMES = Object.freeze(['focus', 'point', 'inspect', 'caution', 'sequence', 'verify', 'sketch', 'highlight', 'bracket', 'beacon', 'region', 'acknowledge', 'exclude']);
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const ID = /^[A-Za-z][A-Za-z0-9_-]{0,47}$/;
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -45,6 +47,12 @@ export function normalizeAnnotation(input) {
   if (input.effect !== undefined) {
     if (!EFFECTS.includes(input.effect)) throw new TypeError('Unknown annotation effect');
     result.effect = input.effect;
+  }
+  for (const [key, values] of [['maskStyle', MASK_STYLES], ['exit', EXIT_STYLES]]) {
+    if (input[key] !== undefined) {
+      if (!values.includes(input[key])) throw new TypeError(`Unknown annotation ${key}`);
+      result[key] = input[key];
+    }
   }
   if (input.delayMs !== undefined) result.delayMs = number(input.delayMs, 'delayMs', 0, 5000);
   if (input.durationMs !== undefined) result.durationMs = number(input.durationMs, 'durationMs', 200, 4000);
@@ -138,6 +146,7 @@ export function composeTemplate(name, targets) {
   const marks = targets.map(normalizeAnnotation);
   const primary = [], supporting = [];
   for (const [i, t] of marks.entries()) {
+    const primaryStart=primary.length,supportingStart=supporting.length;
     const base = { x:t.x, y:t.y, width:t.width, height:t.height, label:t.label, id:`primary_${i+1}` };
     if (name === 'focus') {
       primary.push({ ...base, shape:'spotlight', tone:'accent' });
@@ -158,9 +167,20 @@ export function composeTemplate(name, targets) {
       primary.push({ ...base, shape:'scribble', tone:'accent', effect:'draw', durationMs:1100 });
     } else if (name === 'highlight') {
       primary.push({ ...base, shape:'highlight', tone:'caution', durationMs:850 });
+    } else if (name === 'beacon') {
+      primary.push({ ...base, shape:'ripple', tone:'info', effect:'pop', exit:'shrink' });
+    } else if (name === 'region') {
+      primary.push({ ...base, shape:'glow', tone:'accent', effect:'fade', exit:'fade' });
+    } else if (name === 'acknowledge') {
+      primary.push({ ...base, shape:'check', tone:'success', effect:'pop', exit:'shrink' });
+    } else if (name === 'exclude') {
+      primary.push({ ...base, shape:'cross', tone:'neutral', effect:'draw', exit:'retract' });
     } else if (name === 'bracket') {
       primary.push({ ...base, shape:'bracket', tone:'info', effect:'pulse' });
     }
+    // Explicit cosmetic hints override template defaults without changing grounding.
+    for (const mark of [...primary.slice(primaryStart),...supporting.slice(supportingStart)])
+      for (const key of ['effect','delayMs','durationMs','maskStyle','exit']) if(t[key]!==undefined)mark[key]=t[key];
   }
   return normalizeScene({ version:1, layers: [
     {id:'targets', zIndex:10, annotations:primary},

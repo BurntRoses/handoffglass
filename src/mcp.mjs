@@ -8,7 +8,7 @@ import { formatToolResult } from './output.mjs';
 import { VISUAL_STYLES, MOTION_MODES } from './local/preferences.mjs';
 import { BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { assessHandoff, GROUNDING_EVIDENCE } from './local/policy.mjs';
-import { SHAPES, TONES, TEMPLATE_NAMES, EFFECTS } from './visual/scene.mjs';
+import { SHAPES, TONES, TEMPLATE_NAMES, EFFECTS, MASK_STYLES, EXIT_STYLES } from './visual/scene.mjs';
 import { capabilityInstructions } from './capabilities.mjs';
 
 const broker = new BrokerClient();
@@ -24,6 +24,8 @@ const annotation = z.object({
   tone: z.enum(Object.keys(TONES)).optional(),
   opacity: z.number().min(0).max(1).optional(),
   effect: z.enum(EFFECTS).optional(),
+  maskStyle: z.enum(MASK_STYLES).optional(),
+  exit: z.enum(EXIT_STYLES).optional(),
   delayMs: z.number().min(0).max(5000).optional(),
   durationMs: z.number().min(200).max(4000).optional()
 });
@@ -62,6 +64,8 @@ const presentation = z.object({
   shape: z.enum(SHAPES).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   effect: z.enum(EFFECTS).optional(),
+  maskStyle: z.enum(MASK_STYLES).optional(),
+  exit: z.enum(EXIT_STYLES).optional(),
   delayMs: z.number().min(0).max(5000).optional(),
   durationMs: z.number().min(200).max(4000).optional(),
   annotations: z.array(annotation).max(8).optional(),
@@ -156,7 +160,7 @@ function makeServer() {
   }, safe(({ target, previous }) => broker.locate(target, previous)));
   register('visual_show', {
     title: 'Show on-screen guidance',
-    description: 'Draw grounded global DIP targets or an exact foreground native target. Templates: focus, point, inspect, caution, sequence, verify, sketch, highlight, bracket. Marks support draw/pulse/flow/still, delayMs and durationMs; sequence staggers locally. Animation never proves an action succeeded. Native targets auto-follow; never guess coordinates.',
+    description: 'Draw grounded global DIP targets or an exact foreground native target. Choose a template or shape from capability_manifest.visuals. Local draw/fade/pop entrances, pulse/flow holds, fade/retract/shrink exits; sequence staggers locally. maskStyle: soft/crisp/deep. Animation never proves an action succeeded. Native targets auto-follow; never guess coordinates.',
     inputSchema: presentation, annotations: { readOnlyHint: false }
   }, safe(args => broker.present('guide', args)));
   register('handoff_request', {
