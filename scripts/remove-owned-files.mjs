@@ -28,6 +28,7 @@ export async function removeOwnedFiles(plan) {
 }
 async function main() {
   const file=process.argv[2],plan=JSON.parse(await readFile(file,'utf8'));
+  await writeFile(plan.readyPath,'ready',{mode:0o600});
   const deadline=Date.now()+30000;
   function alive(pid){try{process.kill(pid,0);return true;}catch{return false;}}
   while(plan.waitPids.some(alive)&&Date.now()<deadline)await new Promise(r=>setTimeout(r,200));

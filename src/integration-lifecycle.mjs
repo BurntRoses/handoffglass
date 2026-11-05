@@ -1,7 +1,7 @@
 /** Shared, ownership-aware lifecycle service for app, MCP and CLI. */
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { readdir, rmdir, lstat, mkdtemp, writeFile, copyFile, open, appendFile } from 'node:fs/promises';
+import { readdir, rmdir, lstat, mkdtemp, writeFile, copyFile, open, appendFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { planApplicationFiles } from './application-installation.mjs';
@@ -103,8 +103,8 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
   const stage=await mkdtemp(join(tmpdir(),'handoffglass-uninstall-'));
   const windows=process.platform==='win32',script=join(stage,windows?'remove.ps1':'remove.mjs');
   await copyFile(new URL(windows?'../scripts/remove-owned-files.ps1':'../scripts/remove-owned-files.mjs',import.meta.url),script);
-  const resultPath=join(stage,'result.json'),planPath=join(stage,'plan.json');
-  await writeFile(planPath,JSON.stringify({entries,waitPids:shutdownPids,resultPath,
+  const resultPath=join(stage,'result.json'),planPath=join(stage,'plan.json'),readyPath=join(stage,'ready');
+  await writeFile(planPath,JSON.stringify({entries,waitPids:shutdownPids,resultPath,readyPath,
     priorRetained:[...applied.flatMap(p=>p.retained),...finalFiles.retained],hostActions:result.hostActions}),{mode:0o600,flag:'wx'});
   const workerLogPath=join(stage,'worker.log'),workerLog=await open(workerLogPath,'a',0o600);
   let child;
@@ -116,6 +116,16 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
     child.once('exit',(code,signal)=>{void appendFile(workerLogPath,`worker_exit:${code ?? signal}\n`).catch(()=>{});});
     await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();
   }finally{await workerLog.close();}
+  // Do not exit the calling GUI before the external runtime has loaded its
+  // plan. A successful OS spawn can still exit without executing the script.
+  const startDeadline=Date.now()+15000;let workerReady=false;
+  while(Date.now()<startDeadline){
+    try{workerReady=(await readFile(readyPath,'utf8'))==='ready';}catch(error){if(error.code!=='ENOENT')throw error;}
+    if(workerReady)break;
+    if(child.exitCode!==null||child.signalCode!==null)break;
+    await new Promise(resolve=>setTimeout(resolve,40));
+  }
+  if(!workerReady)throw Object.assign(new Error('External remover did not start; review '+workerLogPath),{code:'uninstaller_startup_failed'});
   // App/MCP callers quit after returning their result. The standalone CLI must
   // also stop the authenticated runtime before its external worker removes it.
   if(liveBroker && liveBroker.pid!==process.pid)try{
