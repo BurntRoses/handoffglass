@@ -1,10 +1,13 @@
 # Independent Windows remover: never deletes recursively or terminates a process.
 param([Parameter(Mandatory=$true)][string]$PlanPath)
 $ErrorActionPreference='Stop'
+Write-Output 'remover_started'
 $plan=Get-Content -LiteralPath $PlanPath -Raw -Encoding UTF8 | ConvertFrom-Json
+Write-Output 'plan_loaded'
 $deadline=[DateTime]::UtcNow.AddSeconds(30)
 function Waiting { foreach($processId in $plan.waitPids) { if(Get-Process -Id $processId -ErrorAction SilentlyContinue) { return $true } };return $false }
 while((Waiting) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 200 }
+Write-Output 'shutdown_wait_finished'
 $removed=[System.Collections.Generic.List[string]]::new()
 $retained=[System.Collections.Generic.List[object]]::new()
 foreach($entry in $plan.entries) {
@@ -33,4 +36,5 @@ foreach($item in $plan.priorRetained) { $retained.Add($item) }
 $hostPending=@($plan.hostActions | Where-Object { $_.host -eq 'workbuddy' }).Count -gt 0
 $result=@{complete=($retained.Count -eq 0 -and -not $hostPending);removed=$removed.ToArray();retained=$retained.ToArray();hostActions=$plan.hostActions;completedAt=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()} | ConvertTo-Json -Depth 8
 [IO.File]::WriteAllText($plan.resultPath,$result,[Text.UTF8Encoding]::new($false))
+Write-Output 'result_written'
 Remove-Item -LiteralPath $PlanPath -Force

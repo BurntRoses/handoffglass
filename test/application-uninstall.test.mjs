@@ -11,6 +11,11 @@ import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {readManifest,probe} from '../src/runtime.mjs';
 const isolated=async run=>{const userHome=await mkdtemp(join(tmpdir(),'hg-uninstall-'));try{await run({userHome,dir:join(userHome,'.handoffglass'),codexHome:join(userHome,'.codex'),root:join(userHome,'source'),platform:'darwin'});}finally{await rm(userHome,{recursive:true,force:true});}};
+async function workerResult(applied){
+ let raw='',error='';
+ for(let i=0;i<800;i++){try{raw=await readFile(applied.resultPath,'utf8');return JSON.parse(raw.replace(/^\uFEFF/,''));}catch(e){error=e.message;}await new Promise(r=>setTimeout(r,50));}
+ assert.fail('External worker did not produce valid JSON: '+error+'; log='+await readFile(applied.workerLogPath,'utf8')+'; result='+raw);
+}
 async function fakeApp(home){const path=join(home,'Applications','HandoffGlass.app');await mkdir(join(path,'Contents'),{recursive:true});await writeFile(join(path,'Contents','Info.plist'),'<plist><dict><key>CFBundleIdentifier</key><string>dev.handoffglass.desktop</string></dict></plist>');await writeFile(join(path,'Contents','application'),'installed package');return path;}
 
 test('registered package removal preserves edits and additions and does not follow links',()=>isolated(async options=>{
@@ -40,9 +45,7 @@ test('full uninstall previews without writing and executes through a real extern
  const before=await readdir(options.dir),preview=await uninstallApplication(options);
  assert.equal(preview.scheduled,false);assert.deepEqual(await readdir(options.dir),before);
  const applied=await uninstallApplication({...options,confirm:true,waitPids:[]});assert.equal(applied.scheduled,true);
- let result;
- for(let i=0;i<800;i++){try{result=JSON.parse(await readFile(applied.resultPath,'utf8'));break;}catch{}await new Promise(r=>setTimeout(r,50));}
- assert.ok(result,'External remover must write its actual result: '+await readFile(applied.workerLogPath,'utf8'));assert.equal(result.complete,true,JSON.stringify(result));
+ const result=await workerResult(applied);assert.equal(result.complete,true,JSON.stringify(result));
  await assert.rejects(readFile(join(options.codexHome,'config.toml')),{code:'ENOENT'});await assert.rejects(readdir(options.dir),{code:'ENOENT'});
  assert.equal(await readFile(join(options.root,'development.txt'),'utf8'),'keep source');await rm(dirname(applied.resultPath),{recursive:true,force:true});
 }));
@@ -54,8 +57,7 @@ test('standalone uninstall shuts down its authenticated Broker before deleting r
   let broker;for(let i=0;i<150;i++){broker=await readManifest(options.dir);if(broker&&await probe(broker))break;await new Promise(r=>setTimeout(r,20));}
   assert.ok(broker&&await probe(broker),'isolated Broker must be running');
   const applied=await uninstallApplication({...options,confirm:true,waitPids:[]});
-  let result;for(let i=0;i<800;i++){try{result=JSON.parse(await readFile(applied.resultPath,'utf8'));break;}catch{}await new Promise(r=>setTimeout(r,50));}
-  assert.ok(result,'worker must finish after Broker exits: '+await readFile(applied.workerLogPath,'utf8'));assert.equal(result.complete,true,JSON.stringify(result));
+  const result=await workerResult(applied);assert.equal(result.complete,true,JSON.stringify(result));
   assert.ok(child.exitCode!==null||child.signalCode!==null,'Broker must exit');
   await assert.rejects(readdir(options.dir),{code:'ENOENT'});await rm(dirname(applied.resultPath),{recursive:true,force:true});
  }finally{if(child.exitCode===null&&child.signalCode===null)child.kill();}
