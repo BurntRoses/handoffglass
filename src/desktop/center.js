@@ -1,5 +1,6 @@
 'use strict';
 import { upgradeChoices, syncChoices } from './choice-controls.mjs';
+import { renderConnectionSteps, permissionLabel } from './connection-view.mjs';
 import { renderOverlay } from './overlay-renderer.mjs';
 const lex = {
  "zh-CN": {
@@ -299,13 +300,21 @@ const lex = {
   "offlineDesc": "Desktop guidance is unavailable. Try again shortly."
  }
 };
+
+Object.assign(lex['zh-CN'],{
+ overview:'工作台',welcome:'准备好下一步',welcomeDesc:'在已连接的应用中开始任务。需要你操作时，提示会出现在目标旁。',workspaceLabel:'桌面工作台',trialTitle:'先试一次桌面引导',trialDesc:'查看提示位置，试试完成、暂停和收起。不会操作其他应用。',tryGuidance:'试一次引导',showCurrent:'显示当前引导',desktopHint:'位置标记与步骤卡片',hostHint:'显示应用实际请求',reviewPermission:'检查权限',workspaceTip:'你可以随时暂停或结束引导。',checkPermissionNow:'检查权限',identifyDisplays:'识别屏幕',displayPolicy:'控制条位置',displayFollow:'跟随目标',displayActive:'当前工作屏',displayFixed:'指定显示器',displayPolicyHint:'位置标记始终显示在目标所在屏幕。',uninstallTitle:'卸载 HandoffGlass',uninstallPreview:'查看清理内容',uninstallDesc:'清理本应用、宿主接入和运行数据。修改过的共享内容会列出并保留。',uninstallConfirm:'退出并卸载',selfTestTitle:'本地服务检查',selfTestPassed:'本地服务可用',selfTestPassedHint:'本地服务可用。请在连接页确认应用已加载工具并发起调用。',selfTestFailed:'本地服务检查失败',selfTestTimeout:'本地服务检查超时',checkLoaded:'检查是否已加载',hostReady:'已收到此次接入的真实调用。',hostPending:'等待原会话检查连接。',reloadHint:'配置已写入。重启或重新加载 Codex 后，在原会话说“检查 HandoffGlass 连接”。',enableHint:'请在宿主中启用 HandoffGlass，然后重新加载工具。',reviewConfigHint:'现有配置有改动，请先查看配置。',stepPaused:'当前引导已暂停',stepRecovering:'等待恢复引导',currentTask:'正在进行的引导',trialStarted:'本地试用已开始，请查看桌面提示。',uninstallScheduled:'已安排清理，应用即将退出。',uninstallRetained:'部分内容有修改，将予以保留。',uninstallNone:'没有可清理的已登记内容。'
+});
+Object.assign(lex['en-US'],{
+ overview:'Workbench',welcome:'Ready for the next step',welcomeDesc:'Start a task in a connected app. Guidance appears beside the target when a step needs you.',workspaceLabel:'Desktop workbench',trialTitle:'Try desktop guidance',trialDesc:'See where prompts appear. Try completion, pause and collapse without changing another app.',tryGuidance:'Try guidance',showCurrent:'Show current guidance',desktopHint:'Target marks and step cards',hostHint:'Based on actual host requests',reviewPermission:'Check access',workspaceTip:'Pause or end guidance at any time.',checkPermissionNow:'Check access',identifyDisplays:'Identify displays',displayPolicy:'Control strip display',displayFollow:'Follow target',displayActive:'Current display',displayFixed:'Choose display',displayPolicyHint:'Target marks always stay on the target display.',uninstallTitle:'Uninstall HandoffGlass',uninstallPreview:'Review cleanup',uninstallDesc:'Remove the app, integrations and runtime data. Edited shared content is listed and kept.',uninstallConfirm:'Quit and uninstall',selfTestTitle:'Local service check',selfTestPassed:'Local service available',selfTestPassedHint:'This does not verify tools in your host. Connections shows real call evidence.',selfTestFailed:'Local service check failed',selfTestTimeout:'Local service check timed out',checkLoaded:'Check loaded tools',hostReady:'A real call from this installation was received.',hostPending:'Waiting for a host call.',reloadHint:'Configuration written. Restart or reload Codex, then ask “Check the HandoffGlass connection” in your chat.',enableHint:'Enable HandoffGlass in your host, then reload its tools.',reviewConfigHint:'Configuration was edited. Review it before continuing.',stepPaused:'Current guidance is paused',stepRecovering:'Waiting to recover guidance',currentTask:'Guidance in progress',trialStarted:'Local trial started. Follow the desktop prompt.',uninstallScheduled:'Cleanup scheduled. The app will quit.',uninstallRetained:'Edited content will be kept.',uninstallNone:'No registered content to remove.'
+});
 const $=id=>document.getElementById(id);
 upgradeChoices();
 let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false,testBusy=false,testLast=null;
-let hostPlatform=null,lastDisplays=null,displaySettingsState=null;
+let hostPlatform=null,lastDisplays=null,displaySettingsState=null,lastPermission=null;
+const connectionStates={};
 const translateKey=key=>(lex[prefs?.locale]||lex['zh-CN'])[key]||key;
-function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();renderDisplays(lastDisplays);}
-function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=translateKey(page);if(page==='connections'){void preview();void refresh();void inspectIntegration();}if(page==='diagnostics'||page==='overview')void refresh();if(page==='diagnostics')void refreshDisplays();if(page==='appearance')requestAnimationFrame(renderPreview);}
+function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();renderDisplays(lastDisplays);renderConnection();renderPermission();}
+function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=translateKey(page);if(page==='connections'){void preview();void refresh();void inspectIntegration();void refreshConnection();}if(page==='diagnostics'||page==='overview')void refresh();if(page==='diagnostics'){void refreshDisplays();void refreshPermission();}if(page==='appearance')requestAnimationFrame(renderPreview);}
 function value(id,text){$(id).textContent=text;}
 let observedHosts=[];
 function renderHosts(){
@@ -337,17 +346,21 @@ function renderLocal(){value('enabledHint',prefs?.enabled===false?(prefs.locale=
 function showState(d){
  observedHosts=Array.isArray(d?.hosts)?d.hosts.slice(0,16):[];renderHosts();
  recentTimeline=Array.isArray(d?.timeline)?d.timeline.slice(-12):[];renderTimeline();
- const healthy=d?.broker==='running',desktop=d?.desktop==='present',hasHandoff=['awaiting_user','user_action_reported','observing'].includes(d?.session?.state);
+ const healthy=d?.broker==='running',desktop=d?.desktop==='present',hasHandoff=['awaiting_user','user_action_reported','observing','paused'].includes(d?.session?.state);
+ const phaseKey=d?.session?.state==='paused'?'stepPaused':d?.session?.phase==='reconnecting'?'stepRecovering':['verifying','next_step'].includes(d?.session?.phase)?'phase_'+d.session.phase:'waiting';
+ value('taskTitle',translateKey(hasHandoff?'currentTask':'trialTitle'));value('taskDescription',translateKey(hasHandoff?phaseKey:'trialDesc'));value('taskBadge',hasHandoff?translateKey(phaseKey):(prefs?.locale==='zh-CN'?'暂无任务':'No active task'));
+ value('taskStep',hasHandoff&&d.session.step?(prefs?.locale==='zh-CN'?`第 ${d.session.step}${d.session.totalSteps?' / '+d.session.totalSteps:''} 步`:`Step ${d.session.step}${d.session.totalSteps?' of '+d.session.totalSteps:''}`):'');
+ $('tryGuidance').hidden=hasHandoff;$('tryGuidance').disabled=prefs?.enabled===false;$('showCurrent').hidden=!hasHandoff;
 
  value('overviewTitle',translateKey(prefs?.enabled===false?'pausedTitle':!desktop?'offlineTitle':hasHandoff?'activeTitle':'welcome'));
  value('overviewDescription',translateKey(prefs?.enabled===false?'pausedDesc':!desktop?'offlineDesc':hasHandoff?'activeDesc':'welcomeDesc'));
  value('desktopState',desktop?translateKey('present'):translateKey('reconnecting'));
- value('handoffState',hasHandoff?translateKey(['verifying','next_step'].includes(d.session.phase)?'phase_'+d.session.phase:'waiting'):translateKey('idle'));
+ value('handoffState',hasHandoff?translateKey(phaseKey):translateKey('idle'));
  value('agentActivity',d?.agentActivity==='recent'?translateKey('recent'):translateKey('noActivity'));
  value('diagBroker',healthy?translateKey('running'):translateKey('unavailable'));
  value('diagDesktop',desktop?translateKey('present'):translateKey('reconnecting'));
  value('diagAgent',d?.agentActivity==='recent'?translateKey('recent'):translateKey('noActivity'));
- value('diagSession',hasHandoff?translateKey(['verifying','next_step'].includes(d.session.phase)?'phase_'+d.session.phase:'waiting'):translateKey('idle'));
+ value('diagSession',hasHandoff?translateKey(phaseKey):translateKey('idle'));
  value('diagDisplays',Number.isInteger(d?.displays)?String(d.displays):'—');
  value('refreshed',translateKey('moment'));
 }
@@ -355,13 +368,25 @@ let toastTimeout;
 function toast(message){const el=$('toast');document.querySelector(`[data-view="${currentPage}"]`).append(el);el.textContent=message;el.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('visible'),5000);}
 async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}hostPlatform=r.platform;value('appVersion',r.appVersion?`v${r.appVersion}`:'—');if(!prefs||(!settingsDirty&&!busy)){
       prefs={...r.preferences,accessibility:r.accessibility};$('permission').hidden=r.platform!==undefined&&r.platform!=='darwin';
-      for(const name of ['visualStyle','motion','theme','locale','density'])$(name).value=prefs[name];
+      for(const name of ['visualStyle','motion','theme','locale','density','displayPolicy'])$(name).value=prefs[name]||'target';
       $('accessibility').checked=prefs.accessibility; $('enabled').checked=prefs.enabled!==false; $('continuous').checked=prefs.continuous!==false;
       applyLocale();
     }
-    showState(r.diagnostics);}catch{if(id===serial)value('refreshed',translateKey('unavailable'));}}
+    showState(r.diagnostics);renderPermission();}catch{if(id===serial)value('refreshed',translateKey('unavailable'));}}
 let connectBusy=false;const connectResults={};
-function connectionLabels(){const host=$('host').value,codex=host==='codex',workbuddy=host==='workbuddy';$('copy').textContent=translateKey(connectBusy?'connecting':codex?'connect':workbuddy?'prepareConnector':'copy');document.querySelector('[data-i="connectDesc"]').textContent=connectResults[host]?translateKey(connectResults[host]):codex?'':workbuddy?translateKey('workbuddyConnectHint'):translateKey('connectDesc');$('revealConnector').hidden=!(workbuddy&&connectResults[host]==='workbuddyPrepared');}
+function connectionLabels(){
+ const host=$('host').value,codex=host==='codex',workbuddy=host==='workbuddy',state=connectionStates[host];
+ $('copy').textContent=translateKey(connectBusy?'connecting':state?.installed?'checkLoaded':codex?'connect':workbuddy?'prepareConnector':'copy');
+ const hint=state?.nextAction==='ready'?'hostReady':state?.nextAction==='reload_and_call'?'reloadHint':state?.nextAction==='enable_in_host'?'enableHint':state?.nextAction==='review_configuration'?'reviewConfigHint':state?.nextAction==='import_trust_enable_reload_and_call'?'workbuddyPrepared':null;
+ document.querySelector('[data-i="connectDesc"]').textContent=hint?translateKey(hint):connectResults[host]?translateKey(connectResults[host]):workbuddy?translateKey('workbuddyConnectHint'):codex?'':translateKey('connectDesc');
+ $('revealConnector').hidden=!(workbuddy&&(state?.installed||connectResults[host]==='workbuddyPrepared'));
+}
+function renderConnection(){const state=connectionStates[$('host').value];renderConnectionSteps($('connectionSteps'),state,prefs?.locale);value('connectionEvidence',state?translateKey(state.hostVerified?'hostReady':'hostPending'):'');connectionLabels();}
+async function refreshConnection(){const host=$('host').value;if(!['codex','workbuddy'].includes(host)){renderConnection();return;}
+ try{const r=await window.hgCenter.connection(host);if(r?.ok)connectionStates[host]=r.status||r;if(host===$('host').value)renderConnection();}catch{value('connectionEvidence',translateKey('unavailable'));}
+}
+async function refreshPermission(){try{const r=await window.hgCenter.permissionStatus();lastPermission=r?.status||r;}catch{lastPermission=null;}renderPermission();}
+function renderPermission(){value('permissionStatus',permissionLabel(lastPermission,prefs?.locale));value('permissionOverview',!lastPermission?(prefs?.locale==='zh-CN'?'待检查':'Not checked'):lastPermission.localConsent&&['granted','available'].includes(lastPermission.osPermission)?translateKey('present'):translateKey('disabled'));}
 async function preview(){const id=++preview.seq;const host=$('host').value;connectionLabels();value('config',translateKey('loading'));value('configFormat',host==='codex'?'TOML':'JSON');try{const r=await window.hgCenter.preview(host);if(id!==preview.seq)return;value('config',r?.ok?r.content:translateKey('na'));$('copy').disabled=connectBusy||!r?.ok;}catch{if(id===preview.seq){value('config',translateKey('na'));$('copy').disabled=true;}}}
 preview.seq=0;
 function integrationLabel(state){return state==='installed'?'integrationInstalled':['modified','unmanaged'].includes(state)?'integrationModified':state==='bundle_ready'?'integrationBundleReady':'integrationNotInstalled';}
@@ -369,13 +394,14 @@ function renderIntegration(result){$('cleanupItems').replaceChildren();value('cl
 async function inspectIntegration(){const host=$('host').value;try{const result=await window.hgCenter.lifecycleStatus(host);if(host!==$('host').value)return;renderIntegration(result);}catch{value('integrationState',translateKey('failed'));$('confirmCleanup').hidden=true;}}
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>showPage(button.dataset.page)));
 function refreshPage(){void refresh();if(currentPage==='diagnostics')void refreshDisplays();}
- $('refresh').addEventListener('click',refreshPage);$('host').addEventListener('change',()=>{preview();inspectIntegration();});
+ $('refresh').addEventListener('click',refreshPage);$('host').addEventListener('change',()=>{preview();inspectIntegration();refreshConnection();});
 $('copy').addEventListener('click',async()=>{
  const host=$('host').value;
  if(!['codex','workbuddy'].includes(host)){try{const r=await window.hgCenter.copy(host);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}return;}
+ if(connectionStates[host]?.installed){await refreshConnection();return;}
  if(connectBusy)return;connectBusy=true;$('copy').disabled=true;connectionLabels();
  try{const r=await window.hgCenter.connect(host);connectResults[host]=r?.ok?(host==='codex'?'connectedRestart':'workbuddyPrepared'):(host==='codex'?'connectFailed':'workbuddyFailed');}catch{connectResults[host]=host==='codex'?'connectFailed':'workbuddyFailed';}
- finally{connectBusy=false;$('copy').disabled=false;connectionLabels();void inspectIntegration();}
+ finally{connectBusy=false;$('copy').disabled=false;connectionLabels();void inspectIntegration();void refreshConnection();}
 });
 $('revealConnector').addEventListener('click',async()=>{try{const r=await window.hgCenter.revealConnector();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
 $('copyManual').addEventListener('click',async()=>{try{const r=await window.hgCenter.copy($('host').value);toast(translateKey(r?.ok?'copied':'failed'));}catch{toast(translateKey('failed'));}});
@@ -387,13 +413,13 @@ function renderCleanup(plan){
  value('cleanupNote',plan.host==='workbuddy'?(zh?'这里只清理本地连接器包。已导入的连接需在 WorkBuddy 中停用并移除。':'This removes the local bundle. Disable and remove the imported connector in WorkBuddy.'):(plan.retained?.length?(zh?'有修改过的内容，将予以保留。':'Edited content will be kept.'):(zh?'仅移除宿主连接。HandoffGlass 应用和外观设置仍保留。':'Removes the host connection. The HandoffGlass app and appearance settings are kept.')));
 }
 $('cleanupIntegration').addEventListener('click',async()=>{const host=$('host').value;try{const r=await window.hgCenter.cleanup(host,false);if(host!==$('host').value)return;if(!r?.ok)throw Error();renderCleanup(r.result);value('integrationState',translateKey(r.result.cleanupAvailable?'integrationCleanupReady':integrationLabel(r.result.state)));$('confirmCleanup').hidden=!r.result.cleanupAvailable;}catch{value('integrationState',translateKey('failed'));}});
-$('confirmCleanup').addEventListener('click',async()=>{const button=$('confirmCleanup'),host=$('host').value;button.disabled=true;try{const r=await window.hgCenter.cleanup(host,true);if(host!==$('host').value)return;if(!r?.ok||!r.result.applied)throw Error();delete connectResults[host];$('integrationState').dataset.state=r.result.retained?.length?'modified':'not_installed';renderCleanup({...r.result,items:[]});value('integrationState',r.result.retained?.length?(prefs?.locale==='zh-CN'?'已移除未修改的内容，其余已保留。':'Unchanged content removed. Edited content was kept.'):r.result.host==='workbuddy'?(prefs?.locale==='zh-CN'?'本地连接器包已清理。':'Local connector bundle removed.'):translateKey('integrationCleanupDone'));button.hidden=true;await preview();}catch{value('integrationState',translateKey('failed'));}finally{button.disabled=false;}});
+$('confirmCleanup').addEventListener('click',async()=>{const button=$('confirmCleanup'),host=$('host').value;button.disabled=true;try{const r=await window.hgCenter.cleanup(host,true);if(host!==$('host').value)return;if(!r?.ok||!r.result.applied)throw Error();delete connectResults[host];delete connectionStates[host];$('integrationState').dataset.state=r.result.retained?.length?'modified':'not_installed';renderCleanup({...r.result,items:[]});value('integrationState',r.result.retained?.length?(prefs?.locale==='zh-CN'?'已移除未修改的内容，其余已保留。':'Unchanged content removed. Edited content was kept.'):r.result.host==='workbuddy'?(prefs?.locale==='zh-CN'?'本地连接器包已清理。':'Local connector bundle removed.'):translateKey('integrationCleanupDone'));button.hidden=true;await preview();await refreshConnection();}catch{value('integrationState',translateKey('failed'));}finally{button.disabled=false;}});
 $('enabled').addEventListener('change',async()=>{if(!prefs)return;const node=$('enabled');node.disabled=true;try{const r=await window.hgCenter.setEnabled(node.checked);if(!r?.ok)throw Error();prefs.enabled=r.enabled;renderLocal();}catch{node.checked=prefs.enabled;toast(translateKey('failed'));}finally{node.disabled=false;}});
 $('permission').addEventListener('click',async()=>{try{const r=await window.hgCenter.permission();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
-$('preferences').addEventListener('change',event=>{if(!['visualStyle','motion','theme','locale','density'].includes(event.target.id))return;settingsDirty=true;document.documentElement.dataset.theme=$('theme').value;renderPreview();});
-$('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked,enabled:$('enabled').checked,continuous:$('continuous').checked};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};settingsDirty=false;applyLocale();toast(translateKey('saved'));}catch{toast(translateKey('failed'));}finally{busy=false;$('save').disabled=false;}});
+$('preferences').addEventListener('change',event=>{if(!['visualStyle','motion','theme','locale','density','displayPolicy'].includes(event.target.id))return;settingsDirty=true;document.documentElement.dataset.theme=$('theme').value;renderPreview();});
+$('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked,enabled:$('enabled').checked,continuous:$('continuous').checked,displayPolicy:prefs.displayPolicy||'target',displayId:prefs.displayId||''};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};settingsDirty=false;applyLocale();toast(translateKey('saved'));}catch{toast(translateKey('failed'));}finally{busy=false;$('save').disabled=false;}});
 window.addEventListener('focus',refreshPage);
-void refresh();setInterval(()=>{if(document.visibilityState==='visible'&&['overview','diagnostics'].includes(currentPage))void refresh();},8000);
+void refresh().then(()=>refreshPermission());setInterval(()=>{if(document.visibilityState==='visible'&&['overview','diagnostics'].includes(currentPage))void refresh();},8000);
 
 function renderSelfTest(result){
   const good=result?.ok===true, timeout=result?.code==='timeout';
@@ -429,6 +455,7 @@ function renderDisplays(data){
   const ds=Array.isArray(data?.displays)?data.displays.slice(0,16):[];
   const valid=ds.filter(d=>d?.bounds&&[d.bounds.x,d.bounds.y,d.bounds.width,d.bounds.height,d.scaleFactor].every(Number.isFinite)&&
       d.bounds.width>0&&d.bounds.height>0&&d.bounds.width<=20000&&d.bounds.height<=20000&&d.scaleFactor>0&&d.scaleFactor<=8);
+  renderDisplayChoices(valid);
   value('displayCount',data?.ok?translateKey(valid.length===1?'displayOne':'displayCount').replace('{count}',String(valid.length)):'—');
   if(!valid.length){value('displayNote',translateKey('displayNone'));value('layoutHealth',translateKey('layoutUnknown'));$('layoutHealth').dataset.state='warning';return;}
   const lowX=Math.min(...valid.map(d=>d.bounds.x)),lowY=Math.min(...valid.map(d=>d.bounds.y));
@@ -481,7 +508,25 @@ new ResizeObserver(()=>renderPreview()).observe(document.querySelector('.style-p
 for(const switchId of ['accessibility','continuous'])$(switchId).addEventListener('change',async()=>{
  if(!prefs)return;
  const requested=$('accessibility').checked;for(const id of ['accessibility','continuous'])$(id).disabled=true;
- try{const result=await window.hgCenter.save({visualStyle:prefs.visualStyle,motion:prefs.motion,theme:prefs.theme,locale:prefs.locale,density:prefs.density,enabled:$('enabled').checked,continuous:$('continuous').checked,accessibility:requested});if(!result?.ok)throw Error();prefs={...result.preferences,accessibility:result.accessibility};renderLocal();}
+ try{const result=await window.hgCenter.save({visualStyle:prefs.visualStyle,motion:prefs.motion,theme:prefs.theme,locale:prefs.locale,density:prefs.density,enabled:$('enabled').checked,continuous:$('continuous').checked,accessibility:requested,displayPolicy:prefs.displayPolicy||'target',displayId:prefs.displayId||''});if(!result?.ok)throw Error();prefs={...result.preferences,accessibility:result.accessibility};renderLocal();void refreshPermission();}
  catch{$('accessibility').checked=prefs.accessibility;$('continuous').checked=prefs.continuous;toast(translateKey('failed'));}
  finally{for(const id of ['accessibility','continuous'])$(id).disabled=false;}
 });
+
+$('checkPermission').addEventListener('click',refreshPermission);
+$('tryGuidance').addEventListener('click',async()=>{const button=$('tryGuidance');button.disabled=true;try{const r=await window.hgCenter.trial();value('trialResult',translateKey(r?.ok||r?.session?'trialStarted':'failed'));void refresh();}catch{value('trialResult',translateKey('failed'));}finally{button.disabled=false;}});
+$('showCurrent').addEventListener('click',async()=>{try{await window.hgCenter.showCurrent();}catch{toast(translateKey('failed'));}});
+$('identifyDisplays').addEventListener('click',async()=>{try{const r=await window.hgCenter.identifyDisplays();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
+function renderDisplayChoices(displays){
+ const group=$('displayChoices');group.replaceChildren();group.hidden=(prefs?.displayPolicy||'target')!=='fixed';
+ for(const [i,d] of displays.entries()){const button=document.createElement('button');button.type='button';button.setAttribute('role','radio');button.setAttribute('aria-checked',String(prefs?.displayId===d.id));button.textContent=`${translateKey('displayLabel')} ${i+1}`;button.addEventListener('click',()=>void saveDisplayPolicy('fixed',d.id));group.append(button);}
+}
+async function saveDisplayPolicy(displayPolicy,displayId){if(!prefs)return;try{const r=await window.hgCenter.save({visualStyle:prefs.visualStyle,motion:prefs.motion,theme:prefs.theme,locale:prefs.locale,density:prefs.density,enabled:prefs.enabled,continuous:prefs.continuous,accessibility:prefs.accessibility,displayPolicy,displayId});if(!r?.ok)throw Error();prefs={...r.preferences,accessibility:r.accessibility};renderDisplays(lastDisplays);toast(translateKey('saved'));}catch{toast(translateKey('failed'));}}
+$('displayPolicy').addEventListener('change',()=>void saveDisplayPolicy($('displayPolicy').value,prefs?.displayId||lastDisplays?.displays?.[0]?.id||''));
+async function uninstall(confirm){const button=$(confirm?'uninstallConfirm':'uninstallPreview');button.disabled=true;try{
+ const response=await window.hgCenter.uninstall(confirm);if(!response?.ok)throw Error();const r=response.result||response;
+ $('uninstallItems').replaceChildren();for(const [items,retained] of [[r.items||[],false],[r.retained||[],true]])for(const item of items){const li=document.createElement('li'),path=document.createElement('small');li.textContent=retained?(prefs?.locale==='zh-CN'?'保留 · 内容有修改或无法确认归属':'Keep · edited or unconfirmed ownership'):(prefs?.locale==='zh-CN'?'移除 · '+(item.kind||'应用文件'):'Remove · '+(item.kind||'app file'));path.textContent=item.path||'';li.append(path);$('uninstallItems').append(li);}
+ value('uninstallResult',translateKey(r.scheduled?'uninstallScheduled':r.retained?.length?'uninstallRetained':r.items?.length?'integrationCleanupReady':'uninstallNone'));
+ $('uninstallConfirm').hidden=confirm||!r.items?.length;
+ }catch{value('uninstallResult',translateKey('failed'));}finally{button.disabled=false;}}
+$('uninstallPreview').addEventListener('click',()=>void uninstall(false));$('uninstallConfirm').addEventListener('click',()=>void uninstall(true));

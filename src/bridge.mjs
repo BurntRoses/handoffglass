@@ -3,15 +3,17 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validDisplay, canLocateAll } from './geometry.mjs';
 import { loadPreferences, hasUserPreferences } from './local/preferences.mjs';
 import { compileBlueprint, BLUEPRINT_NAMES } from './local/blueprints.mjs';
-import { locateNative, inspectNative, validateTarget } from './native/locator.mjs';
+import { locateNative, inspectNative, validateTarget, nativePermissionStatus, closeNativeWorkers } from './native/locator.mjs';
 import { GroundingError } from './visual/grounding.mjs';
 import { HostActivity } from './local/host-activity.mjs';
 import { layoutSignature, compareObservation } from './native/calibration.mjs';
 import { NativeAnchorTracker } from './native/anchor-tracker.mjs';
 import { InteractionJournal, recoveryFor } from './local/interaction-journal.mjs';
 import { getAccessibilityConsent } from './native/preferences.mjs';
+import { TargetRegistry } from './visual/target-registry.mjs';
 import { CAPABILITY_MANIFEST } from './capabilities.mjs';
-import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled } from './integration-lifecycle.mjs';
+import { startDesktopTrial } from './local/desktop-trial.mjs';
+import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled, uninstallApplication } from './integration-lifecycle.mjs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -69,6 +71,7 @@ export class LocalBridge {
     this.hostActivity = new HostActivity();
     this.journal = new InteractionJournal(manager);
     this.displays = [];
+    this.targets=new TargetRegistry();this.agentWaits=new Map();this.connectionEvidence=new Map();this.permissionCache=null;
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
     this.waiters = new Set();
@@ -80,7 +83,13 @@ export class LocalBridge {
     manager.on('change', this.onManagerChange);
   }
   get connected() { return this.streams.size > 0 || Date.now() - this.lastPoll < 35000; }
-  snapshot() { return { revision: this.revision, active: this.manager.active() }; }
+  snapshot() { const active=this.manager.active(),wait=active&&this.agentWaits.get(active.id);return { revision: this.revision, active, agentWaiting:!!wait?.count, agentWaitUntil:wait?.until||null }; }
+  async permissions(){
+    if(!this.permissionCache || Date.now()-this.permissionCache.at>10000){
+      this.permissionCache={at:Date.now(),promise:nativePermissionStatus()};
+    }
+    return this.permissionCache.promise;
+  }
   #publish() {
     this.revision++;
     for(const stream of this.streams)stream.write(this.snapshot());
@@ -104,9 +113,10 @@ export class LocalBridge {
     } catch (error) { this.server = null; throw error; }
   }
   async stop() {
+    this.trial?.dispose();
     for(const stream of this.streams)stream.close();
     this.streams.clear();
-    this.anchors.close();
+    this.anchors.close();this.targets.clear();closeNativeWorkers();
     this.journal.close();
     for (const respond of [...this.waiters]) respond(this.snapshot());
     if (this.server) {
@@ -127,11 +137,11 @@ export class LocalBridge {
     const pathname = parsed.pathname;
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/desktop/diagnostics': 'GET', '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
-      '/desktop/preferences':'POST', '/desktop/stream':'GET',
+      '/desktop/preferences':'POST', '/desktop/stream':'GET', '/desktop/control':'POST', '/desktop/permissions':'GET', '/desktop/trial':'POST', '/desktop/shutdown':'POST',
       '/agent/displays': 'GET', '/agent/inspect': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
       '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/capabilities': 'GET',
       '/agent/connection': 'GET', '/agent/permissions': 'GET', '/agent/integration-status': 'GET', '/agent/integration-cleanup': 'POST', '/agent/integration-enabled':'POST',
-      '/agent/verify': 'POST', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
+      '/agent/integration-uninstall':'POST', '/agent/resume':'POST','/agent/control':'POST','/agent/verify': 'POST', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
     }
@@ -168,13 +178,32 @@ export class LocalBridge {
         schemaVersion: 1, broker: 'running', desktopConnected: this.connected,
         lastAgentActivityAt: this.lastAgentRequestAt,
         displays: this.displays.length, pendingPolls: this.waiters.size,
-        handoff: active ? { status: active.status, mode: active.mode, phase: active.phase, nextAction: active.nextAction, timeoutAt: active.timeoutAt } : null,
-        hostActivity: this.hostActivity.snapshot(),
+        handoff: active ? { step:active.step, totalSteps:active.totalSteps, status: active.status, mode: active.mode, phase: active.phase, nextAction: active.nextAction, timeoutAt: active.timeoutAt } : null,
+        hostActivity: this.hostActivity.snapshot(),connectionEvidence:[...this.connectionEvidence.values()],
         timeline: this.journal.recent(12).map(({type,at,reason})=>({type,at,...(reason?{reason}:{})}))
       });
     }
+    if(req.method==='POST' && pathname==='/desktop/shutdown'){await readJson(req);res.once('finish',()=>this.manager.emit('uninstall'));return sendJson(res,200,{ok:true});}
+    if(req.method==='GET' && pathname==='/desktop/permissions')return sendJson(res,200,await this.permissions());
+    if(req.method==='POST' && pathname==='/desktop/control'){
+      const body=await readJson(req);const active=this.manager.active();
+      if(!active || body.id!==active.id || (body.step!==undefined && body.step!==active.step))return sendJson(res,409,{error:'stale_step'});
+      if(!['pause','resume','retry_target','text_fallback'].includes(body.action))return sendJson(res,400,{error:'invalid_action'});
+      const result=this.manager.control(body.id,null,body.action);
+      if(body.action!=='progress')this.anchors.clearFor(body.id);
+      return sendJson(res,result.error?409:200,{...result,...this.snapshot()});
+    }
+    if(req.method==='POST' && pathname==='/desktop/trial'){
+      await readJson(req);
+      const preferences=await loadPreferences();
+      if(!preferences.enabled)return sendJson(res,423,{error:'disabled_by_user'});
+      const active=this.manager.active();if(active)return sendJson(res,409,{error:'busy'});
+      this.trial?.dispose();this.trial=startDesktopTrial(this.manager,preferences,this.displays);
+      return sendJson(res,200,{session:this.trial.session});
+    }
     if(req.method==='POST' && pathname==='/desktop/preferences'){
       await readJson(req);
+      this.permissionCache=null;
       const preferences=await loadPreferences();
       if(!preferences.enabled || !preferences.continuous){this.anchors.clear();this.manager.stopActive();}
       return sendJson(res,200,{ok:true});
@@ -201,7 +230,16 @@ export class LocalBridge {
         return sendJson(res, 403, { error: 'Agent identity is required', code: 'invalid_owner' });
       }
       this.lastAgentRequestAt = Date.now();
-      this.hostActivity.record(req.headers['x-handoffglass-host'], pathname);
+      const connectionId=req.headers['x-handoffglass-connection'];
+      res.once('finish',()=>{
+        if(res.statusCode>=200 && res.statusCode<300 && ['/agent/displays','/agent/inspect','/agent/locate','/agent/connection'].includes(pathname)){
+          this.hostActivity.record(req.headers['x-handoffglass-host'],pathname);
+          if(typeof connectionId==='string' && /^[0-9a-f-]{36}$/.test(connectionId)){
+            this.connectionEvidence.set(connectionId,{id:connectionId,connectionId,host:String(req.headers['x-handoffglass-host']||'unidentified').slice(0,32),lastSuccessAt:Date.now(),lastTool:pathname.slice(7)});
+            while(this.connectionEvidence.size>32)this.connectionEvidence.delete(this.connectionEvidence.keys().next().value);
+          }
+        }
+      });
       const isDisabled = async () => (await loadPreferences()).enabled === false;
       if (req.method === 'GET' && pathname === '/agent/displays') {
         if(await isDisabled())return sendJson(res,423,{error:'HandoffGlass is disabled by the user',code:'disabled_by_user'});
@@ -212,14 +250,17 @@ export class LocalBridge {
         if (await isDisabled()) return sendJson(res, 423, { error: 'HandoffGlass is disabled by the user', code: 'disabled_by_user' });
         await this.prepare();
         if (!this.headless && !this.connected) return sendJson(res,503,{error:'Desktop unavailable',code:'no_desktop'});
-        return sendJson(res,200,await this.inspector(this.displays));
+        const inspected=await this.inspector(this.displays),signature=layoutSignature(this.displays);
+        for(const control of inspected.controls||[])if(control.targetable)control.targetRef=this.targets.add(owner,validateTarget(control),signature);
+        return sendJson(res,200,inspected);
       }
       if (req.method === 'GET' && pathname === '/agent/context') {
         const preferences = await loadPreferences();
         return sendJson(res, 200, { preferences, storage: 'local', historyStored: false, modelCallRequired: false });
       }
       if (req.method === 'GET' && pathname === '/agent/capabilities') {
-        return sendJson(res, 200, { manifest: CAPABILITY_MANIFEST, connected: this.connected, headless: this.headless });
+        const preferences=await loadPreferences();
+        return sendJson(res, 200, { manifest: CAPABILITY_MANIFEST, runtime:{enabled:preferences.enabled,continuous:preferences.continuous,desktop:this.headless?'headless':this.connected?'ready':'offline',permissions:await this.permissions(),host:{id:req.headers['x-handoffglass-host']||'unidentified',events:'unknown',parallelCalls:'unknown',structuredResults:true},recovery:'session_resume with saved resumeToken; observe before presenting'} });
       }
       if (req.method === 'GET' && pathname === '/agent/connection') {
         const preferences = await loadPreferences();
@@ -227,7 +268,7 @@ export class LocalBridge {
       }
       if (req.method === 'GET' && pathname === '/agent/permissions') {
         const preferences = await loadPreferences();
-        return sendJson(res, 200, { enabled: preferences.enabled, continuous: preferences.continuous, localConsent:await getAccessibilityConsent(), osPermission:'not_checked', accessibility:await getAccessibilityConsent(), nextAction:'inspect_to_check_os_permission' });
+        return sendJson(res, 200, { enabled: preferences.enabled, continuous: preferences.continuous, ...await this.permissions() });
       }
       if (req.method === 'POST' && pathname === '/agent/integration-enabled') {
         const body=await readJson(req);
@@ -239,6 +280,12 @@ export class LocalBridge {
         const host = parsed.searchParams.get('host') || 'codex';
         try { return sendJson(res, 200, { status: await integrationStatus(host, { root: PROJECT_ROOT }), guide: lifecycleGuide(host) }); }
         catch (error) { return sendJson(res, 400, { error: error.message, code: 'unsupported_integration' }); }
+      }
+      if(req.method==='POST' && pathname==='/agent/integration-uninstall'){
+        const body=await readJson(req);if(typeof body.confirm!=='boolean')return sendJson(res,400,{error:'confirm must be boolean'});
+        const result=await uninstallApplication({confirm:body.confirm,root:PROJECT_ROOT});
+        if(result.scheduled)res.once('finish',()=>this.manager.emit('uninstall'));
+        return sendJson(res,200,{result});
       }
       if (req.method === 'POST' && pathname === '/agent/integration-cleanup') {
         const body = await readJson(req);
@@ -264,7 +311,8 @@ export class LocalBridge {
         const signature = layoutSignature(this.displays);
         const previous = body.previous;
         const comparison = previous === undefined ? null : compareObservation(previous, located, signature);
-        return sendJson(res, 200, { target: {...located, layoutSignature:signature},
+        const groundedQuery=validateTarget({...target,...(located.nativeRef?{nativeRef:located.nativeRef,scope:located.scope}:{})});
+        return sendJson(res, 200, { targetRef:this.targets.add(owner,groundedQuery,signature),target: {...located, layoutSignature:signature},
           ...(comparison ? { comparison } : {}), coordinateSystem: 'global_DIP',
           warning: 'This is an observation, not permission to click or approve. Revalidate after UI changes.' });
       }
@@ -275,7 +323,7 @@ export class LocalBridge {
         if(body.continuous && !preference.continuous)return sendJson(res,423,{error:'Continuous sessions are disabled by the user',code:'continuous_disabled'});
         if(body.sessionId && !this.manager.getOwned(body.sessionId,owner))return sendJson(res,404,{error:'Session not found',code:'not_found'});
         const original = JSON.stringify(body);
-        const hadTarget = body.target !== undefined;
+        const hadTarget = body.target !== undefined || body.targetRef !== undefined;
         const followTarget = body.followTarget !== false;
         if (!hadTarget && body.followTarget !== undefined) return sendJson(res,400,{error:'followTarget requires a native target',code:'invalid_follow'});
         if (body.followTarget !== undefined && typeof body.followTarget !== 'boolean') return sendJson(res,400,{error:'followTarget must be boolean',code:'invalid_follow'});
@@ -286,7 +334,11 @@ export class LocalBridge {
         if (previous) {
           if (previous.original !== original) return sendJson(res, 400, {error:'requestId reused with different original target',code:'idempotency_conflict'});
           Object.assign(body, structuredClone(previous.resolved));
-          delete body.target;
+          delete body.target;delete body.targetRef;
+        }
+        if(body.targetRef!==undefined){
+          if(body.target!==undefined)return sendJson(res,400,{error:'Choose targetRef or target',code:'invalid_target'});
+          body.target=this.targets.get(body.targetRef,owner,layoutSignature(this.displays));delete body.targetRef;
         }
         if (body.target !== undefined) {
           const target = validateTarget(body.target);
@@ -298,9 +350,10 @@ export class LocalBridge {
           await this.prepare();
           if (!this.headless && !this.connected) return sendJson(res, 503, { error: 'Desktop unavailable', code: 'no_desktop' });
           const hit = await this.locator(target, this.displays);
-          anchoredQuery=target;anchoredHit=hit;
+          anchoredQuery=validateTarget({...target,...(hit.nativeRef?{nativeRef:hit.nativeRef,scope:hit.scope}:{})});anchoredHit=hit;
           delete body.target;
           body.x = hit.x; body.y = hit.y; body.width = hit.width; body.height = hit.height;
+          if(body.intent && !body.shape && !body.template)body.template=body.intent;
         }
         // Apply user-owned visual preferences; Agents cannot persist them.
         body.locale = preference.locale;
@@ -340,7 +393,8 @@ export class LocalBridge {
           this.resolvedTargets.set(retryKey,{original,resolved:structuredClone(body)});
           if(this.resolvedTargets.size > 128) this.resolvedTargets.delete(this.resolvedTargets.keys().next().value);
         }
-        return sendJson(res, 200, { session: this.manager.get(session.id), nextCursor:this.journal.latestCursor(session.id), visible: !this.headless,
+        const resumeToken=session.continuous?this.manager.issueResume(session.id,owner):undefined;
+        return sendJson(res, 200, { session: this.manager.get(session.id), ...(resumeToken?{resumeToken}:{}), nextCursor:this.journal.latestCursor(session.id), visible: !this.headless,
           coordinateSystem: 'global_DIP',
           instruction: 'User-reported completion is not verification. Recheck the target application.' });
       }
@@ -374,17 +428,36 @@ export class LocalBridge {
           const cursor=Number(parsed.searchParams.get('cursor')??0);
           if(!Number.isSafeInteger(cursor)||cursor<0)return sendJson(res,400,{error:'Invalid cursor',code:'invalid_cursor'});
           const abort=new AbortController(),onClose=()=>abort.abort();res.on('close',onClose);
+          const priorWait=this.agentWaits.get(id);this.agentWaits.set(id,{count:(priorWait?.count||0)+1,until:Math.max(priorWait?.until||0,Date.now()+ms)});this.#publish();
           try{
             const events=await this.journal.wait(id,{after:cursor,timeoutMs:ms,signal:abort.signal});
             const session=this.manager.getOwned(id,owner);
+            if(!session)return sendJson(res,404,{error:'not_found',code:'not_found'});
             return sendJson(res,200,{...events,session,pending:!events.events?.length,nextAction:session?.nextAction||recoveryFor(session)});
-          }finally{res.off('close',onClose);}
+          }finally{res.off('close',onClose);const wait=this.agentWaits.get(id);if(wait?.count>1)wait.count--;else this.agentWaits.delete(id);this.#publish();}
         }
         return sendJson(res, 200, await this.manager.waitOwned(id, owner, ms));
+      }
+      if(req.method==='POST' && pathname==='/agent/resume'){
+        if(await isDisabled())return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
+        const body=await readJson(req);if(typeof body.sessionId!=='string'||typeof body.resumeToken!=='string'||body.resumeToken.length!==64)return sendJson(res,400,{error:'invalid_resume_token',code:'invalid_resume_token'});
+        const result=this.manager.resume(body.sessionId,body.resumeToken,owner);
+        return sendJson(res,result.error?409:200,{...result,...(result.error?{code:result.error}:{nextCursor:this.journal.latestCursor(body.sessionId)})});
+      }
+      if(req.method==='POST' && pathname==='/agent/control'){
+        if(await isDisabled())return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
+        const body=await readJson(req);const session=this.manager.getOwned(body.sessionId,owner);
+        if(!session)return sendJson(res,404,{error:'not_found',code:'not_found'});
+        if(body.expectedStep!==undefined&&body.expectedStep!==session.step)return sendJson(res,409,{error:'stale_step',code:'stale_step'});
+        const result=this.manager.control(body.sessionId,owner,body.action,body.phase);
+        if(!result.error && body.action!=='progress')this.anchors.clearFor(body.sessionId);
+        return sendJson(res,result.error?409:200,{...result,...(result.error?{code:result.error}:{})});
       }
       if (req.method === 'POST' && pathname === '/agent/verify') {
         const body = await readJson(req);
         if (typeof body.sessionId !== 'string' || typeof body.verified !== 'boolean' || (body.finish!==undefined && typeof body.finish!=='boolean')) return sendJson(res, 400, { error: 'sessionId and verified are required' });
+        const current=this.manager.getOwned(body.sessionId,owner);
+        if(body.expectedStep!==undefined&&body.expectedStep!==current?.step)return sendJson(res,409,{error:'stale_step',code:'stale_step'});
         const result = this.manager.verify(body.sessionId, owner, body.verified, body.finish === true);
         return sendJson(res, result.error ? 409 : 200, result);
       }
@@ -447,6 +520,7 @@ export class LocalBridge {
       if (typeof body.id !== 'string' || !['completed', 'declined', 'cancelled'].includes(body.status)) {
         return sendJson(res, 400, { error: 'Invalid decision' });
       }
+      if(body.step!==undefined && body.step!==this.manager.get(body.id)?.step)return sendJson(res,409,{error:'stale_step'});
       const result = this.manager.resolve(body.id, body.status);
       return sendJson(res, result.error ? 409 : 200, {...result,...this.snapshot()});
     }

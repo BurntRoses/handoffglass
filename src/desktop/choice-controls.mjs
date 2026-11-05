@@ -24,7 +24,7 @@ export function upgradeChoices(root=document){
         renderOverlay(svg,{sessionId:'choice-'+option.value,visualStyle:option.value,motion:'off',annotations:[{id:'sample',x:50,y:22,width:46,height:22,shape:'ring',color:'#5c9278'}]},{width:100,height:44});button.append(svg);
       }
       if(select.id==='host' && ['codex','workbuddy'].includes(option.value)){
-        const icon=document.createElement('span');icon.className='host-icon';icon.textContent=option.value==='codex'?'C':'W';icon.setAttribute('aria-hidden','true');button.append(icon);
+        const icon=document.createElement('span');icon.className='host-icon';const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','22');svg.setAttribute('height','22');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',option.value==='codex'?'m6 7 5 5-5 5m7 0h5':'M7 8a4 4 0 0 1 8 0v1m-8 2v-3m10 8a4 4 0 0 1-8 0v-1m8-2v3M5 12h14');path.setAttribute('fill','none');path.setAttribute('stroke','currentColor');path.setAttribute('stroke-width','1.6');path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');svg.append(path);icon.append(svg);icon.setAttribute('aria-hidden','true');button.append(icon);
       }
       const label=document.createElement('span');label.className='choice-label';button.append(label);
       if(more && !['codex','workbuddy'].includes(option.value))more.lastChild.append(button);else group.insertBefore(button,more||null);

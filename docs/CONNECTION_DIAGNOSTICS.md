@@ -2,7 +2,7 @@
 
 HandoffGlass uses a real, isolated MCP check to answer one narrow question: **can the current local installation start the stdio server, negotiate MCP, expose its expected tools and perform a headless display query?**
 
-Open **HandoffGlass → Help → Check**. An independent headless MCP process uses a temporary private runtime directory and is terminated after the check. It cannot see your current handoff, approve a dialog or access the native UI locator. The check uses only `initialize`, `tools/list` and `screen_displays`.
+Open **HandoffGlass → Help → Local service check**. An independent headless MCP process uses a temporary private runtime directory and is terminated after the check. It cannot see your current handoff, approve a dialog or access the native UI locator. The check uses only `initialize`, `tools/list` and `screen_displays`.
 
 For a source checkout:
 
@@ -12,7 +12,7 @@ npm run connection:check
 npm run readiness -- --json
 ```
 
-The check returns `hostVerified:false`, even on success. The Control Center also records actual authenticated MCP tool calls, labeled only by the launch configuration and kept in memory for fifteen minutes; see [Host activity](HOST_ACTIVITY.md). A working local MCP executable does not prove that Claude, Codex, DeepSeek Harness, WorkBuddy or another host has installed its configuration. In the host, refresh tool discovery and confirm `capability_manifest`, `session_start`, `session_wait`, `integration_status` and `integration_cleanup` appear; then call `connection_status` once. No sensitive action is needed.
+The check returns `hostVerified:false`, even on success. The connection wizard separately matches successful calls to the installation ID in that host configuration, retaining evidence in memory for fifteen minutes. Host identity remains caller-declared; see [Host activity](HOST_ACTIVITY.md). A working local MCP executable does not prove that Claude, Codex, DeepSeek Harness, WorkBuddy or another host has installed its configuration. In the host, refresh tool discovery and confirm `capability_manifest`, `session_start`, `session_wait`, `integration_status`, `integration_cleanup` and `integration_uninstall` appear; then call `connection_status` once. No sensitive action is needed.
 
 ## Error recovery
 

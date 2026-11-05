@@ -32,7 +32,7 @@ Requires Node.js 22 for the local HandoffGlass core. `prepare-deepseek` generate
 
 ## Tool economy and local-first design
 
-Default MCP exposes 15 tools for observation, continuous sessions, connection state and managed integration cleanup. Optional `HANDOFFGLASS_EXTRAS=1` adds three deterministic local utilities: `handoff_context` (user-managed visual preferences), `handoff_blueprint` (copy/plans) and `handoff_assess` (policy-based next-step advice). These utilities do not collect screen content or call a model. Legacy aliases require `HANDOFFGLASS_LEGACY_TOOLS=1`; the default catalog does not include them. **No silent model memory writes**. The experimental Cordis adapter retains its separate three-tool, single-step interface; use the MCP path for continuous sessions and lifecycle management. Both paths require the harness to verify the original application independently.
+Default MCP exposes 18 tools for observation, continuous sessions, connection state and managed integration cleanup. Optional `HANDOFFGLASS_EXTRAS=1` adds three deterministic local utilities: `handoff_context` (user-managed visual preferences), `handoff_blueprint` (copy/plans) and `handoff_assess` (policy-based next-step advice). These utilities do not collect screen content or call a model. Legacy aliases require `HANDOFFGLASS_LEGACY_TOOLS=1`; the default catalog does not include them. **No silent model memory writes**. The experimental Cordis adapter retains its separate three-tool, single-step interface; use the MCP path for continuous sessions and lifecycle management. Both paths require the harness to verify the original application independently.
 
 ## Non-local harness
 

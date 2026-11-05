@@ -7,10 +7,12 @@ export function summarizeDiagnostics(input, now = Date.now()) {
   if (!input || input.schemaVersion !== 1 || input.broker !== 'running') throw new TypeError('Unavailable broker diagnostics');
   const recent = Number.isFinite(input.lastAgentActivityAt) && input.lastAgentActivityAt > 0 && input.lastAgentActivityAt <= now
     ? now - input.lastAgentActivityAt < 120000 : false;
-  const session = ['awaiting_user','user_action_reported','observing'].includes(input.handoff?.status) ? {
+  const session = ['awaiting_user','user_action_reported','observing','paused'].includes(input.handoff?.status) ? {
     state: input.handoff.status, mode: input.handoff.mode === 'guide' ? 'guide' : 'handoff',
-    ...(['waiting_user','presenting','blocked','verifying','next_step'].includes(input.handoff.phase) ? { phase: input.handoff.phase } : {}),
+    ...(['waiting_user','presenting','blocked','verifying','next_step','paused','reconnecting'].includes(input.handoff.phase) ? { phase: input.handoff.phase } : {}),
     ...(['wait_for_user','observe_app','verify_in_app','present_next_step','reobserve_target','check_accessibility_permission'].includes(input.handoff.nextAction) ? { nextAction: input.handoff.nextAction } : {}),
+    ...(Number.isInteger(input.handoff.step)?{step:input.handoff.step}:{}),
+    ...(Number.isInteger(input.handoff.totalSteps)?{totalSteps:input.handoff.totalSteps}:{}),
     expiresIn: Number.isFinite(input.handoff.timeoutAt) ? Math.max(0, Math.ceil((input.handoff.timeoutAt - now) / 1000)) : null
   } : { state: 'idle' };
   const hosts = Array.isArray(input.hostActivity) ? input.hostActivity.slice(0,16)

@@ -66,6 +66,24 @@ try{
     {env:nativeEnv,timeout:15000});
   await assert.rejects(access(join(bundle,'mcp.json')),{code:'ENOENT'});
   console.log('Packaged WorkBuddy metadata, MCP, Skill and owned bundle cleanup verified');
+  const applicationURL=pathToFileURL(join(dirname(entry),'application-installation.mjs')).href;
+  const uninstallOptions={dir:join(dir,'uninstall-runtime'),userHome:join(dir,'uninstall-home'),codexHome:join(dir,'uninstall-codex'),root:dirname(dirname(entry))};
+  const {stdout:uninstallResult}=await promisify(execFile)(appBinary,['--input-type=module','-e',`
+    import {readFile,rm} from 'node:fs/promises';
+    import {dirname} from 'node:path';
+    const {registerApplicationInstallation}=await import(${JSON.stringify(applicationURL)});
+    const {uninstallApplication}=await import(${JSON.stringify(lifecycleURL)});
+    const {installCodex}=await import(${JSON.stringify(installURL)});
+    const options=${JSON.stringify(uninstallOptions)};
+    await registerApplicationInstallation(options);await installCodex({...options,apply:true});
+    const applied=await uninstallApplication({...options,confirm:true,waitPids:[]});
+    let result;for(let i=0;i<200;i++){try{result=JSON.parse(await readFile(applied.resultPath,'utf8'));break;}catch{}await new Promise(r=>setTimeout(r,50));}
+    if(!result?.complete)throw new Error('Packaged external remover did not complete: '+JSON.stringify(result));
+    await rm(dirname(applied.resultPath),{recursive:true,force:true});console.log('complete');
+  `],{env:nativeEnv,timeout:20000});
+  assert.equal(uninstallResult.trim(),'complete');
+  await assert.rejects(access(uninstallOptions.dir),{code:'ENOENT'});
+  console.log('Packaged external full-uninstall worker verified in an isolated installation');
   const status=await client.callTool({name:'screen_displays',arguments:{}});
   assert.ok(!status.isError); // headless fixture returns a valid empty-display status
   console.log('Packaged ELECTRON_RUN_AS_NODE MCP handshake complete:',tools.length,'tools');

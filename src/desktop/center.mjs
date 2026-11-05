@@ -11,7 +11,9 @@ import { checkLocalMcp } from '../local/mcp-probe.mjs';
 import { makeSupportReport } from '../local/support-report.mjs';
 import { inspectLayout } from '../native/calibration.mjs';
 import metadata from '../../package.json' with { type: 'json' };
-import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled } from '../integration-lifecycle.mjs';
+import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled, uninstallApplication } from '../integration-lifecycle.mjs';
+import { connectionState } from '../connection-state.mjs';
+import { nativePermissionStatus } from '../native/locator.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(here, '../..');
 const HOSTS_SET = new Set(Object.keys(HOSTS));
@@ -33,8 +35,34 @@ export async function showControlCenter() {
   center.show();
   return center;
 }
-export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
+export function registerCenterIPC({getDiagnostics,getDisplayInfo,identifyDisplays,runTrial,showCurrent}) {
   if (typeof getDiagnostics !== 'function' || typeof getDisplayInfo !== 'function') throw new TypeError('Diagnostics and display providers are required');
+  ipcMain.handle('hg:center:connection',async(event,host)=>{
+    if(!authorized(event)||!['codex','workbuddy'].includes(host))return {ok:false,code:'unsupported_host'};
+    try{return {ok:true,...await connectionState(host,{root:projectRoot,userHome:app.getPath('home'),live:await getDiagnostics()})};}
+    catch{return {ok:false,code:'connection_state_unavailable'};}
+  });
+  ipcMain.handle('hg:center:permission-status',async event=>{
+    if(!authorized(event))return {ok:false,code:'unauthorized'};
+    return {ok:true,...await nativePermissionStatus()};
+  });
+  for(const [name,callback] of [['identify-displays',identifyDisplays],['trial',runTrial],['show-current',showCurrent]]) {
+    ipcMain.handle('hg:center:'+name,async event=>{
+      if(!authorized(event))return {ok:false,code:'unauthorized'};
+      if(typeof callback!=='function')return {ok:false,code:'unavailable'};
+      try{return {ok:true,...await callback()};}catch(error){return {ok:false,code:error.code||'unavailable'};}
+    });
+  }
+  ipcMain.handle('hg:center:uninstall',async(event,confirm=false)=>{
+    if(!authorized(event)||typeof confirm!=='boolean')return {ok:false,code:'invalid_request'};
+    try {
+      const result=await uninstallApplication({confirm,root:projectRoot,userHome:app.getPath('home')});
+      if(result.scheduled)setTimeout(()=>{
+        void fetch(`http://127.0.0.1:${process.env.HANDOFFGLASS_PORT}/desktop/shutdown`,{method:'POST',headers:{authorization:`Bearer ${process.env.HANDOFFGLASS_SECRET}`,'content-type':'application/json'},body:'{}'}).finally(()=>app.quit());
+      },500);
+      return {ok:true,result};
+    }catch{return {ok:false,code:'uninstall_refused'};}
+  });
   ipcMain.handle('hg:center:read',async event=>{
     if(!authorized(event)) return {ok:false,error:'Unauthorized window'};
     try {
@@ -47,10 +75,10 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
   });
   ipcMain.handle('hg:center:save',async(event,settings)=>{
     if(!authorized(event)||!settings||typeof settings!=='object'||Array.isArray(settings)) return {ok:false,error:'Invalid request'};
-    const {visualStyle,motion,locale,density,theme,accessibility,enabled,continuous,...extra}=settings;
+    const {visualStyle,motion,locale,density,theme,accessibility,enabled,continuous,displayPolicy,displayId,...extra}=settings;
     if(Object.keys(extra).length || typeof accessibility!=='boolean' || typeof enabled!=='boolean' || typeof continuous!=='boolean')return {ok:false,error:'Invalid setting'};
     try {
-      const preferences=await savePreferences({visualStyle,motion,locale,density,theme,enabled,continuous});
+      const preferences=await savePreferences({visualStyle,motion,locale,density,theme,enabled,continuous,...(displayPolicy!==undefined?{displayPolicy}:{}),...(displayId!==undefined?{displayId}:{})});
       await setAccessibilityConsent(accessibility);
       await fetch(`http://127.0.0.1:${process.env.HANDOFFGLASS_PORT}/desktop/preferences`,{method:'POST',headers:{authorization:`Bearer ${process.env.HANDOFFGLASS_SECRET}`,'content-type':'application/json'},body:'{}'}).then(r=>{if(!r.ok)throw Error('Could not update active guidance');});
       app.emit('hg:preferences-changed');
@@ -87,8 +115,9 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo}) {
     checkRunning=true;
     try {
       const entry=app.isPackaged ? join(process.resourcesPath,'app.asar','src','mcp.mjs') : join(here,'..','mcp.mjs');
+      const probeEnv={...process.env,...(app.isPackaged?{ELECTRON_RUN_AS_NODE:'1'}:{})};delete probeEnv.HANDOFFGLASS_CONNECTION_ID;
       return await checkLocalMcp({command:process.execPath,entry,
-        env:{...process.env,...(app.isPackaged?{ELECTRON_RUN_AS_NODE:'1'}:{})},timeoutMs:18000});
+        env:probeEnv,timeoutMs:18000});
     } catch {return {ok:false,code:'test_unavailable'};}
     finally {checkRunning=false;}
   });

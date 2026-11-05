@@ -52,7 +52,9 @@ test('decision panel follows the same typographic tokens and supports high contr
   assert.match(html,/ui-tokens\.css/);
   assert.match(js,/dataset\.theme/);
   assert.match(js,/await window\.handoffglass\.decide/);
-  assert.match(js,/Only the broker's next state/);
+  assert.match(html,/id="pause"/);
+  assert.match(html,/id="collapse"[^>]*aria-expanded/);
+  assert.doesNotMatch(js,/window\.close\s*\(/);
   assert.match(css,/prefers-reduced-motion:reduce/);
   assert.match(css,/forced-colors:active/);
   assert.match(tokens,/color-scheme: light/);

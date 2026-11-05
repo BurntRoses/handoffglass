@@ -2,12 +2,14 @@
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
+import {mkdtempSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {app,shell} from 'electron';
 import {HandoffManager} from '../src/core.mjs';
 import {LocalBridge} from '../src/bridge.mjs';
 import {savePreferences,loadPreferences} from '../src/local/preferences.mjs';
 import {getAccessibilityConsent} from '../src/native/preferences.mjs';
+const uiProfile=mkdtempSync(join(tmpdir(),'handoffglass-ui-profile-'));app.setPath('userData',uiProfile);
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,message){for(let i=0;i<100;i++){if(await check())return;await pause(50);}throw Error(message);}
 void app.whenReady().then(async()=>{
@@ -26,23 +28,35 @@ void app.whenReady().then(async()=>{
   process.env.HANDOFFGLASS_PORT=String(bridge.port);process.env.HANDOFFGLASS_SECRET=bridge.token;
   await import('../src/desktop/main.mjs');await until(()=>bridge.connected,'Desktop did not connect');
   const {showControlCenter}=await import('../src/desktop/center.mjs');center=await showControlCenter();
-  center.webContents.on('console-message',(_e,_l,message)=>{if(/Uncaught|Refused to|Failed to load/i.test(message))errors.push(message);});
+  center.webContents.on('console-message',(_e,_l,message)=>{if(/Uncaught|Refused to|Failed to load/i.test(message)){errors.push(message);console.error('Renderer:',message);}});
   center.webContents.on('render-process-gone',(_e,d)=>errors.push(d.reason));
-  const js=source=>center.webContents.executeJavaScript(source);
+  const js=async source=>{try{return await center.webContents.executeJavaScript(source);}catch(error){throw new Error('UI script failed: '+source,{cause:error});}};
   await until(async()=>await js('document.querySelector("#appVersion").textContent.startsWith("v")'),'Settings did not load');
   async function capture(name){await pause(300);await writeFile(join(output,`${name}.png`),(await center.webContents.capturePage()).toPNG());}
   async function page(name){await js(`document.querySelector('[data-page="${name}"]').click()`);await pause(100);}
   async function set(id,value){await js(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);}
   await capture('guidance-light');
+  await js('document.querySelector("#tryGuidance").click()');
+  await until(()=>manager.active()?.demo===true,'Local trial did not start');
+  const trialId=manager.active().id;
+  const {BrowserWindow:TrialWindows}=await import('electron');
+  const trialPanel=TrialWindows.getAllWindows().find(w=>w.webContents.getURL().endsWith('/panel.html'));
+  for(let step=1;step<=3;step++){
+    await until(async()=>await trialPanel.webContents.executeJavaScript(`document.querySelector('#step').textContent.includes('${step}')`),'Trial step did not render');
+    await trialPanel.webContents.executeJavaScript('document.querySelector("#done").click()');
+    await until(()=>step===3?manager.get(trialId).status==='completed':manager.get(trialId).step===step+1,'Trial did not continue');
+  }
+  await until(()=>!trialPanel.isVisible(),'Trial did not close');
+
   await page('connections');await until(async()=>await js('!document.querySelector("#copy").disabled'),'Configuration did not load');
   assert.equal(await js('document.querySelector("#host").value'),'codex');
   assert.equal(await js('document.querySelector(".connection-card details").open'),false);
   assert.ok((await js('document.querySelector("#config").textContent')).includes('[mcp_servers.handoffglass]'));
   assert.equal(await js('document.querySelector("#copy").textContent'),'连接');
   await js('document.querySelector("#copy").click()');
-  await until(async()=>await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent.includes("重启 Codex")'),'Codex connection did not complete');
+  await until(async()=>await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent.includes("重启")'),'Codex connection did not complete');
   assert.match(await readFile(join(dir,'codex','config.toml'),'utf8'),/\[mcp_servers.handoffglass\]/);
-  assert.match(await readFile(join(dir,'.agents','skills','visual-handoff','SKILL.md'),'utf8'),/教我清空废纸篓/);
+  assert.match(await readFile(join(dir,'.agents','skills','visual-handoff','SKILL.md'),'utf8'),/session_start/);
   await until(async()=>await js('document.querySelector("#integrationState").dataset.state==="installed"'),'Lifecycle status not installed');
   assert.equal(await js('document.querySelector("#host").hidden'),true,'Native dropdown still visible');
   assert.equal(await js('document.querySelectorAll(".host-choices>.choice").length'),2);
@@ -65,6 +79,10 @@ void app.whenReady().then(async()=>{
   await until(async()=>(await loadPreferences(dir)).enabled,'Global switch did not resume');
   await js('window.scrollTo(0,0)');
   await capture('connections-light');
+  const pendingConnection=await js('window.hgCenter.connection("codex")');
+  assert.equal(pendingConnection.hostVerified,false,'Installation alone verified the host');
+  assert.equal(await js('document.querySelectorAll("#connectionSteps li").length'),6);
+
   await set('host','workbuddy');await until(async()=>await js('!document.querySelector("#copy").disabled'),'WorkBuddy preview did not load');
   assert.equal(await js('document.querySelector("#copy").textContent'),'生成连接器');
   await js('document.querySelector("#copy").click()');
@@ -114,6 +132,17 @@ void app.whenReady().then(async()=>{
    await until(async()=>await js('!document.querySelector("#displaySettings").disabled'),'Settings retry did not finish');
   }
   await js('document.querySelector("#refreshDisplays").click()');
+  await js('document.querySelector("#identifyDisplays").click()');
+  await set('displayPolicy','fixed');
+  await until(async()=>(await loadPreferences(dir)).displayPolicy==='fixed','Display policy did not save');
+  assert.equal(await js('document.querySelector("#displayChoices").hidden'),false);
+  await set('displayPolicy','target');
+  await until(async()=>(await loadPreferences(dir)).displayPolicy==='target','Display follow policy did not restore');
+  await js('document.querySelector("#uninstallPreview").click()');
+  await until(async()=>await js('document.querySelectorAll("#uninstallItems li").length>0'),'Uninstall preview was empty');
+  assert.equal(await js('document.querySelector("#uninstallConfirm").hidden'),false);
+  assert.match(await readFile(join(dir,'codex','config.toml'),'utf8'),/\[mcp_servers\.handoffglass\]/,'Uninstall preview changed the host');
+
   await capture('displays-dark');
   await js('document.querySelector("#accessibility").click()');
   await until(()=>getAccessibilityConsent({dir,env:{}}),'Permission checkbox did not save');
@@ -128,8 +157,10 @@ void app.whenReady().then(async()=>{
   assert.match(await js('document.querySelector("#displayCount").textContent'),/检测到 \d+ 块屏幕/);
   assert.equal(await js('document.querySelector("#displayMap").getAttribute("aria-label")'),'显示器相对位置');
   const {showSetup}=await import('../src/desktop/setup.mjs');setup=await showSetup();
-  setup.webContents.on('console-message',(_e,_l,message)=>{if(/Uncaught|Refused to|Failed to load/i.test(message))errors.push(message);});
+  setup.webContents.on('console-message',(_e,_l,message)=>{if(/Uncaught|Refused to|Failed to load/i.test(message)){errors.push(message);console.error('Renderer:',message);}});
   await until(async()=>await setup.webContents.executeJavaScript('!document.querySelector("#copy").disabled'),'Setup did not load');
+  await until(async()=>await setup.webContents.executeJavaScript('document.querySelectorAll("#connectionSteps li").length===6'),'Setup connection stages did not load');
+  assert.equal(await setup.webContents.executeJavaScript('document.querySelector(".workspace-footer").getBoundingClientRect().bottom<=innerHeight'),true,'Setup navigation is below the window');
   await writeFile(join(output,'setup.png'),(await setup.webContents.capturePage()).toPNG());
   await setup.webContents.executeJavaScript(`(()=>{const host=document.querySelector('#host');host.value='workbuddy';host.dispatchEvent(new Event('change',{bubbles:true}));})()`);
   await until(async()=>await setup.webContents.executeJavaScript('!document.querySelector("#copy").disabled'),'Setup WorkBuddy preview did not load');
@@ -138,6 +169,9 @@ void app.whenReady().then(async()=>{
   assert.equal(await setup.webContents.executeJavaScript('document.documentElement.scrollWidth>innerWidth'),false,'WorkBuddy setup overflowed');
   await writeFile(join(output,'setup-workbuddy.png'),(await setup.webContents.capturePage()).toPNG());
   await setup.webContents.executeJavaScript('document.querySelector("#next").click()');
+  await pause(150);
+  assert.equal(await setup.webContents.executeJavaScript(`document.querySelector('[data-screen="0"]').hidden`),false,'Unverified setup was marked complete');
+  await setup.webContents.executeJavaScript('document.querySelector("#defer").click()');
   assert.equal(await setup.webContents.executeJavaScript('document.querySelector("[data-screen=\\"1\\"]").hidden'),false);
   await setup.webContents.executeJavaScript('document.querySelector("#next").click()');
   await until(async()=>await setup.webContents.executeJavaScript('!document.querySelector("[data-screen=\\"2\\"]").hidden'),'Setup did not save');
@@ -153,18 +187,40 @@ void app.whenReady().then(async()=>{
   await until(()=>manager.get(session.id).status==='declined','Decline did not reach broker');
   const continuous=manager.show({title:'第一步',message:'完成后核实，再继续下一步。',mode:'handoff',continuous:true,timeoutSeconds:120});
   await until(()=>panel.isVisible(),'Continuous panel did not appear');
+  const responseStarted=performance.now();
   await panel.webContents.executeJavaScript('document.querySelector("#done").click()');
   await until(()=>manager.get(continuous.id).phase==='verifying','Completion did not enter verification');
+  const localReportMs=performance.now()-responseStarted;
   await pause(250);
   assert.equal(panel.isVisible(),true,'Panel disappeared during verification');
   await until(async()=>await panel.webContents.executeJavaScript('document.querySelector("#done").hidden'),'Verification still allows duplicate completion');
+  await until(()=>panel.getBounds().height<130,'Verification did not collapse to a strip');
   await writeFile(join(output,'verifying.png'),(await panel.webContents.capturePage()).toPNG());
   manager.verify(continuous.id,'local',true);
   manager.present(continuous.id,{title:'第二步',message:'同一会话中的后续步骤。',mode:'handoff',continuous:true},'local');
   await until(async()=>await panel.webContents.executeJavaScript('document.querySelector("#title").textContent==="第二步"'),'Next step did not render');
+  const stale=await panel.webContents.executeJavaScript(`window.handoffglass.decide(${JSON.stringify(continuous.id)},'completed',1)`);
+  assert.equal(stale.ok,false,'Stale step report accepted');
+  assert.equal(manager.get(continuous.id).status,'awaiting_user');
+  await panel.webContents.executeJavaScript('document.querySelector("#pause").click()');
+  await until(()=>manager.get(continuous.id).status==='paused','Pause did not reach broker');
+  assert.deepEqual(manager.get(continuous.id).annotations,[]);
+  await until(()=>panel.getBounds().height<130,'Paused panel did not collapse');
+  await writeFile(join(output,'paused.png'),(await panel.webContents.capturePage()).toPNG());
+  await panel.webContents.executeJavaScript('document.querySelector("#pause").click()');
+  await until(()=>manager.get(continuous.id).phase==='reconnecting','Resume did not request fresh observation');
+  assert.deepEqual(manager.get(continuous.id).annotations,[]);
+  manager.present(continuous.id,{title:'继续当前任务',message:'测试较长说明。'.repeat(90),mode:'handoff',continuous:true},'local');
+  await until(async()=>await panel.webContents.executeJavaScript('document.querySelector("#title").textContent==="继续当前任务"'),'Recovered step did not render');
+  assert.equal(await panel.webContents.executeJavaScript('document.documentElement.scrollWidth>innerWidth'),false,'Long guidance overflowed horizontally');
+  await panel.webContents.executeJavaScript('document.querySelector("#collapse").click()');
+  await until(()=>panel.getBounds().height<130,'Manual collapse failed');
+  await panel.webContents.executeJavaScript('document.querySelector("#collapse").click()');
+  await until(()=>panel.getBounds().height>130,'Manual expand failed');
   manager.resolve(continuous.id,'completed');manager.verify(continuous.id,'local',true,true);
   await until(()=>!panel.isVisible(),'Final verified session did not close');
   assert.deepEqual(errors,[],'Renderer errors');
-  console.log(`PASS release UI: Codex install/remove/reconnect, WorkBuddy bundle preparation/removal in center and setup, immediate global disable, continuous report/verification/next-step, choice cards in disposable home, live preview, preferences, language, permission, visible display setup, fixed settings URL and failure recovery, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
- }finally{shell.openExternal=originalOpenExternal;setup?.close();center?.close();manager.close();await bridge.stop();await rm(dir,{recursive:true,force:true});}
+  console.log(`Local renderer action → observed Broker transition: ${localReportMs.toFixed(1)}ms (single UI regression sample, includes test polling).`);
+  console.log(`PASS release UI: Codex install/remove/reconnect, WorkBuddy bundle preparation/removal in center and setup, immediate global disable, three-step local trial, continuous report/verification/next-step, pause/resume, collapsed strip, stale step rejection, long text, removal preview, display policy, choice cards in disposable home, live preview, preferences, language, permission, visible display setup, fixed settings URL and failure recovery, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
+ }finally{shell.openExternal=originalOpenExternal;setup?.close();center?.close();manager.close();await bridge.stop();await rm(dir,{recursive:true,force:true});await rm(uiProfile,{recursive:true,force:true});}
 }).then(()=>app.exit(0),error=>{console.error(error);app.exit(1);});

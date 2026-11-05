@@ -44,7 +44,7 @@ Embedded third-party notices cover installed non-optional runtime dependencies a
 
 For source installation, follow [Agent installation](INSTALL_AGENT.md). That path omits development dependencies, including the packaging toolchain; it installs only the MCP service and desktop runtime. Check repository access first; if GitHub denies access, installation cannot continue. Do not ask users for tokens in chat.
 
-For an app preview, extract the ZIP into a stable application directory on macOS, or choose the Windows installer/portable executable. Keep the executable in place after connecting a host: MCP entries reference its absolute path. macOS ZIP previews have no installer or application self-removal. Windows NSIS removes installed application files; it preserves user data and external host configurations. OS security prompts for unsigned builds remain in force. Do not instruct users to bypass their device's security policy.
+For an app preview, extract the ZIP into a stable application directory on macOS, or choose the Windows installer/portable executable. Keep the executable in place after connecting a host: MCP entries reference its absolute path. Version 0.18 records a verified desktop application's owned files for the in-app full removal flow. Windows NSIS separately removes installed application files and preserves user data and external host configurations. OS security prompts for unsigned builds remain in force. Do not instruct users to bypass their device's security policy.
 
 There is no automatic update. Finish or cancel active guidance and exit the old application before replacing it. For source updates, record the current commit, verify a clean working tree and the expected origin, fast-forward, run `npm ci --omit=dev --include=optional`, and rerun the local preflight. Keep user modifications. Reconnect Codex with `--replace` only when the previous managed content is unchanged; regenerate the local WorkBuddy bundle and reimport it in WorkBuddy. Reload the host, then make an actual read-only tool call. Preflight alone does not prove the host loaded the update.
 
@@ -54,7 +54,7 @@ If an upgrade fails, stop before reporting success. Restore the recorded source 
 
 [Pause/removal](INTEGRATION_LIFECYCLE.md) is available through the app, natural-language Agent requests and the CLI. Remove managed connections before deleting an installation directory; otherwise hosts will retain commands pointing to missing files. WorkBuddy's imported connector must also be disabled/removed inside WorkBuddy.
 
-The application does not scan or delete host memories, other MCP configurations, unknown files or system Accessibility grants. Preferences are retained. Full app/data uninstall is not implemented by the connection cleanup tool and must not be advertised as one-click complete removal.
+Connection cleanup preserves preferences. Full removal is available separately through the app, `integration_uninstall`, or `npm run uninstall:app -- --apply`; it removes verified application files, owned integrations and runtime data after the relevant process exits. Edited and unknown files remain and appear in the result. The external worker reports its final result through `resultPath`; `scheduled:true` is not proof of completion. Development checkouts, host memories, other MCP settings and system Accessibility grants are retained. WorkBuddy's imported connector still needs removal inside WorkBuddy; Windows and physical-device acceptance remain pending.
 
 ## Gate a supported public release
 

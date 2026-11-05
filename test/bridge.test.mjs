@@ -70,6 +70,15 @@ test('poll returns newest snapshot, never replays stale show messages', async ()
   assert.equal(old.status, 409);
 }));
 
+test('a delayed desktop decision cannot complete a newer step in the same session',async()=>fixture(async({manager,request})=>{
+  const first=manager.show({...basic,continuous:true},'agent');
+  manager.resolve(first.id,'completed');manager.verify(first.id,'agent',true);
+  manager.present(first.id,{...basic,continuous:true},'agent');
+  const response=await request('/decision',{method:'POST',body:{id:first.id,step:1,status:'completed'}});
+  assert.equal(response.status,409);assert.equal((await response.json()).error,'stale_step');
+  assert.equal(manager.active().step,2);assert.equal(manager.active().status,'awaiting_user');
+}));
+
 test('long-poll listeners receive a fresh state and remove themselves', async () => fixture(async ({ manager, bridge, request }) => {
   const hello = await (await request('/hello', { method: 'POST', body: { displays: [] } })).json();
   const waitingA = request(`/poll?after=${hello.revision}`).then(r => r.json());

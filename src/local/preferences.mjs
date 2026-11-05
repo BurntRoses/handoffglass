@@ -8,12 +8,12 @@ export const VISUAL_STYLES = Object.freeze(['minimal', 'luminous', 'handdrawn'])
 export const MOTION_MODES = Object.freeze(['off', 'gentle', 'expressive']);
 export const LOCALES = Object.freeze(['zh-CN', 'en-US']);
 export const THEMES = Object.freeze(['system', 'dark', 'light']);
-export const DEFAULT_PREFERENCES = Object.freeze({ version: 1, visualStyle: 'minimal', motion: 'gentle', locale: 'zh-CN', density: 'normal', theme: 'system', enabled: true, continuous: true });
+export const DEFAULT_PREFERENCES = Object.freeze({ version: 1, visualStyle: 'minimal', motion: 'gentle', locale: 'zh-CN', density: 'normal', theme: 'system', enabled: true, continuous: true, displayPolicy:'target', displayId:'' });
 const KEYS = Object.freeze({ visualStyle: VISUAL_STYLES, motion: MOTION_MODES, locale: LOCALES, density: ['normal', 'compact'], theme: THEMES,
-  enabled: [true, false], continuous: [true, false] });
+  enabled: [true, false], continuous: [true, false], displayPolicy:['target','active','fixed'] });
 export function validatePreferences(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Preferences must be an object');
-  if (Object.keys(value).some(k => k !== 'version' && !Object.hasOwn(KEYS, k))) throw new TypeError('Unknown preference key');
+  if (Object.keys(value).some(k => k !== 'version' && k !== 'displayId' && !Object.hasOwn(KEYS, k))) throw new TypeError('Unknown preference key');
   const result = { ...DEFAULT_PREFERENCES };
   for (const [key, allowed] of Object.entries(KEYS)) {
     if (value[key] !== undefined) {
@@ -21,6 +21,7 @@ export function validatePreferences(value) {
       result[key] = value[key];
     }
   }
+  if(value.displayId!==undefined){if(typeof value.displayId!=='string'||value.displayId.length>80)throw new TypeError('Invalid displayId');result.displayId=value.displayId;}
   if (value.version !== undefined && value.version !== 1) throw new TypeError('Unsupported preference version');
   return result;
 }

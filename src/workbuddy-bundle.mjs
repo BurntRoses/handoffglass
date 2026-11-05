@@ -1,4 +1,5 @@
 /** Fixed contents of the local connector; shared by the builder and cleanup. */
+import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +23,7 @@ export async function readWorkbuddyRecord(bundle) {
   return { path, raw, record };
 }
 
-export async function writeWorkbuddyBundle(bundle, contents) {
+export async function writeWorkbuddyBundle(bundle, contents, {installationId}={}) {
   if (Object.keys(contents).length !== WORKBUDDY_FILES.length ||
       !WORKBUDDY_FILES.every(file => typeof contents[file] === 'string'))
     throw new TypeError('Invalid connector contents');
@@ -35,7 +36,7 @@ export async function writeWorkbuddyBundle(bundle, contents) {
     files[file] = digest(next);
     if (prior !== next) changes.push({ path, prior, next });
   }
-  const next = JSON.stringify({ schemaVersion: 1, host: 'workbuddy', files }, null, 2) + '\n';
+  const next = JSON.stringify({ schemaVersion: 1, host: 'workbuddy', ...(installationId||saved.record?.installationId?{installationId:installationId||saved.record.installationId}:{}), files }, null, 2) + '\n';
   if (next !== saved.raw) changes.push({ path: saved.path, prior: saved.raw, next });
   await applyFileTransaction(changes);
   return { changed: changes.length > 0 };
@@ -43,13 +44,14 @@ export async function writeWorkbuddyBundle(bundle, contents) {
 
 export async function prepareWorkbuddyBundle(destination, {command=process.execPath,
   entry=fileURLToPath(new URL('./mcp.mjs',import.meta.url)),envOverrides={}}={}) {
+  const saved=await readWorkbuddyRecord(destination),installationId=saved.record?.installationId||randomUUID();
   const config={mcpServers:{handoffglass:{type:'stdio',command,args:[entry],
-    env:{...envOverrides,HANDOFFGLASS_HOST_ID:'workbuddy',HANDOFFGLASS_OUTPUT:'compact'},
+    env:{...envOverrides,HANDOFFGLASS_CONNECTION_ID:installationId,HANDOFFGLASS_HOST_ID:'workbuddy',HANDOFFGLASS_OUTPUT:'compact'},
     runtime:{type:'node',version:'22'},timeout:60000}}};
   const contents={'mcp.json':JSON.stringify(config,null,2)+'\n','.handoffglass-managed':'handoffglass-local-v1\n'};
   for(const name of ['connector-meta.json','icon.svg'])
     contents[name]=await readFile(new URL('../integrations/workbuddy/'+name,import.meta.url),'utf8');
   for(const name of ['SKILL.md','references/tool-contracts.md'])
     contents['skills/visual-handoff/'+name]=await readFile(new URL('../skills/visual-handoff/'+name,import.meta.url),'utf8');
-  return {destination,...await writeWorkbuddyBundle(destination,contents),hostCode:'workbuddy',serverCount:1,published:false};
+  return {destination,...await writeWorkbuddyBundle(destination,contents,{installationId}),installationId,hostCode:'workbuddy',serverCount:1,published:false};
 }

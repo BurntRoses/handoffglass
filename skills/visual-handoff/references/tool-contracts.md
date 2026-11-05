@@ -8,14 +8,17 @@ The live MCP schemas are authoritative. Read this reference when a host cannot s
 | `screen_displays` | none | fresh global DIP display bounds, no screenshot |
 | `ui_inspect` | none | up to 48 foreground controls, bounded labels and bounds |
 | `ui_locate` | `target:{app,role,name}` | exact observed control; optional previous bounds for comparison |
-| `session_start` | `title`, `message` | `mode:handoff`; optional native target or grounded scene/marks; `timeoutSeconds:300` (`guide:90`); returns session, nextCursor, nextAction |
-| `session_present` | `sessionId`, `title`, `message` | same drawing fields; fresh requestId per step; original session timeout remains |
+| `session_start` | `title`, `message` | `mode:handoff`; optional native target or grounded scene/marks; `timeoutSeconds:1800`, separate task deadline; returns session, resumeToken, nextCursor, nextAction |
+| `session_present` | `sessionId`, `title`, `message` | same drawing fields; fresh requestId per step; new step deadline; task deadline remains |
 | `session_wait` | `sessionId` | `cursor:0`, `maxWaitSeconds:20` (0–30); events, nextCursor, truncated, session, nextAction |
 | `session_update` | `sessionId`, `expectedRevision`, `operations` | patch an enabled scene atomically; no timeout renewal |
 | `session_verify` | `sessionId`, `verified:boolean` | `finish:false`; final verified step needs `finish:true` |
+| `session_resume` | `sessionId`, `resumeToken` | rotates token; clears marks; fresh observation required |
+| `session_control` | `sessionId`, `action` | pause/resume/retry_target/text_fallback/progress; expectedStep prevents stale actions |
+| `integration_uninstall` | optional `confirm` | full owned-install preview, or scheduled removal and result path |
 | `session_stop` | `sessionId` | cancels only the calling owner's session |
 | `connection_status` | none | Broker, desktop, enablement; caller-declared host identity |
-| `permission_status` | none | local lookup consent; OS access remains not_checked until native inspection |
+| `permission_status` | none | local consent and status-only OS/helper check |
 | `integration_set_enabled` | `enabled:boolean` | user-requested pause/resume; settings kept |
 | `integration_status` | optional `host` | host defaults codex; local files only; host trust/binding not observed |
 | `integration_cleanup` | `host:codex|workbuddy` | `confirm:false`; items, retained, scope, hostAction, applied |
@@ -30,4 +33,4 @@ Store the returned `session.id` and `nextCursor`. For example, `{"sessionId":"00
 
 Targets and app content must come from a fresh observation. The placeholders above are not real target names. The MCP never clicks, types or grants system permission.
 
-Failures include `disabled_by_user`, `continuous_disabled`, `consent_required`, `permission_denied`, `busy`, `target_unavailable`, `verification_due` and `revision_conflict`. For a revision conflict read the current snapshot with `session_wait(maxWaitSeconds:0)`, then decide whether the patch is still relevant. Reconnects on the same MCP process can resume a cursor; process replacement does not inherit the owner capability. Management tools work while guidance is disabled.
+Failures include `disabled_by_user`, `continuous_disabled`, `consent_required`, `permission_denied`, `busy`, `target_unavailable`, `verification_due` and `revision_conflict`. For a revision conflict read the current snapshot with `session_wait(maxWaitSeconds:0)`, then decide whether the patch is still relevant. Reconnects on the same MCP process can resume a cursor; process replacement requires session_resume with the saved token. Management tools work while guidance is disabled.
