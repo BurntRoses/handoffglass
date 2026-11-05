@@ -15,7 +15,7 @@ const isolated=async run=>{const userHome=await mkdtemp(join(tmpdir(),'hg-uninst
 async function workerResult(applied){
  let raw='',error='';
  for(let i=0;i<800;i++){try{raw=await readFile(applied.resultPath,'utf8');return JSON.parse(raw.replace(/^\uFEFF/,''));}catch(e){error=e.message;}await new Promise(r=>setTimeout(r,50));}
- assert.fail('External worker did not produce valid JSON: '+error+'; log='+await readFile(applied.workerLogPath,'utf8')+'; result='+raw);
+ assert.fail('External worker did not produce valid JSON: '+error+'; log='+await readFile(applied.workerLogPath,'utf8')+'; stderr='+await readFile(applied.workerErrorPath,'utf8').catch(()=>'')+'; result='+raw);
 }
 async function fakeApp(home){const path=join(home,'Applications','HandoffGlass.app');await mkdir(join(path,'Contents'),{recursive:true});await writeFile(join(path,'Contents','Info.plist'),'<plist><dict><key>CFBundleIdentifier</key><string>dev.handoffglass.desktop</string></dict></plist>');await writeFile(join(path,'Contents','application'),'installed package');return path;}
 

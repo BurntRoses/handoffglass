@@ -106,14 +106,19 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
   const resultPath=join(stage,'result.json'),planPath=join(stage,'plan.json'),readyPath=join(stage,'ready');
   await writeFile(planPath,JSON.stringify({entries,waitPids:shutdownPids,resultPath,readyPath,
     priorRetained:[...applied.flatMap(p=>p.retained),...finalFiles.retained],hostActions:result.hostActions}),{mode:0o600,flag:'wx'});
-  const workerLogPath=join(stage,'worker.log'),workerLog=await open(workerLogPath,'a',0o600);
+  const workerLogPath=join(stage,'worker.log'),workerErrorPath=join(stage,'worker-error.log');
+  const workerLog=await open(windows?join(stage,'launcher.log'):workerLogPath,'a',0o600);
+  const quote=value=>"'"+value.replaceAll("'","''")+"'";
+  const windowsLaunch=windows?`$ErrorActionPreference='Stop'; Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',${quote('"'+script+'"')},${quote('"'+planPath+'"')}) -WindowStyle Hidden -RedirectStandardOutput ${quote(workerLogPath)} -RedirectStandardError ${quote(workerErrorPath)}`:null;
+  const workerEnv={...process.env,ELECTRON_RUN_AS_NODE:'1'};
+  if(windows)for(const key of Object.keys(workerEnv))if(key.toLowerCase()==='psmodulepath')delete workerEnv[key];
   let child;
   try{child=spawnFn(windows?'powershell.exe':process.execPath,
-    windows?['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script,planPath]:[script,planPath],
-    // Windows PowerShell can exit before running -File under DETACHED_PROCESS.
-    // CREATE_NO_WINDOW plus unref keeps the worker independent of the GUI.
-    {detached:!windows,windowsHide:true,stdio:['ignore',workerLog.fd,workerLog.fd],env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
-    child.once('exit',(code,signal)=>{void appendFile(workerLogPath,`worker_exit:${code ?? signal}\n`).catch(()=>{});});
+    windows?['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-Command',windowsLaunch]:[script,planPath],
+    // Start-Process creates an independent hidden Windows console. Merely
+    // unref'ing a child leaves it attached to a console that exits with the app.
+    {detached:!windows,windowsHide:true,stdio:['ignore',workerLog.fd,workerLog.fd],env:workerEnv});
+    child.once('exit',(code,signal)=>{void appendFile(windows?join(stage,'launcher.log'):workerLogPath,`worker_exit:${code ?? signal}\n`).catch(()=>{});});
     await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();
   }finally{await workerLog.close();}
   // Do not exit the calling GUI before the external runtime has loaded its
@@ -122,7 +127,7 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
   while(Date.now()<startDeadline){
     try{workerReady=(await readFile(readyPath,'utf8'))==='ready';}catch(error){if(error.code!=='ENOENT')throw error;}
     if(workerReady)break;
-    if(child.exitCode!==null||child.signalCode!==null)break;
+    if((child.exitCode!==null&&(!windows||child.exitCode!==0))||child.signalCode!==null)break;
     await new Promise(resolve=>setTimeout(resolve,40));
   }
   if(!workerReady)throw Object.assign(new Error('External remover did not start; review '+workerLogPath),{code:'uninstaller_startup_failed'});
@@ -133,7 +138,7 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
       headers:{authorization:`Bearer ${desktop.desktopToken}`,'content-type':'application/json'},body:'{}',signal:AbortSignal.timeout(2000)});
     if(!response.ok)result.retained.push({path:dir,reason:'runtime_shutdown_not_acknowledged'});
   }catch{result.retained.push({path:dir,reason:'runtime_shutdown_not_acknowledged'});}
-  return {...result,applied:true,scheduled:true,confirmationRequired:false,resultPath,workerLogPath,
+  return {...result,applied:true,scheduled:true,confirmationRequired:false,resultPath,workerLogPath,workerErrorPath,
     removed:applied.flatMap(p=>p.removed||[]),retained:[...applied.flatMap(p=>p.retained),...finalFiles.retained,...result.retained.filter(r=>r.reason==='runtime_shutdown_not_acknowledged')],
     nextAction:'exit_handoffglass_then_read_uninstall_result',complete:false};
 }
