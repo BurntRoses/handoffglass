@@ -13,3 +13,15 @@ test('card stays on the target display and outside grounded button bounds',()=>{
 test('coordinate-free guidance has a centered, deterministic fallback',()=>{
  assert.deepEqual(placePanel({x:0,y:0,width:1440,height:900},null),{x:510,y:331});
 });
+
+test('layout avoids multiple targets and retains a stable nearby safe position',()=>{
+ const area={x:0,y:0,width:1400,height:900},target={x:700,y:450,width:100,height:50};
+ const obstruction={x:1000,y:450,width:300,height:300};
+ const point=placePanel(area,target,{targets:[target,obstruction]});
+ assert.ok(point.x+420<=obstruction.x-obstruction.width/2 || point.y+238<=obstruction.y-obstruction.height/2 || point.y>=obstruction.y+obstruction.height/2);
+ const moved=placePanel(area,{...target,x:701},{targets:[{...target,x:701},obstruction],previous:point});
+ assert.deepEqual(moved,point);
+});
+test('compact strip docks at the top of the chosen work area',()=>{
+ assert.deepEqual(placePanel({x:-1600,y:50,width:1600,height:900},null,{height:90,compact:true}),{x:-1010,y:62});
+});

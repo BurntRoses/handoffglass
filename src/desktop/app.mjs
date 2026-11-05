@@ -1,10 +1,12 @@
+import { registerApplicationInstallation } from '../application-installation.mjs';
+import { attachSessionCheckpoint } from '../local/session-checkpoint.mjs';
 /** Packaged GUI entry: self-hosts the broker so ordinary users need no Node installation. */
 import { app, dialog } from 'electron';
 import { resolve, join } from 'node:path';
 import { rm, mkdir, stat } from 'node:fs/promises';
 import { HandoffManager } from '../core.mjs';
 import { LocalBridge } from '../bridge.mjs';
-import { runtimeDir, secureRuntimeDir, readManifest, writeManifest, probe } from '../runtime.mjs';
+import { runtimeDir, secureRuntimeDir, readManifest, writeManifest, writeDesktopManifest, probe } from '../runtime.mjs';
 
 if (app.isPackaged) process.env.HANDOFFGLASS_NATIVE_RESOURCE_DIR = resolve(process.resourcesPath, 'native');
 function showStartupError(error){
@@ -35,7 +37,7 @@ if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
   void app.whenReady().then(async () => {
     const dir = await secureRuntimeDir(runtimeDir());
     const lock = join(dir,'.startup-lock');
-    let acquired = false, manager, bridge, exiting = false, ready = false;
+    let acquired = false, manager, bridge, checkpoint, exiting = false, ready = false;
     try {
       // Cooperate with the stdio MCP runtime's broker-startup lock.
       for (let i = 0; i < 75; i++) {
@@ -51,9 +53,13 @@ if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
       const active = await readManifest(dir);
       if (active && await probe(active)) throw Object.assign(new Error('Existing broker'),{code:'already_running'});
       if (active) await rm(join(dir,'broker.json'), {force:true});
+      if(app.isPackaged)try{await registerApplicationInstallation({dir,userHome:app.getPath('home'),appPath:process.platform==='darwin'?resolve(process.execPath,'../../..'):resolve(process.execPath,'..'),dataPaths:[app.getPath('userData')],appVersion:app.getVersion()});}catch(error){console.warn('[handoffglass] Application removal record unavailable:',error.code||'identity_not_verified');}
       manager = new HandoffManager();
+      checkpoint=await attachSessionCheckpoint(manager,dir);
       bridge = new LocalBridge(manager);
+      manager.once('uninstall',()=>{manager.stopActive();app.quit();});
       await bridge.start();
+      await writeDesktopManifest(dir,{port:bridge.port,desktopToken:bridge.token,pid:process.pid});
       await writeManifest(dir, { port:bridge.port, token:bridge.agentToken, pid:process.pid, startedAt:Date.now(), protocol:1 });
       process.env.HANDOFFGLASS_PORT = String(bridge.port);
       process.env.HANDOFFGLASS_SECRET = bridge.token;
@@ -69,10 +75,10 @@ if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
         if (exiting) return;
         exiting = true;
         manager.close();
-        void bridge.stop().finally(async () => {
+        void checkpoint.close().then(()=>bridge.stop()).finally(async () => {
           try {
             const live = await readManifest(dir);
-            if (live?.pid === process.pid && live.token === bridge.agentToken) await rm(join(dir,'broker.json'),{force:true});
+            if (live?.pid === process.pid && live.token === bridge.agentToken) {await rm(join(dir,'broker.json'),{force:true});await rm(join(dir,'desktop.json'),{force:true});}
           } catch (error) { console.error('Cleanup:',error.message); }
         });
       });

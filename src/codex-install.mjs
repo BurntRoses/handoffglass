@@ -1,6 +1,6 @@
 /** Receipted Codex installation; cleanup restores only content still owned by us. */
 import { homedir } from 'node:os';
-import { join, dirname, sep } from 'node:path';
+import { join, dirname, sep, resolve, isAbsolute } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { parse } from 'smol-toml';
@@ -62,7 +62,8 @@ export async function installCodex(options={}) {
     if(saved && resource.prior!==saved.installed)throw new Error('Installed resource was changed; preserving user edits');
     if(!saved && resource.prior!==null && resource.prior!==resource.next && !replace)throw new Error('Skill resource exists; use --replace deliberately');
   }
-  const nextConfig=mergeHostToml(priorConfig || '',{replace,configOptions});
+  const installationId=record.receipt?.installationId || randomUUID();
+  const nextConfig=mergeHostToml(priorConfig || '',{replace,configOptions:{...configOptions,envOverrides:{...configOptions.envOverrides,HANDOFFGLASS_CONNECTION_ID:installationId}}});
   if (priorSkill!==null && priorSkill!==skill && !replace) throw new Error('visual-handoff is already installed; use --replace to update deliberately');
   // A managed update may replace our last installed version, never an unrecorded edit.
   if (record.receipt && (priorSkill!==record.receipt.skill.installed || !sameEntry(priorConfig,record.receipt.config.installed)))
@@ -70,7 +71,7 @@ export async function installCodex(options={}) {
   const changes=[{path:p.skillPath,prior:priorSkill,next:skill},{path:p.configPath,prior:priorConfig,next:nextConfig},...resources].filter(f=>f.prior!==f.next);
   if (apply && (changes.length || !record.receipt)) {
     const receipt=record.receipt || {schemaVersion:1,host:'codex',config:{before:priorConfig},skill:{before:priorSkill},backups:[]};
-    receipt.config.installed=nextConfig;receipt.skill.installed=skill;receipt.resources??={};
+    receipt.installationId=installationId;receipt.config.installed=nextConfig;receipt.skill.installed=skill;receipt.resources??={};
     for(const resource of resources){receipt.resources[resource.name]??={before:resource.prior};receipt.resources[resource.name].installed=resource.next;}
     if (changes.some(f=>f.path===p.configPath) && priorConfig!==null) {
       const backup={name:`config.toml.handoffglass-backup-${randomUUID()}`,content:priorConfig};
@@ -79,13 +80,13 @@ export async function installCodex(options={}) {
     changes.push({path:p.receiptPath,prior:record.raw,next:JSON.stringify(receipt,null,2)+'\n'});
     await applyFileTransaction(changes);
   }
-  return {applied:apply,changed:changes.length>0,configPath:p.configPath,skillPath:p.skillPath};
+  return {applied:apply,changed:changes.length>0,configPath:p.configPath,skillPath:p.skillPath,installationId};
 }
 export async function uninstallCodex(options={}) {
   const {apply=false}=options,p=destinations(options);
   const [config,skill,record]=await Promise.all([readManagedFile(p.configPath),readManagedFile(p.skillPath),readReceipt(p.receiptPath)]);
   const changes=[],retained=[],receipt=record.receipt;
-  if (!receipt) return {applied:false,changed:false,state:entry(config)!==undefined||skill!==null?'unmanaged':'not_installed',removed:[],retained:[],items:[]};
+  if (!receipt) return legacyCleanup({...options,config,skill,paths:p});
   let nextConfig=config;
   if (config===receipt.config.installed) nextConfig=receipt.config.before;
   else if (config!==null && sameEntry(config,receipt.config.installed)) {
@@ -124,4 +125,42 @@ export async function uninstallCodex(options={}) {
   }
   return {applied:apply&&changes.length>0,changed:changes.length>0,state:retained.length?'modified':'installed',configPath:p.configPath,skillPath:p.skillPath,
     removed:changes.map(f=>f.path),retained,items:changes.map(({path,kind,action})=>({path,kind,action}))};
+}
+
+/** A missing receipt is recoverable only when the configured entry identifies this package. */
+async function legacyCleanup({apply=false,config,skill,paths:p}) {
+  const server=entry(config),changes=[],retained=[];
+  let sourceRoot=null;
+  if(server && Array.isArray(server.args)) {
+    const candidate=server.args.find(arg=>typeof arg==='string' && isAbsolute(arg) && /[\\/]src[\\/]mcp\.mjs$/.test(arg));
+    if(candidate) {
+      const root=resolve(dirname(candidate),'..');
+      try {
+        const metadata=JSON.parse(await readManagedFile(join(root,'package.json')));
+        const implementation=await readManagedFile(candidate);
+        if(metadata.name==='handoffglass' && implementation?.includes('BrokerClient') && implementation?.includes('session_start'))sourceRoot=root;
+      }catch{/* Unreadable or unrelated installations remain untouched. */}
+    }
+  }
+  if(server!==undefined && !sourceRoot)retained.push({path:p.configPath,kind:'mcp_entry',reason:'ownership_not_verified'});
+  if(sourceRoot)changes.push({path:p.configPath,prior:config,next:withoutEntry(config),kind:'mcp_entry',action:'remove'});
+  const skillRoots=sourceRoot?[sourceRoot]:[];
+  let ownSkill=false;
+  for(const root of skillRoots){try{ownSkill=skill!==null && skill===await readManagedFile(join(root,'skills','visual-handoff','SKILL.md'));}catch{}if(ownSkill)break;}
+  if(ownSkill)changes.push({path:p.skillPath,prior:skill,next:null,kind:'skill',action:'remove'});
+  else if(skill!==null)retained.push({path:p.skillPath,kind:'skill',reason:'ownership_not_verified'});
+  if(ownSkill)for(const name of SKILL_RESOURCES){
+    const path=join(dirname(p.skillPath),name),current=await readManagedFile(path);
+    if(current===null)continue;
+    const source=await readManagedFile(join(sourceRoot,'skills','visual-handoff',name));
+    if(current===source)changes.push({path,prior:current,next:null,kind:'skill_resource',action:'remove'});
+    else retained.push({path,kind:'skill_resource',reason:'changed_by_user'});
+  }
+  if(apply && changes.length){await applyFileTransaction(changes);for(const c of changes)if(c.next===null)await removeEmptyParents(c.path,join(p.userHome,'.agents','skills'));}
+  return {applied:apply&&changes.length>0,changed:changes.length>0,state:changes.length?'legacy_verified':server!==undefined||skill!==null?'unmanaged':'not_installed',legacyVerified:!!sourceRoot,removed:changes.map(x=>x.path),items:changes.map(({path,kind,action})=>({path,kind,action})),retained};
+}
+export async function codexInstallationEvidence(options={}) {
+  const p=destinations(options),saved=await readReceipt(p.receiptPath),config=await readManagedFile(p.configPath),server=entry(config);
+  return {installed:!!server,managed:!!saved.receipt,installationId:saved.receipt?.installationId||null,
+    enabled:server?server.enabled!==false:null,configurationMatches:!!saved.receipt && sameEntry(config,saved.receipt.config.installed)};
 }

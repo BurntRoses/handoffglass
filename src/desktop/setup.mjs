@@ -8,6 +8,8 @@ import { getAccessibilityConsent, setAccessibilityConsent } from '../native/pref
 import { installCodex } from '../codex-install.mjs';
 import { prepareWorkbuddyBundle, readWorkbuddyRecord } from '../workbuddy-bundle.mjs';
 import { appWorkbuddyDirectory } from '../integration-lifecycle.mjs';
+import { connectionState } from '../connection-state.mjs';
+import { nativePermissionStatus } from '../native/locator.mjs';
 const here=dirname(fileURLToPath(import.meta.url));
 const HOST_ALLOWLIST=new Set(Object.keys(HOSTS));
 let window=null;
@@ -21,7 +23,7 @@ let connecting=false;
 export async function connectCodex() {
   if(connecting)return {ok:false,code:'already_running'};
   connecting=true;
-  try {await installCodex({apply:true,replace:true,userHome:app.getPath('home'),configOptions:configOptions()});return {ok:true};}
+  try {const result=await installCodex({apply:true,replace:true,userHome:app.getPath('home'),configOptions:configOptions()});return {ok:true,installationId:result.installationId,nextAction:'reload_and_call'};}
   catch {return {ok:false,code:'install_failed'};}
   finally {connecting=false;}
 }
@@ -56,6 +58,17 @@ export async function showSetup({firstRun=false}={}){
   return window;
 }
 export function registerSetupIPC(){
+  ipcMain.handle('hg:setup:connection',async(event,host)=>{
+    if(!fromWindow(event)||!['codex','workbuddy'].includes(host))return {ok:false,code:'unsupported_host'};
+    try{
+      const r=await fetch(`http://127.0.0.1:${process.env.HANDOFFGLASS_PORT}/desktop/diagnostics`,{headers:{authorization:`Bearer ${process.env.HANDOFFGLASS_SECRET}`},signal:AbortSignal.timeout(3000)});
+      return {ok:true,...await connectionState(host,{root:join(here,'../..'),userHome:app.getPath('home'),live:r.ok?await r.json():{}})};
+    }catch{return {ok:false,code:'connection_state_unavailable'};}
+  });
+  ipcMain.handle('hg:setup:permission-status',async event=>{
+    if(!fromWindow(event))return {ok:false,code:'unauthorized'};
+    return {ok:true,...await nativePermissionStatus()};
+  });
   ipcMain.handle('hg:setup:status',async event=>{
     if(!fromWindow(event))return {ok:false};
     return {ok:true,preferences:await loadPreferences(),firstRun:!await hasUserPreferences(),

@@ -6,17 +6,19 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { placePanel } from './panel-layout.mjs';
 import { localAnnotations, contains } from '../geometry.mjs';
+import { readDesktopManifest, runtimeDir } from '../runtime.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const port = Number(process.env.HANDOFFGLASS_PORT);
-const secret = process.env.HANDOFFGLASS_SECRET;
+let port = Number(process.env.HANDOFFGLASS_PORT);
+let secret = process.env.HANDOFFGLASS_SECRET;
 if (!Number.isInteger(port) || port < 1 || port > 65535 || !/^[a-f0-9]{64}$/.test(secret || '')) {
   console.error('Missing or invalid local bridge configuration');
   process.exit(1);
 }
-const endpoint = `http://127.0.0.1:${port}`;
+let endpoint = `http://127.0.0.1:${port}`;
 const headers = { authorization: `Bearer ${secret}`, 'content-type': 'application/json' };
 const nap = ms => new Promise(resolve => setTimeout(resolve, ms));
+let panelSize={width:420,height:240,compact:false},panelPosition=null,displayPreferences={displayPolicy:'target',displayId:''};
 let overlays = [], panel = null, current = null, closing = false, revision = -1, displayDebounce = null, tray = null;
 
 async function call(method, path, body) {
@@ -66,9 +68,9 @@ function createOverlay(display) {
 }
 function createPanel() {
   const win = new BrowserWindow({
-    width: 420, height: 238, minWidth: 420, minHeight: 238,
+    width:420,height:240,minWidth:300,minHeight:76,
     show: false, skipTaskbar: true, frame: false, transparent: false,
-    alwaysOnTop: true, resizable: false, backgroundColor: '#101923',
+    alwaysOnTop: true, resizable: false, backgroundColor: '#20211f',
     webPreferences: {
       preload: join(here, 'preload.cjs'), contextIsolation: true,
       sandbox: true, nodeIntegration: false, webSecurity: true
@@ -88,9 +90,9 @@ function draw(win, display) {
   const annotations = current ? localAnnotations(b, current.annotations) : [];
   // Handoff sessions use a local scrim to focus attention while the SVG layer
   // remains click-through. The human-facing card is the only interactive UI.
-  if (current?.mode === 'handoff' && annotations.length && !annotations.some(a => a.shape === 'spotlight')) {
+  if (current?.scrim === true && annotations.length && !annotations.some(a => a.shape === 'spotlight')) {
     const focus = annotations[0];
-    annotations.unshift({ ...focus, id: '__session_spotlight', shape: 'spotlight', opacity: .92, effect: 'still', label: '' });
+    annotations.unshift({ ...focus, id: '__session_spotlight', shape: 'spotlight', opacity: .45, effect: 'still', label: '' });
   }
   // Clear the renderer's playback cache when a target is lost, even while hidden.
   win.webContents.send('hg:render', { sessionId: current?.id, annotations, visualStyle: current?.visualStyle, motion: current?.motion });
@@ -99,6 +101,8 @@ function draw(win, display) {
 }
 function findTargetDisplay(active) {
   const first = active?.annotations?.[0];
+  if(displayPreferences.displayPolicy==='fixed'){const fixed=screen.getAllDisplays().find(d=>String(d.id)===displayPreferences.displayId);if(fixed)return fixed;}
+  if(displayPreferences.displayPolicy==='active')return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   return (first && screen.getAllDisplays().find(d => contains({
     x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height
   }, first))) || screen.getPrimaryDisplay();
@@ -106,20 +110,27 @@ function findTargetDisplay(active) {
 function applySnapshot(state) {
   if (!state || !Number.isSafeInteger(state.revision) || state.revision < revision) return;
   revision = state.revision;
-  updateUI(state.active);
+  updateUI(state.active?{...state.active,agentWaiting:state.agentWaiting,agentWaitUntil:state.agentWaitUntil,desktopConnection:'connected'}:null);
+}
+function layoutPanel(){
+  if(!panel||!current)return;
+  const area=findTargetDisplay(current).workArea;
+  const width=Math.min(panelSize.width,area.width-24),height=Math.min(panelSize.height,area.height-24);
+  const position=placePanel(area,current.annotations?.[0],{width,height,targets:current.annotations,previous:panelPosition,compact:panelSize.compact});
+  panel.setBounds({...position,width:Math.max(300,width),height:Math.max(76,height)});
+  panelPosition=position;
 }
 function updateUI(next) {
-  current = next && ['awaiting_user','user_action_reported','observing'].includes(next.status) ? next : null;
-  for (const { win, display } of overlays) draw(win, display);
-  if (!panel) return;
-  // Plain visual_show is non-blocking: no panel to dismiss or steal focus.
-  if (!current || current.mode === 'guide') { panel.hide(); return; }
-  const area = findTargetDisplay(current).workArea;
-  const target = current.annotations?.[0];
-  if(current.status==='awaiting_user'){const {x,y}=placePanel(area,target);panel.setPosition(x,y);}
-  if (!panel.webContents.isLoading()) panel.webContents.send('hg:render', current);
+  const oldKey=current?`${current.id}:${current.step}`:null;
+  current=next&&['awaiting_user','user_action_reported','observing','paused'].includes(next.status)?next:null;
+  if(oldKey!==(current?`${current.id}:${current.step}`:null))panelPosition=null;
+  for(const {win,display} of overlays)draw(win,display);
+  if(!panel)return;
+  // Legacy visual_show remains nonblocking; continuous guide sessions have controls.
+  if(!current||(current.mode==='guide'&&!current.continuous)){panel.hide();return;}
+  layoutPanel();
+  if(!panel.webContents.isLoading())panel.webContents.send('hg:render',current);
   panel.showInactive();
-  panel.moveTop();
 }
 function syncDisplays() {
   for (const { win } of overlays) if (!win.isDestroyed()) win.destroy();
@@ -137,10 +148,13 @@ async function runLoop() {
         const state = await call('POST', '/hello', { displays: info() });
         applySnapshot(state);
       }
-      const response=await fetch(`${endpoint}/desktop/stream`,{headers:{authorization:`Bearer ${secret}`}});
-      if(!response.ok)throw Error(`Desktop stream ${response.status}`);
+      const controller=new AbortController();let lastData=Date.now();
+      const watchdog=setInterval(()=>{if(Date.now()-lastData>35000)controller.abort();},5000);watchdog.unref?.();
+      const response=await fetch(`${endpoint}/desktop/stream`,{headers:{authorization:`Bearer ${secret}`},signal:controller.signal}).catch(error=>{clearInterval(watchdog);throw error;});
+      if(!response.ok){clearInterval(watchdog);throw Error(`Desktop stream ${response.status}`);}
       let buffer='';const decoder=new TextDecoder();
-      for await(const chunk of response.body){
+      try { for await(const chunk of response.body){
+        lastData=Date.now();failures=0;
         buffer+=decoder.decode(chunk,{stream:true});
         let end;
         while((end=buffer.indexOf('\n\n'))>=0){
@@ -149,13 +163,21 @@ async function runLoop() {
         }
         if(closing)break;
       }
+      } finally { clearInterval(watchdog); }
       if(!closing)throw Error('Desktop stream closed');
       failures = 0;
     } catch (error) {
       if (closing) break;
       failures++;
       console.error(`[handoffglass] UI sync retry ${failures}: ${error.message}`);
-      if (failures >= 8) break;
+      if(current)updateUI({...current,annotations:[],desktopConnection:'reconnecting'});
+      try {
+        const info=await readDesktopManifest(runtimeDir());
+        if(info&&/^[a-f0-9]{64}$/.test(info.desktopToken||'')&&(info.port!==port||info.desktopToken!==secret)){
+          port=info.port;secret=info.desktopToken;endpoint=`http://127.0.0.1:${port}`;headers.authorization=`Bearer ${secret}`;revision=-1;
+          process.env.HANDOFFGLASS_PORT=String(port);process.env.HANDOFFGLASS_SECRET=secret;
+        }
+      }catch{}
       await nap(Math.min(3000, 300 * failures));
     }
   }
@@ -169,12 +191,13 @@ async function startDesktop() {
   app.on('window-all-closed', () => {});
   app.on('before-quit', () => { closing = true; });
   panel = createPanel();
+  displayPreferences=await loadPreferences();
   async function setupTrayAndMenu() {
     const prefs = await loadPreferences(),zh=prefs.locale==='zh-CN';
     const open=()=>void showControlCenter();
     const items=[
       {label:zh?'打开 HandoffGlass':'Open HandoffGlass',click:open},
-      {label:zh?'当前操作':'Current step',click:()=>{if(current?.mode==='handoff'){panel.showInactive();panel.moveTop();}}},
+      {label:zh?'当前操作':'Current step',click:()=>{if(current){panel.showInactive();panel.moveTop();}}},
       {type:'separator'},
       {label:zh?'退出 HandoffGlass':'Quit HandoffGlass',role:'quit'}
     ];
@@ -197,6 +220,13 @@ async function startDesktop() {
   }
   registerSetupIPC();
   registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics'),
+    runTrial:()=>call('POST','/desktop/trial',{}),
+    showCurrent:()=>{if(current&&panel){panel.showInactive();panel.moveTop();return {ok:true};}return {ok:false,code:'no_active_session'};},
+    identifyDisplays:async()=>{
+      const windows=screen.getAllDisplays().map((d,i)=>{const w=new BrowserWindow({x:d.workArea.x+24,y:d.workArea.y+24,width:200,height:110,frame:false,show:false,alwaysOnTop:true,focusable:false,skipTaskbar:true,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
+        w.setIgnoreMouseEvents(true);lockDown(w);void w.loadFile(join(here,'identify.html'),{query:{number:String(i+1)}}).then(()=>w.showInactive());return w;});
+      setTimeout(()=>windows.forEach(w=>{if(!w.isDestroyed())w.destroy();}),2500);return {ok:true};
+    },
     getDisplayInfo:()=>screen.getAllDisplays().map((d,i)=>({
       id:String(d.id),bounds:{x:d.bounds.x,y:d.bounds.y,width:d.bounds.width,height:d.bounds.height},
       scaleFactor:d.scaleFactor,primary:d.id===screen.getPrimaryDisplay().id,
@@ -205,7 +235,7 @@ async function startDesktop() {
   app.setName('HandoffGlass');
   if(process.platform==='darwin'&&!app.isPackaged)app.dock?.setIcon(join(here,'assets','app.png'));
   app.on('activate',()=>void showControlCenter());
-  app.on('hg:preferences-changed',()=>void setupTrayAndMenu());
+  app.on('hg:preferences-changed',()=>{void setupTrayAndMenu();void loadPreferences().then(p=>{displayPreferences=p;layoutPanel();});});
   await setupTrayAndMenu();
   syncDisplays();
   void maybeShowFirstRun().catch(error => console.error('First-run setup:', error.message));
@@ -218,11 +248,11 @@ async function startDesktop() {
   screen.on('display-metrics-changed', requestDisplaySync);
   ipcMain.handle('hg:decision', async (event, data) => {
     if (!panel || event.sender !== panel.webContents || !current) return { ok: false, error: 'Session unavailable' };
-    if (data?.id !== current.id || !['completed', 'declined', 'cancelled'].includes(data.status)) {
+    if (data?.id !== current.id || (data.step!==undefined&&data.step!==current.step) || !['completed', 'declined', 'cancelled'].includes(data.status)) {
       return { ok: false, error: 'Stale or invalid decision' };
     }
     try {
-      const result = await call('POST', '/decision', { id: current.id, status: data.status });
+      const result = await call('POST', '/decision', { id: current.id, step:current.step, status: data.status });
       if (result.session?.id !== data.id || !(result.session.status === data.status || (data.status==='completed' && result.session.status==='user_action_reported'))) {
         return { ok: false, error: 'Session state changed; review before retrying' };
       }
@@ -234,6 +264,17 @@ async function startDesktop() {
       console.error('[handoffglass] decision failed:', error.message);
       return { ok: false, error: 'Could not deliver decision; please retry after checking the panel' };
     }
+  });
+  ipcMain.on('hg:panel-size',(event,data)=>{
+    if(!panel||event.sender!==panel.webContents||!Number.isFinite(data?.height)||typeof data.compact!=='boolean')return;
+    const height=Math.max(76,Math.min(460,Math.ceil(data.height)));
+    if(height===panelSize.height&&data.compact===panelSize.compact)return;
+    panelSize={width:420,height,compact:data.compact};layoutPanel();
+  });
+  ipcMain.handle('hg:control',async(event,data)=>{
+    if(!panel||event.sender!==panel.webContents||!current||data?.id!==current.id||data.step!==current.step||!['pause','resume','retry_target','text_fallback'].includes(data.action))return {ok:false,error:'Stale or invalid action'};
+    try{const result=await call('POST','/desktop/control',{id:current.id,step:current.step,action:data.action});applySnapshot(result);return {ok:true};}
+    catch{return {ok:false,error:'Could not update guidance'};}
   });
   void runLoop();
 }

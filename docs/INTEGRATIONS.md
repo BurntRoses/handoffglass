@@ -50,3 +50,7 @@ Multiple MCP hosts may run simultaneously. Their sessions share one local Broker
 ## Pause or remove a connection
 
 Use the app Connections page or the shared lifecycle tools and CLI. Removal is receipt-based and preserves user edits. WorkBuddy host removal is a separate user action. See [lifecycle](INTEGRATION_LIFECYCLE.md).
+
+## WorkBuddy local connector
+
+The local bundle uses MCP + Skill and exactly one MCP server. The official [connector specification](https://open.workbuddy.cn/docs/connector) was rechecked on 2026-11-04: MCP and CLI integration modes are separate, timeout values are milliseconds, and Node launchers declare the required runtime. The packaged Electron launcher supplies its own runtime. Import/trust/enable/reload remain host steps; local bundle creation is not marketplace publication or proof of a loaded host connection.

@@ -8,6 +8,14 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
 const body={title:'Step',message:'Check window',mode:'handoff',continuous:true,requestId:'continuous-test-1'};
+test('native completion candidates keep their source and remain unverified',()=>{
+ const m=new HandoffManager(),j=new InteractionJournal(m);try{
+  const s=m.show({...body,completion:{kind:'observed_condition',condition:'target_absent'}},owner);
+  assert.equal(m.observed(s.id,'target_absent'),true);
+  assert.equal(j.read(s.id).events.find(e=>e.type==='user_action').source,'native');
+  assert.equal(m.get(s.id).verified,false);assert.equal(m.get(s.id).nextAction,'verify_in_app');
+ }finally{j.close();m.close();}
+});
 test('same session retains ownership through report, verification and next step; only verified final ends it',()=>{
  const m=new HandoffManager();try{
  const first=m.show(body,owner);const ttl=first.timeoutAt;
@@ -16,8 +24,8 @@ test('same session retains ownership through report, verification and next step;
  assert.equal(m.show(body,other).error,'busy');assert.equal(m.verify(first.id,other,true).error,'not_found');
  assert.equal(m.verify(first.id,owner,false,true).session.phase,'next_step');assert.equal(m.active().id,first.id);
  const second=m.present(first.id,{...body,title:'Next',requestId:'continuous-test-2'},owner).session;
- assert.equal(second.id,first.id);assert.equal(second.timeoutAt,ttl);assert.equal(second.step,2);
- assert.equal(m.present(first.id,{...body,title:'Next',requestId:'continuous-test-2'},owner).session.step,2);
+ assert.equal(second.id,first.id);assert.ok(second.timeoutAt>=ttl);assert.equal(second.step,1);
+ assert.equal(m.present(first.id,{...body,title:'Next',requestId:'continuous-test-2'},owner).session.step,1);
  m.resolve(first.id,'completed');const final=m.verify(first.id,owner,true,true).session;
  assert.equal(final.phase,'complete');assert.equal(final.verified,true);assert.equal(m.active(),null);
  }finally{m.close();}

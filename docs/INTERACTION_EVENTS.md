@@ -6,7 +6,7 @@ HandoffGlass observes handoff transitions locally. This interface allows a calli
 
 `session_start` and `session_present` return `nextCursor` with their current snapshot. Use it in `session_wait({sessionId,cursor,maxWaitSeconds:20})` to skip setup events already acknowledged by that response. Carry `nextCursor` on subsequent calls; use `cursor:0` to read retained history. Available meaningful events return immediately; otherwise the Broker waits up to 30 seconds. Ordinary target motion is coalesced and does not wake the waiter on its own. The response includes the current session, `nextAction`, events, cursor and truncation status in one call.
 
-Continuous events include `session_started`, `scene_updated`, `user_action`, `verification_required`, `agent_ready` and `session_finished`, plus native tracking transitions. Each event has `sessionId`, `sequence`/`cursor`, `timestamp`/`at`, `source:broker` and `nextAction`. User reports retain session ownership during verification. `session_present` needs the same `sessionId`; `session_verify({verified:true,finish:true})` ends the final verified step.
+Continuous events include `session_started`, `scene_updated`, `user_action`, `verification_required`, `agent_ready`, pause/resume/recovery events and `session_finished`, plus native tracking transitions. Each event has `sessionId`, `sequence`/`cursor`, `timestamp`/`at`, `source`, `payload` and `nextAction`. User reports retain session ownership during verification. `session_present` needs the same `sessionId`; `session_verify({verified:true,finish:true})` ends the final verified step. Ordinary observed-condition steps can be independently verified without a user report; sensitive steps require that report. A debounced native `target_absent` candidate requests verification and does not establish success.
 
 A host must maintain the Agent tool loop. MCP long waiting cannot resume a model after the host has ended its turn. A timeout requires no new screen read or narrated explanation.
 
@@ -51,7 +51,9 @@ Events contain a session ID, numeric sequence/cursor, allowlisted type/next acti
 
 ## Recovery across process restarts
 
-A Broker process may outlive its individual MCP stdio clients. However, **new MCP processes do not inherit the old process's owner capability**. A new process cannot silently claim another owner's session by knowing its ID or a guessable request ID. The `handoff_events` and `handoff_status` tools work for the original live owner's connection. Cross-process resumption would require a separately designed, explicit, securely scoped handover capability; it is not implemented here.
+A Broker process may outlive its individual MCP stdio clients. New MCP processes do not inherit the old owner's capability. Save the `session.id` and `resumeToken` returned when starting a workflow. `session_resume` validates the token, rotates it, revokes the previous owner, clears old marks and requires a new observation before presentation. A session ID or request ID alone cannot reclaim a workflow.
+
+A private atomic checkpoint preserves only the session identity, owner, recovery-token hash, step and deadlines across Broker restarts. It does not persist event history, task text, targets, coordinates or the raw token. Restoration enters `reconnecting`; the Agent supplies its saved token, observes again and re-presents the current step. Expired sensitive confirmation and disabled preferences prevent stale recovery. Local demo sessions are not checkpointed.
 
 ## Native target safety
 

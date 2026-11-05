@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
 export const TERMINAL_STATES = Object.freeze(['completed', 'declined', 'cancelled', 'expired', 'superseded']);
 const TERMINAL = new Set(TERMINAL_STATES);
@@ -27,10 +27,20 @@ export function normalizeRequest(input) {
   const title = text(input.title, 100);
   const message = text(input.message, 1000);
   if (!title || !message) throw new TypeError('title and message are required');
-  const timeoutSeconds = input.timeoutSeconds ?? (mode === 'guide' ? 90 : 300);
+  const timeoutSeconds = input.timeoutSeconds ?? (input.continuous ? 1800 : mode === 'guide' ? 90 : 300);
   if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 10 || timeoutSeconds > 3600) {
     throw new TypeError('timeoutSeconds must be an integer between 10 and 3600');
   }
+  const taskTimeoutSeconds = input.taskTimeoutSeconds ?? 28800;
+  if (!Number.isInteger(taskTimeoutSeconds) || taskTimeoutSeconds < 60 || taskTimeoutSeconds > 86400) throw new TypeError('Invalid task timeout');
+  const completion = input.completion ?? {kind: mode === 'guide' ? 'observed_condition' : 'user_report'};
+  if (!completion || !['user_report','observed_condition'].includes(completion.kind) || (completion.condition !== undefined && completion.condition !== 'target_absent')) throw new TypeError('Invalid completion condition');
+  if (input.sensitive !== undefined && typeof input.sensitive !== 'boolean') throw new TypeError('Invalid sensitive flag');
+  if (input.sensitive && completion.kind !== 'user_report') throw new TypeError('Sensitive steps require a user report');
+  const intent = input.intent ?? 'focus';
+  if (!['focus','point','inspect','caution','verify'].includes(intent)) throw new TypeError('Invalid intent');
+  if (input.totalSteps !== undefined && (!Number.isInteger(input.totalSteps) || input.totalSteps < 1 || input.totalSteps > 999)) throw new TypeError('Invalid total steps');
+  if (input.scrim !== undefined && typeof input.scrim !== 'boolean') throw new TypeError('Invalid scrim');
   if (input.scene !== undefined && (input.annotations !== undefined || input.x !== undefined || input.y !== undefined || input.template !== undefined)) {
     throw new TypeError('Choose scene, template/targets, or legacy annotations, not both');
   }
@@ -61,11 +71,11 @@ export function normalizeRequest(input) {
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
+  return { taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true, intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
 }
 function copySession(session) {
   if (!session) return null;
-  return { ...session, annotations: session.annotations.map(a => ({ ...a })),
+  return { ...session, completion:{...session.completion}, ...(session.agentState?{agentState:{...session.agentState}}:{}), ...(session.targetTracking?{targetTracking:{...session.targetTracking}}:{}), annotations: session.annotations.map(a => ({ ...a })),
     ...(session.scene ? { scene: normalizeScene(session.scene) } : {}) };
 }
 
@@ -86,6 +96,7 @@ export class HandoffManager extends EventEmitter {
     this.pendingWaits = 0;
     this.setMaxListeners(96);
     this.activeId = null;
+    this.resumeKeys = new Map();this.resumeTokens=new Map();
   }
   show(input, owner = 'local') {
     const normalized = normalizeRequest(input);
@@ -97,6 +108,7 @@ export class HandoffManager extends EventEmitter {
       if (record.payload !== JSON.stringify(normalized)) throw new TypeError('requestId was reused with different content');
       return this.get(record.id) ?? { error: 'request_expired' };
     }
+    if(this.activeId)this.get(this.activeId);
     const previous = this.activeId && this.sessions.get(this.activeId);
     if (previous && this.owners.get(previous.id) !== owner) {
       return { error: 'busy', activeMode: previous.mode };
@@ -108,7 +120,12 @@ export class HandoffManager extends EventEmitter {
       message: normalized.message, annotations: normalized.annotations,
       visualStyle: normalized.visualStyle, motion: normalized.motion, locale:normalized.locale, density:normalized.density, theme:normalized.theme,
       ...(normalized.scene ? {scene:normalized.scene, sceneRevision:1} : {}),
-      continuous: input.continuous === true, step: 1,
+      continuous: input.continuous === true, demo:owner==='desktop-trial', step: 1,
+      completion:normalized.completion, sensitive:normalized.sensitive, intent:normalized.intent, scrim:normalized.scrim, totalSteps:normalized.totalSteps,
+      taskTimeoutAt:now + (input.continuous ? normalized.taskTimeoutSeconds : normalized.timeoutSeconds) * 1000,
+      stepTimeoutAt:now + normalized.timeoutSeconds * 1000,
+      confirmationTimeoutAt:normalized.sensitive ? now + Math.min(300,normalized.timeoutSeconds)*1000 : null,
+      agentState:{phase:'idle',at:now}, epoch:1,
       status: 'awaiting_user', phase: normalized.mode === 'guide' ? 'presenting' : 'waiting_user',
       nextAction: normalized.mode === 'guide' ? 'observe_app' : 'wait_for_user',
       createdAt: now, updatedAt: now,
@@ -119,9 +136,7 @@ export class HandoffManager extends EventEmitter {
     this.owners.set(session.id, owner);
     if (key) this.requestKeys.set(key, { id: session.id, payload: JSON.stringify(normalized) });
     this.activeId = session.id;
-    const timer = setTimeout(() => this.get(session.id), normalized.timeoutSeconds * 1000 + 5);
-    timer.unref?.();
-    this.timers.set(session.id, timer);
+    this.#arm(session);
     this.#prune();
     this.emit('show', copySession(session));
     return copySession(session);
@@ -145,10 +160,12 @@ export class HandoffManager extends EventEmitter {
     this.get(id); // expiry always wins over a late response
     if (TERMINAL.has(session.status)) return { error: 'already_final', session: copySession(session) };
     if (this.activeId !== id) return { error: 'not_active' };
+    if(session.status==='paused' && status==='completed')return {error:'paused'};
     if(status==='completed' && session.continuous){
       if(session.status!=='awaiting_user')return {error:'verification_due',session:copySession(session)};
       session.status='user_action_reported';session.phase='verifying';session.nextAction='verify_in_app';
       session.completionSource='user_report';session.updatedAt=this.clock();session.annotations=[];
+      session.stepTimeoutAt=this.clock()+1800000;session.confirmationTimeoutAt=null;this.#arm(session);
       this.emit('change',copySession(session));
     }else this.#finish(session, status);
     return { session: copySession(session) };
@@ -158,12 +175,15 @@ export class HandoffManager extends EventEmitter {
     const session = this.sessions.get(id);
     if (!session || this.owners.get(id) !== owner) return { error: 'not_found' };
     this.get(id);
+    if (session.continuous && session.status==='awaiting_user' && session.completion?.kind==='observed_condition' && !session.sensitive) {
+      session.status='user_action_reported';session.phase='verifying';session.completionSource='agent_observation';session.annotations=[];
+    }
     if (!['completed','user_action_reported'].includes(session.status) || session.phase !== 'verifying')
       return { error: 'verification_not_due', session: copySession(session) };
     session.verified = verified === true;
     if(session.continuous){
       if(verified && finish){this.#finish(session,'completed');session.phase='complete';session.nextAction='stop';}
-      else{session.status='observing';session.phase='next_step';session.nextAction=verified?'present_next_step':'observe_app';}
+      else{session.status='observing';session.phase='next_step';session.nextAction=verified?'present_next_step':'observe_app';session.recoveryRequired=!verified;session.stepTimeoutAt=this.clock()+1800000;this.#arm(session);}
     }else{
       session.phase = verified === true ? 'complete' : 'next_step';
       session.nextAction = verified === true ? 'stop' : 'observe_app';
@@ -172,7 +192,7 @@ export class HandoffManager extends EventEmitter {
     this.emit('change', copySession(session));
     return { session: copySession(session) };
   }
-  /** Advance an owned workflow without releasing screen ownership or renewing its TTL. */
+  /** Advance an owned workflow without releasing screen ownership; each step has its own deadline. */
   present(id, input, owner) {
     const current=this.getOwned(id,owner);
     if(!current)return {error:'not_found'};
@@ -185,16 +205,77 @@ export class HandoffManager extends EventEmitter {
       return {session:this.get(id)};
     }
     if(TERMINAL.has(current.status)||this.activeId!==id)return {error:'already_final'};
+    if(current.status==='paused')return {error:'paused'};
     if(current.phase==='verifying')return {error:'verification_due'};
-    for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme']) session[field]=normalized[field];
+    if(current.status!=='observing')return {error:'step_not_verified'};
+    for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','intent','scrim']) session[field]=normalized[field];
+    if(normalized.totalSteps!==undefined)session.totalSteps=normalized.totalSteps;
     session.sceneRevision=(session.sceneRevision||0)+1;
     if(normalized.scene)session.scene=normalized.scene;
     else delete session.scene;
     delete session.targetTracking;
-    session.step++;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
+    if(!session.recoveryRequired)session.step++;delete session.recoveryRequired;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
     session.nextAction=normalized.mode==='guide'?'observe_app':'wait_for_user';session.verified=false;session.completionSource=null;session.updatedAt=this.clock();
     if(key)this.requestKeys.set(key,{id,payload:JSON.stringify(normalized)});
+    session.stepTimeoutAt=this.clock()+normalized.timeoutSeconds*1000;session.confirmationTimeoutAt=normalized.sensitive?this.clock()+Math.min(300,normalized.timeoutSeconds)*1000:null;
+    session.agentState={phase:'idle',at:this.clock()};this.#arm(session);
     this.emit('show',copySession(session));return {session:copySession(session)};
+  }
+  #arm(session) {
+    clearTimeout(this.timers.get(session.id));
+    session.timeoutAt=Math.min(session.taskTimeoutAt ?? session.timeoutAt,session.status==='paused'?Infinity:session.stepTimeoutAt ?? session.timeoutAt,session.confirmationTimeoutAt ?? Infinity);
+    const timer=setTimeout(()=>this.get(session.id),Math.max(1,session.timeoutAt-this.clock()+5));timer.unref?.();this.timers.set(session.id,timer);
+  }
+  issueResume(id,owner) {
+    if(!this.getOwned(id,owner))return null;
+    if(this.resumeTokens.has(id))return this.resumeTokens.get(id);
+    const token=randomBytes(32).toString('hex');this.resumeTokens.set(id,token);this.resumeKeys.set(id,createHash('sha256').update(token).digest('hex'));
+    this.emit('checkpoint');return token;
+  }
+  resume(id,token,owner) {
+    const expected=this.resumeKeys.get(id),hash=createHash('sha256').update(String(token)).digest('hex');
+    if(!expected || !timingSafeEqual(Buffer.from(hash),Buffer.from(expected)))return {error:'invalid_resume_token'};
+    const session=this.get(id);if(!session || TERMINAL.has(session.status))return {error:'already_final'};
+    for(const [key,entry] of this.requestKeys)if(entry.id===id)this.requestKeys.delete(key);
+    this.owners.set(id,owner);const s=this.sessions.get(id);s.epoch=(s.epoch||1)+1;
+    s.status='observing';s.phase='reconnecting';s.nextAction='observe_app';s.recoveryRequired=true;s.annotations=[];delete s.scene;delete s.targetTracking;
+    s.stepTimeoutAt=this.clock()+1800000;s.agentState={phase:'observing',at:this.clock()};this.#arm(s);
+    this.resumeTokens.delete(id);const resumeToken=this.issueResume(id,owner);this.emit('change',copySession(s));return {session:copySession(s),resumeToken};
+  }
+  control(id,owner,action,phase) {
+    const s=this.sessions.get(id);if(!s || (owner!==null && this.owners.get(id)!==owner))return {error:'not_found'};
+    this.get(id);if(TERMINAL.has(s.status))return {error:'already_final'};
+    if(action==='pause') {
+      if(s.status==='paused')return {session:copySession(s)};
+      s.pausedFrom=s.status;s.remainingMs=Math.max(0,s.stepTimeoutAt-this.clock());s.status='paused';s.phase='paused';s.nextAction='wait_for_resume';s.annotations=[];
+    } else if(action==='resume') {
+      if(s.status!=='paused')return {error:'not_paused'};
+      s.status='observing';s.phase='reconnecting';s.nextAction='observe_app';s.recoveryRequired=true;s.stepTimeoutAt=this.clock()+Math.max(10000,s.remainingMs||1800000);delete s.targetTracking;delete s.scene;
+    } else if(action==='retry_target' || action==='text_fallback') {
+      if(s.status==='paused')return {error:'paused'};
+      s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='retry_target'?'reobserve_target':'present_text_step';
+      delete s.targetTracking;
+    } else if(action==='progress') {
+      if(!['observing','locating','presenting','verifying','idle'].includes(phase))throw new TypeError('Invalid agent phase');
+      s.agentState={phase,at:this.clock()};
+    } else throw new TypeError('Invalid control action');
+    s.updatedAt=this.clock();this.#arm(s);this.emit('change',copySession(s));return {session:copySession(s)};
+  }
+  observed(id,condition) {
+    const s=this.sessions.get(id);
+    if(!s || s.status!=='awaiting_user' || s.sensitive || s.completion?.kind!=='observed_condition' || s.completion.condition!==condition)return false;
+    s.status='user_action_reported';s.phase='verifying';s.nextAction='verify_in_app';s.completionSource='native_observation';s.annotations=[];
+    s.stepTimeoutAt=this.clock()+1800000;this.#arm(s);this.emit('change',copySession(s));return true;
+  }
+  exportCheckpoint() {
+    const s=this.activeId && this.sessions.get(this.activeId);
+    if(!s || !s.continuous || s.demo || TERMINAL.has(s.status))return null;
+    return {version:1,id:s.id,owner:this.owners.get(s.id),resumeHash:this.resumeKeys.get(s.id),step:s.step,epoch:s.epoch,taskTimeoutAt:s.taskTimeoutAt,sensitive:s.sensitive,confirmationTimeoutAt:s.confirmationTimeoutAt};
+  }
+  restoreCheckpoint(c) {
+    if(!c || c.version!==1 || !/^[0-9a-f-]{36}$/.test(c.id||'') || !/^[0-9a-f]{64}$/.test(c.resumeHash||'') || typeof c.owner!=='string' || !c.owner || c.owner.length>128 || !Number.isFinite(c.taskTimeoutAt) || c.taskTimeoutAt>this.clock()+86400000 || c.taskTimeoutAt<=this.clock() || (c.sensitive && c.confirmationTimeoutAt && c.confirmationTimeoutAt<=this.clock()))return false;
+    const now=this.clock(),s={id:c.id,continuous:true,mode:'handoff',title:'恢复引导',message:'回到原会话继续。',annotations:[],completion:{kind:'user_report'},status:'observing',phase:'reconnecting',nextAction:'observe_app',createdAt:now,updatedAt:now,step:c.step||1,epoch:c.epoch||1,taskTimeoutAt:c.taskTimeoutAt,stepTimeoutAt:now+1800000,confirmationTimeoutAt:c.confirmationTimeoutAt,sensitive:c.sensitive,recoveryRequired:true,verified:false,agentState:{phase:'idle',at:now}};
+    this.sessions.set(s.id,s);this.owners.set(s.id,c.owner);this.resumeKeys.set(s.id,c.resumeHash);this.activeId=s.id;this.#arm(s);return true;
   }
   stopActive() {const session=this.activeId&&this.sessions.get(this.activeId);if(session)this.#finish(session,'cancelled');}
   /** Optimistic, owner-scoped and atomic scene change; never renews the handoff TTL. */
@@ -227,7 +308,7 @@ export class HandoffManager extends EventEmitter {
   /** Broker-owned ephemeral location refresh. Does not extend TTL or report completion. */
   setAnchorState(id, {status, annotations, scene, observedAt, signature, reason}) {
     const session=this.sessions.get(id);
-    if(!session || this.activeId!==id || TERMINAL.has(session.status))return {error:'not_active'};
+    if(!session || this.activeId!==id || session.status!=='awaiting_user')return {error:'not_active'};
     if(!['tracking','lost','layout_changed','desktop_unavailable'].includes(status))throw new TypeError('Invalid anchor state');
     const previous=session.targetTracking;
     const changed=!previous || previous.status!==status ||
@@ -254,7 +335,7 @@ export class HandoffManager extends EventEmitter {
     session.phase = status === 'completed' ? (session.continuous?'complete':'verifying') : 'finished';
     session.nextAction = status === 'completed' && !session.continuous ? 'verify_in_app' : 'stop';
     session.updatedAt = this.clock();
-    session.completionSource = status === 'completed' ? 'user_report' : null;
+    session.completionSource = status === 'completed' ? (session.completionSource || 'user_report') : null;
     if (this.activeId === session.id) this.activeId = null;
     this.emit('change', copySession(session));
   }
@@ -289,7 +370,7 @@ export class HandoffManager extends EventEmitter {
     for (const [id, session] of this.sessions) {
       if (this.sessions.size <= this.maxHistory) break;
       if (TERMINAL.has(session.status)) {
-        this.sessions.delete(id); this.owners.delete(id);
+        this.sessions.delete(id); this.owners.delete(id);this.resumeKeys.delete(id);this.resumeTokens.delete(id);
         for (const [key, entry] of this.requestKeys) if (entry.id === id) this.requestKeys.delete(key);
       }
     }
@@ -297,5 +378,6 @@ export class HandoffManager extends EventEmitter {
   close() {
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
+    this.emit('closing');
   }
 }

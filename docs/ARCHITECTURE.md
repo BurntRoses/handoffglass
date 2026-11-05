@@ -6,7 +6,7 @@ HandoffGlass is an **on-device interaction runtime**, not an independent task-pl
 
 ```text
 MCP clients (Codex, Claude, Trae, WorkBuddy, …)
-  └─ stdio src/mcp.mjs  [one process and ephemeral owner ID per client]
+  └─ stdio src/mcp.mjs  [one process and ephemeral owner ID per client; scoped recovery token]
        └─ src/runtime.mjs  [private discovery manifest / single-start lock]
             └─ 127.0.0.1:<random port> + agent bearer
                  └─ src/broker.mjs  [single long-lived Broker]
@@ -35,17 +35,17 @@ awaiting_user (waiting_user / presenting)
   → completed, declined, cancelled, expired or superseded
 ```
 
-A completion button is a user report. The Agent checks the original app and calls `session_verify`; `verified:true, finish:true` ends a continuous workflow. Otherwise `session_present(sessionId, …)` advances it without renewing its original timeout. A new request by the same owner can supersede; another owner sees `busy`. `requestId` deduplicates retries within an owner and step. A new MCP process has a new owner ID and cannot reclaim an earlier process's session. Legacy `handoff_request` retains the one-step completion contract.
+A completion button is a user report. The Agent checks the original app and calls `session_verify`; `verified:true, finish:true` ends a continuous workflow. Each verified next step uses `session_present(sessionId, …)` with a separate step deadline inside a fixed task deadline. A failed check or explicit recovery re-presents the same step. Sensitive confirmation deadlines remain bounded even while paused. A new request by the same owner can supersede; another owner sees `busy`. `requestId` deduplicates retries within an owner and step. A new MCP process can reclaim only with `session_resume(sessionId, resumeToken)`; the token rotates, old ownership is revoked, and marks are cleared pending fresh observation. Legacy `handoff_request` retains the one-step completion contract.
 
-The in-memory journal retains bounded cursor events. `session_wait` immediately returns available meaningful events, otherwise waits for journal changes; it does not wait for a terminal session first. Consecutive target movements are coalesced and do not independently wake an Agent waiter. Timeout/disconnect removes listeners. `truncated:true` reports dropped history. Restarting the Broker discards sessions and events.
+The in-memory journal retains bounded cursor events. `session_wait` immediately returns available meaningful events, otherwise waits for journal changes; it does not wait for a terminal session first. Consecutive target movements are coalesced and do not independently wake an Agent waiter. Timeout/disconnect removes listeners. `truncated:true` reports dropped history. Restarting the Broker discards events, but a private minimal checkpoint can restore the workflow into reobservation. The checkpoint stores ownership hash, step and deadlines, never task text, control names, coordinates or raw recovery tokens.
 
-The desktop receives authenticated SSE snapshots over `/desktop/stream`, with a bounded connection count, heartbeat and slow-reader limit. Reconnection starts from the current snapshot. The old `/poll` route remains for existing desktop adapters, but the production desktop uses push. Native target following remains local.
+The desktop receives authenticated SSE snapshots over `/desktop/stream`, with a bounded connection count, heartbeat and slow-reader limit. Reconnection starts from the current snapshot. The old `/poll` route remains for existing desktop adapters, but the production desktop uses push. Native target following remains local. Persistent JSON-line helpers reuse native references scoped to the same process/window; platform change notifications request fresh evidence and polling remains the fallback. Status-only permission queries read no controls.
 
 User preferences persist locally. `integration_set_enabled` changes only the global switch on a user request; disabling immediately cancels active guidance and clears tracking. Accessibility consent remains an app-only user choice, separate from OS permission. See [lifecycle and cleanup](INTEGRATION_LIFECYCLE.md).
 
 ## Interfaces
 
-**Default MCP tools (15):** `screen_displays`, `ui_inspect`, `ui_locate`, `capability_manifest`, `session_start`, `session_present`, `session_wait`, `session_update`, `session_verify`, `session_stop`, `connection_status`, `permission_status`, `integration_status`, `integration_cleanup` and `integration_set_enabled`. Tool results include machine-readable `structuredContent` and a text fallback. Installers enable compact output.
+**Default MCP tools (18):** `screen_displays`, `ui_inspect`, `ui_locate`, `capability_manifest`, `session_start`, `session_present`, `session_wait`, `session_update`, `session_verify`, `session_stop`, `connection_status`, `permission_status`, `integration_status`, `integration_cleanup` `integration_set_enabled`, `session_resume`, `session_control` and `integration_uninstall`. Tool results include machine-readable `structuredContent` and a text fallback. Installers enable compact output.
 
 `HANDOFFGLASS_LEGACY_TOOLS=1` adds the seven old one-step/scene aliases for existing clients. They are excluded from the normal tool catalog. `HANDOFFGLASS_EXTRAS=1` adds the three local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`). Initialization includes the core workflow in fewer than 512 characters; `capability_manifest` exposes conditions, inputs, recovery actions and host/transport limits. The installed Skill provides a short routing table without asking the model to reread a manual each step.
 
@@ -56,7 +56,7 @@ The single local Bridge has distinct Agent and desktop tokens, loopback-only soc
 
 Global coordinates are Electron **device-independent pixels (DIP)**. Displays may have negative origins. On Windows UI Automation, input is physical pixels; `src/native/calibration.mjs` requires matching monitor evidence before conversion. On macOS the native locator reads Accessibility's global logical coordinates. `src/visual/grounding.mjs` validates match provenance, recency and visibility; `src/visual/scene.mjs` owns templates, shapes, layered structure and atomic patches. `src/desktop/overlay-renderer.mjs` is the production SVG renderer; `scripts/build-overlay.mjs` generates the classic renderer for Electron; `npm run gallery` shares the production renderer.
 
-Native targets are followed locally (default `followTarget:true`) until the session ends or manual scene editing takes ownership. If native evidence disappears, permission fails or the display layout changes, stale annotations are hidden; none of those transitions verifies the user's action. A scene update uses an `expectedRevision` to prevent stale writes.
+Opaque `targetRef` values are owner-, expiry- and display-layout-scoped; resolving one always refreshes native evidence. Native targets are followed locally (default `followTarget:true`) until the session ends or manual scene editing takes ownership. If native evidence disappears, permission fails or the display layout changes, stale annotations are hidden; none of those transitions verifies the user's action. A scene update uses an `expectedRevision` to prevent stale writes.
 
 ## Build, installation and platform boundary
 
@@ -77,3 +77,9 @@ Native targets are followed locally (default `followTarget:true`) until the sess
 | Installer | `electron-builder.config.cjs`, `.github/workflows/` | packaged MCP smoke + clean-install desktop acceptance |
 
 See [Codex handoff](CODEX_HANDOFF.md), [security](SECURITY.md), [compatibility](COMPATIBILITY.md) and [desktop acceptance](DESKTOP_QA.md).
+
+## Workbench and owned removal
+
+The desktop workbench separates local service checks from installation-scoped successful host calls. Host labels remain caller-declared; trust and binding are not inferred from file presence. The guide card can collapse into a control strip and displays only reported phases or observed wait/connection state. Pause, resume, re-locate and text fallback are explicit workflow events.
+
+Full uninstall uses the same service from App, CLI and MCP. An installation receipt records app identity and owned files. An external remover waits for HandoffGlass processes to exit, verifies file digests and removes only unchanged owned content; additions and edits are retained and reported. The development repository is never an application removal target. Desktop discovery uses a separate private `desktop.json`, keeping `broker.json` scoped to Agent credentials.

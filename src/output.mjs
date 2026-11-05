@@ -12,8 +12,8 @@ export function continuationFor(session) {
 }
 function compactSession(session) {
   if (!session) return null;
-  const { id, status, mode, phase, nextAction, continuous, step, timeoutAt, verified, completionSource, sceneRevision, targetTracking } = session;
-  return { id, status, mode, ...(continuous?{continuous,step}:{}), ...(phase ? { phase } : {}), ...(nextAction ? { nextAction } : {}), timeoutAt, verified, completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}) };
+  const { id, status, mode, phase, nextAction, continuous, step, totalSteps, epoch, completion, taskTimeoutAt, stepTimeoutAt, timeoutAt, verified, completionSource, sceneRevision, targetTracking } = session;
+  return { id, status, mode, ...(continuous?{continuous,step,totalSteps,epoch,completion,taskTimeoutAt,stepTimeoutAt}:{}), ...(phase ? { phase } : {}), ...(nextAction ? { nextAction } : {}), timeoutAt, verified, completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}) };
 }
 export function formatToolResult(value, { compact = false } = {}) {
   if (!value || typeof value !== 'object') return value;

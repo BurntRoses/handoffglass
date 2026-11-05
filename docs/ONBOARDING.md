@@ -1,6 +1,6 @@
 # First run & installation
 
-The desktop app opens a local setup on first launch: **connect an app → choose visual preferences and lookup consent → finish**. Later changes are available in **Connections**, **Appearance** and **Help**. The Connections page has an immediate guidance switch and removal preview. Help contains follow-up-session and lookup consent switches, which also save immediately. New installations use minimal marks; existing preferences are preserved.
+The desktop app opens a local setup on first launch: **detect → preview and write → trust/enable in host → reload → verify a real call → check permissions → try guidance**. Later changes are available in **Connections**, **Appearance** and **Help**. The Connections page has an immediate guidance switch and removal preview. Help contains follow-up-session and lookup consent switches, which also save immediately. New installations use minimal marks; existing preferences are preserved.
 
 The setup is part of the packaged Electron application. It is not a hosted page. All UI and branding are loaded from bundled files; no screenshots or user files are uploaded. The setup renderer uses a dedicated, sandboxed preload and only exposes narrowly scoped operations: status, a read-only host configuration preview, validated preference updates, clipboard export, system accessibility settings, and close. Only events originating from that exact setup window may reach the setup handlers.
 
@@ -31,13 +31,13 @@ npm run dist:desktop
 
 Choose an app card. For Codex, “Connect” merges its MCP configuration and installs the Skill with a rollback record. For WorkBuddy, “Prepare connector” generates the local MCP + Skill folder; “Show folder” reveals it for import. Other hosts offer a generated configuration to copy. A configuration write does not prove that the host loaded it. The packaged configuration uses the installed Electron binary in Node mode; moving a portable application invalidates an absolute path saved earlier. The source-mode desktop setup uses Electron in Node mode (`ELECTRON_RUN_AS_NODE=1`); the separate CLI generator uses Node.js 22+.
 
-Different hosts require different configuration structures. The setup uses the same `hostConfig()` function as the CLI generator, including TOML for Codex, `servers` for VS Code, `context_servers` for Zed, and OpenCode's local-command array. The current app reports local installation and observed authenticated calls. It does not inspect host trust, connector binding or reload state. The isolated connection check verifies a temporary MCP process, not the installed host. Verify the host through its active tool list and a real tool call after reloading.
+Different hosts require different configuration structures. The setup uses the same `hostConfig()` function as the CLI generator, including TOML for Codex, `servers` for VS Code, `context_servers` for Zed, and OpenCode's local-command array. The app matches a successful tool call to the installation ID written in its MCP configuration. Host application identity remains caller-declared; unknown trust/binding state is shown as unknown. The isolated connection check verifies a temporary MCP process, not the installed host. Verify the host through its active tool list and a real tool call after reloading.
 
 For WorkBuddy, the generated package is MCP + Skill only and contains one local stdio MCP server. The user must install or import the connector, trust and enable it in WorkBuddy, then reconnect or reload tools. A cloud-hosted WorkBuddy agent cannot see the local desktop without a separately authorized bridge.
 
 ## Multiple displays
 
-For multiple monitors, open **Help → Displays**. It explains extended desktop setup, opens the system display settings and shows the detected layout with a refresh action. See [multi-display setup](CONTROL_CENTER.md#set-up-multiple-displays). This setup help does not replace physical tracking/DPI acceptance.
+For multiple monitors, open **Help → Displays**. It explains extended desktop setup, opens the system display settings and shows the detected layout with refresh and display identification. Choose whether the card follows the target, current work screen or a fixed display. See [multi-display setup](CONTROL_CENTER.md#set-up-multiple-displays). This setup help does not replace physical tracking/DPI acceptance.
 
 ## Privacy defaults
 
@@ -53,4 +53,4 @@ The setup and decision panel share `src/desktop/ui-tokens.css` and support syste
 
 ## Official host references
 
-Checked on 2026-10-20: [OpenAI MCP configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) documents local stdio, `config.toml`, trusted-project scope, server `instructions`, and MCP timeout/enablement controls. HandoffGlass does not change host approval policy. [WorkBuddy connector specification](https://open.workbuddy.cn/docs/connector) requires one integration type and one MCP server, describes versioned fields, and lists Skill documentation requirements. Local HandoffGlass guidance requires no OAuth; do not ask the user to bind an unrelated account.
+Codex reference checked on 2026-10-20: [OpenAI MCP configuration](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) documents local stdio, `config.toml`, trusted-project scope, server `instructions`, and MCP timeout/enablement controls. HandoffGlass does not change host approval policy. WorkBuddy specification rechecked on 2026-11-04: [WorkBuddy connector specification](https://open.workbuddy.cn/docs/connector) requires one integration type and one MCP server, describes versioned fields, and lists Skill documentation requirements. The generated folder is a local connector, separate from marketplace publication; the packaged Electron launcher supplies its own runtime, while ordinary Node launchers declare the WorkBuddy Node runtime requirement. Local HandoffGlass guidance requires no OAuth; do not ask the user to bind an unrelated account.

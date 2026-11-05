@@ -111,6 +111,7 @@ export class BrokerClient {
   constructor(options = {}) {
     this.options = options; this.ownerId = randomUUID();
     const env = options.env || process.env;
+    this.connectionId=typeof env.HANDOFFGLASS_CONNECTION_ID==='string'?env.HANDOFFGLASS_CONNECTION_ID:'';
     this.declaredHost = typeof env.HANDOFFGLASS_HOST_ID === 'string' ? env.HANDOFFGLASS_HOST_ID : '';
   }
   async request(path, { method = 'GET', body, timeoutMs = 34000 } = {}) {
@@ -119,7 +120,7 @@ export class BrokerClient {
       try {
         const response = await fetch(`http://127.0.0.1:${info.port}${path}`, {
           method, headers: {
-            authorization: `Bearer ${info.token}`, 'x-handoffglass-owner': this.ownerId, 'x-handoffglass-host': this.declaredHost,
+            authorization: `Bearer ${info.token}`, 'x-handoffglass-owner': this.ownerId, 'x-handoffglass-host': this.declaredHost, 'x-handoffglass-connection':this.connectionId,
             ...(body === undefined ? {} : { 'content-type': 'application/json' })
           }, body: body === undefined ? undefined : JSON.stringify(body),
           signal: AbortSignal.timeout(timeoutMs)
@@ -139,6 +140,7 @@ export class BrokerClient {
   async setEnabled(enabled) { return this.request('/agent/integration-enabled',{method:'POST',body:{enabled}}); }
   async permissions() { return this.request('/agent/permissions'); }
   async integrationStatus(host = 'codex') { return this.request(`/agent/integration-status?host=${encodeURIComponent(host)}`); }
+  async uninstall(confirm=false){return this.request('/agent/integration-uninstall',{method:'POST',body:{confirm}});}
   async cleanupIntegration(host, confirm = false) { return this.request('/agent/integration-cleanup', { method: 'POST', body: { host, confirm } }); }
   async blueprint(blueprint, locale) { return this.request('/agent/blueprint', { method: 'POST', body: { blueprint, locale } }); }
   async present(mode, args) { return this.request('/agent/show', { method: 'POST', body: { ...args, mode } }); }
@@ -155,12 +157,29 @@ export class BrokerClient {
   async wait(sessionId, maxWaitSeconds, { continuous = false, cursor=0 } = {}) {
     return this.request(`/agent/wait?sessionId=${encodeURIComponent(sessionId)}&maxWaitMs=${Math.round(maxWaitSeconds * 1000)}${continuous ? `&continuous=1&cursor=${cursor}` : ''}`);
   }
-  async verify(sessionId, verified, finish=false) {
-    return this.request('/agent/verify', { method: 'POST', body: { sessionId, verified, finish } });
+  async resume(sessionId,resumeToken){return this.request('/agent/resume',{method:'POST',body:{sessionId,resumeToken}});}
+  async control(sessionId,action,phase,expectedStep){return this.request('/agent/control',{method:'POST',body:{sessionId,action,phase,expectedStep}});}
+  async verify(sessionId, verified, finish=false,expectedStep) {
+    return this.request('/agent/verify', { method: 'POST', body: { sessionId, verified, finish, expectedStep } });
   }
   async updateScene(sessionId, expectedRevision, operations) {
     return this.request('/agent/scene', { method: 'POST', body: { sessionId, expectedRevision, operations } });
   }
   async locate(target,previous) { return this.request('/agent/locate', { method: 'POST', body: { target, ...(previous ? {previous} : {}) } }); }
   async cancel(sessionId) { return this.request('/agent/cancel', { method: 'POST', body: { sessionId } }); }
+}
+
+/** Separate desktop discovery keeps the Agent manifest scoped to Agent routes. */
+export async function writeDesktopManifest(dir,data) {
+  const temporary=join(dir,`.desktop-${randomUUID()}.tmp`);
+  try{await writeFile(temporary,JSON.stringify(data),{mode:0o600,flag:'wx'});await rename(temporary,join(dir,'desktop.json'));}
+  finally{await rm(temporary,{force:true});}
+}
+export async function readDesktopManifest(dir) {
+  try{
+    const path=join(dir,'desktop.json'),s=await lstat(path);
+    if(!s.isFile()||s.isSymbolicLink()||s.size>4096||(process.platform!=='win32'&&(s.uid!==process.getuid()||(s.mode&0o077)!==0)))return null;
+    const data=JSON.parse(await readFile(path,'utf8'));
+    return Number.isInteger(data.port)&&data.port>0&&data.port<65536&&Number.isInteger(data.pid)&&data.pid>0&&/^[a-f0-9]{64}$/.test(data.desktopToken||'')?data:null;
+  }catch(error){if(error.code==='ENOENT'||error instanceof SyntaxError)return null;throw error;}
 }

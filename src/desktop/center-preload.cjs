@@ -1,5 +1,11 @@
 const {contextBridge, ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('hgCenter',Object.freeze({
+  uninstall:(confirm=false)=>ipcRenderer.invoke('hg:center:uninstall',confirm),
+  identifyDisplays:()=>ipcRenderer.invoke('hg:center:identify-displays'),
+  trial:()=>ipcRenderer.invoke('hg:center:trial'),
+  showCurrent:()=>ipcRenderer.invoke('hg:center:show-current'),
+  connection:host=>ipcRenderer.invoke('hg:center:connection',host),
+  permissionStatus:()=>ipcRenderer.invoke('hg:center:permission-status'),
   setEnabled:enabled=>ipcRenderer.invoke('hg:center:enabled',enabled),
   read:()=>ipcRenderer.invoke('hg:center:read'),
   save:settings=>ipcRenderer.invoke('hg:center:save',settings),

@@ -83,3 +83,30 @@ test('broker restarts from a stale manifest and retains no old user session', as
     await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
+
+test('continuous workflow survives broker restart only as a recoverable checkpoint', async () => {
+  const dir=await mkdtemp(join(tmpdir(),'hg-restart-workflow-'));
+  const env={...process.env,HANDOFFGLASS_RUNTIME_DIR:dir,HANDOFFGLASS_HEADLESS:'1'};
+  let pid;
+  try {
+    const first=await ensureBroker({env});pid=first.pid;
+    const a=new BrokerClient({env}),s=await a.present('handoff',{...request,continuous:true});
+    process.kill(pid,'SIGKILL'); // Recovery must not depend on a graceful signal handler.
+    for(let i=0;i<60&&await probe(first);i++)await new Promise(resolve=>setTimeout(resolve,50));
+    const second=await ensureBroker({env});pid=second.pid;
+    const b=new BrokerClient({env});
+    assert.equal((await b.status(s.session.id)).session,null);
+    await assert.rejects(()=>b.present('handoff',{...request,continuous:true}),e=>e.code==='busy');
+    const recovered=await b.resume(s.session.id,s.resumeToken);
+    assert.equal(recovered.session.nextAction,'observe_app');
+    assert.equal(recovered.session.step,1);assert.deepEqual(recovered.session.annotations,[]);
+    assert.notEqual(recovered.resumeToken,s.resumeToken);
+    await assert.rejects(()=>a.resume(s.session.id,s.resumeToken),e=>e.code==='invalid_resume_token');
+    const current=await b.present('handoff',{...request,continuous:true,sessionId:s.session.id});
+    assert.equal(current.session.step,1);await b.cancel(s.session.id);
+  } finally {
+    if(pid){try{process.kill(pid,'SIGTERM');}catch{}}
+    for(let i=0;i<40;i++){const info=await readManifest(dir);if(!info||!await probe(info))break;await new Promise(resolve=>setTimeout(resolve,50));}
+    await rm(dir,{recursive:true,force:true,maxRetries:10,retryDelay:100});
+  }
+});

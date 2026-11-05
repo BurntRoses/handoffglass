@@ -1,5 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('hgSetup',Object.freeze({
+  connection:host=>ipcRenderer.invoke('hg:setup:connection',host),
+  permissionStatus:()=>ipcRenderer.invoke('hg:setup:permission-status'),
   status:()=>ipcRenderer.invoke('hg:setup:status'),
   save:value=>ipcRenderer.invoke('hg:setup:save',value),
   copy:host=>ipcRenderer.invoke('hg:setup:copy',host),

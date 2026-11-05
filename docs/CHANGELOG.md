@@ -1,3 +1,13 @@
+## 0.18.0 · 2026-11-04
+
+- Continuous workflows now have separate step/task/confirmation deadlines, explicit pause and recovery, and scoped rotating reconnect tokens with minimal private restart checkpoints.
+- Observed-condition guides can complete through independent verification. Native candidate changes remain unverified; sensitive decisions require the user.
+- Persistent native helpers and scoped references avoid repeated process startup. Local target following filters/coalesces geometry events.
+- Task workbench, target-adjacent adaptive card, collapsible control strip, truthful phase/connection state and local recovery actions.
+- Installation-scoped connection checks, centralized status-only permission checks and visible multi-display setup.
+- Shared App/CLI/MCP uninstall with owned file receipts, an external remover and retained-file reporting.
+- New tools: `session_resume`, `session_control`, `integration_uninstall`. Existing tool names remain available; advancing a step requires verification.
+
 ## 0.17.0 · 2026-10-20
 
 - 安装入口缩为一句请求；Agent 在项目内读取安装、配置合并、技能接入与检查要求。

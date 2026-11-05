@@ -9,7 +9,7 @@ import { VISUAL_STYLES, MOTION_MODES } from './local/preferences.mjs';
 import { BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { assessHandoff, GROUNDING_EVIDENCE } from './local/policy.mjs';
 import { SHAPES, TONES, TEMPLATE_NAMES, EFFECTS } from './visual/scene.mjs';
-import { capabilityInstructions, CAPABILITY_MANIFEST } from './capabilities.mjs';
+import { capabilityInstructions } from './capabilities.mjs';
 
 const broker = new BrokerClient();
 const annotation = z.object({
@@ -47,6 +47,13 @@ const presentation = z.object({
   sessionId: z.string().uuid().optional(),
   mode: z.enum(['guide', 'handoff']).optional(),
   target: uiTarget.optional(),
+  targetRef:z.string().regex(/^target_[0-9a-f-]{36}$/).optional(),
+  intent:z.enum(['focus','point','inspect','caution','verify']).optional(),
+  completion:z.object({kind:z.enum(['user_report','observed_condition']),condition:z.literal('target_absent').optional()}).optional(),
+  sensitive:z.boolean().optional(),
+  scrim:z.boolean().optional(),
+  totalSteps:z.number().int().min(1).max(999).optional(),
+  taskTimeoutSeconds:z.number().int().min(60).max(86400).optional(),
   followTarget: z.boolean().optional(),
   title: z.string().trim().min(1).max(100),
   message: z.string().trim().min(1).max(1000),
@@ -74,7 +81,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.17.0' }, { instructions: SERVER_INSTRUCTIONS });
+  const server = new McpServer({ name: 'handoffglass', version: '0.18.0' }, { instructions: SERVER_INSTRUCTIONS });
   const legacy=process.env.HANDOFFGLASS_LEGACY_TOOLS==='1';
   const legacyNames=new Set(['visual_show','handoff_request','visual_scene_update','handoff_status','handoff_events','handoff_wait','handoff_cancel']);
   const replacements={visual_scene_update:'session_update',handoff_cancel:'session_stop'};
@@ -119,9 +126,9 @@ function makeServer() {
   }, safe(() => broker.displays()));
   register('capability_manifest', {
     title: 'Read the local capability manifest',
-    description: 'Return the short, stable workflow and recovery rules for this HandoffGlass connection. Does not inspect the screen or call a model.',
+    description: 'Read workflow rules and actual desktop, helper, permission and host capabilities once at setup or recovery. No screen contents or model calls.',
     inputSchema: z.object({}), annotations: { readOnlyHint: true }
-  }, safe(() => ({ manifest: CAPABILITY_MANIFEST })));
+  }, safe(() => broker.capabilities()));
   register('session_start', {
     title: 'Start a continuous guided session',
     description: 'Start one owned session and keep it alive through session_wait. Use one concrete step; inspect or locate first when the target is not grounded.',
@@ -189,10 +196,18 @@ function makeServer() {
   }, safe(({sessionId,cursor,maxWaitSeconds})=>broker.wait(sessionId,maxWaitSeconds,{continuous:true,cursor})));
   register('session_verify', {
     title: 'Record independent verification',
-    description: 'Record the Agent’s independent check after a user report. verified:true + finish:true ends the workflow; otherwise retain ownership and present the next step with the same sessionId. A user report alone is insufficient.',
-    inputSchema: z.object({ sessionId: z.string().uuid(), verified: z.boolean(), finish:z.boolean().default(false) }),
+    description: 'Record the Agent’s independent check after a user report or observed-condition step. verified:true + finish:true ends the workflow; otherwise retain ownership and present the next step with the same sessionId. A user report alone is insufficient.',
+    inputSchema: z.object({ sessionId: z.string().uuid(), verified: z.boolean(), finish:z.boolean().default(false),expectedStep:z.number().int().min(1).optional() }),
     annotations: { readOnlyHint: false }
-  }, safe(({ sessionId, verified, finish }) => broker.verify(sessionId, verified, finish)));
+  }, safe(({ sessionId, verified, finish,expectedStep }) => broker.verify(sessionId, verified, finish,expectedStep)));
+  register('session_resume', {
+    title:'Recover an interrupted session',description:'Reclaim with the saved sessionId and resumeToken after MCP or Broker restart. Returns a rotated token; observe the app before presenting. Never replay a user action.',
+    inputSchema:z.object({sessionId:z.string().uuid(),resumeToken:z.string().regex(/^[0-9a-f]{64}$/)}),annotations:{readOnlyHint:false}
+  },safe(({sessionId,resumeToken})=>broker.resume(sessionId,resumeToken)));
+  register('session_control', {
+    title:'Pause, recover or report a session phase',description:'Pause/resume on user request, request target recovery, or report an actual observation/verification phase. Progress is factual; do not invent model thinking.',
+    inputSchema:z.object({sessionId:z.string().uuid(),action:z.enum(['pause','resume','retry_target','text_fallback','progress']),phase:z.enum(['observing','locating','presenting','verifying','idle']).optional(),expectedStep:z.number().int().min(1).optional()}),annotations:{readOnlyHint:false}
+  },safe(({sessionId,action,phase,expectedStep})=>broker.control(sessionId,action,phase,expectedStep)));
   register('connection_status', {
     title: 'Read host connection status',
     description: 'Return local broker, desktop, continuous-session and user enablement status without changing host configuration.',
@@ -200,7 +215,7 @@ function makeServer() {
   }, safe(() => broker.connection()));
   register('permission_status', {
     title: 'Read local permission status',
-    description: 'Return whether HandoffGlass is enabled and whether native control lookup has user consent. Reports local consent; OS access is not_checked until native inspection. Does not grant permission.',
+    description: 'Return whether HandoffGlass is enabled and whether native control lookup has user consent. Includes a status-only native permission probe without reading controls. Does not grant permission.',
     inputSchema: z.object({}), annotations: { readOnlyHint: true }
   }, safe(() => broker.permissions()));
   register('integration_status', {
@@ -213,6 +228,10 @@ function makeServer() {
     description:'Set the global user switch only when the user asks to enable or pause HandoffGlass. Disabling immediately cancels active guidance and target tracking; keeps configuration and settings. Does not grant Accessibility consent.',
     inputSchema:z.object({enabled:z.boolean()}),annotations:{readOnlyHint:false}
   },safe(({enabled})=>broker.setEnabled(enabled)));
+  register('integration_uninstall',{
+    title:'Uninstall owned HandoffGlass files',description:'Preview the complete owned removal by default. confirm:true applies an explicit user uninstall request, removes host integrations and schedules app/runtime removal after exit. Report retained files and resultPath; scheduled is not completed.',
+    inputSchema:z.object({confirm:z.boolean().default(false)}),annotations:{readOnlyHint:false}
+  },safe(async({confirm})=>{const result=await broker.uninstall(confirm);if(result.result?.scheduled)setTimeout(()=>process.exit(0),250);return result;}));
   register('integration_cleanup', {
     title: 'Remove an owned local integration',
     description: 'Prepare a cleanup plan by default. Set confirm=true only when the user explicitly asked to remove the named integration; only recorded, unchanged local files are removed/restored. Edited or unrecorded content is retained. WorkBuddy host removal remains manual; the desktop app is not deleted.',
