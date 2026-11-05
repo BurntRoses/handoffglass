@@ -48,7 +48,7 @@ test('full uninstall previews without writing and executes through a real extern
  const applied=await uninstallApplication({...options,confirm:true,waitPids:[]});assert.equal(applied.scheduled,true);
  const result=await workerResult(applied);assert.equal(result.complete,true,JSON.stringify(result));
  await assert.rejects(readFile(join(options.codexHome,'config.toml')),{code:'ENOENT'});await assert.rejects(readdir(options.dir),{code:'ENOENT'});
- assert.equal(await readFile(join(options.root,'development.txt'),'utf8'),'keep source');await rm(dirname(applied.resultPath),{recursive:true,force:true});
+ assert.equal(await readFile(join(options.root,'development.txt'),'utf8'),'keep source');await rm(dirname(applied.resultPath),{recursive:true,force:true,maxRetries:12,retryDelay:150});
 }));
 
 test('standalone uninstall shuts down its authenticated Broker before deleting runtime data',()=>isolated(async options=>{
@@ -60,7 +60,7 @@ test('standalone uninstall shuts down its authenticated Broker before deleting r
   const applied=await uninstallApplication({...options,confirm:true,waitPids:[]});
   const result=await workerResult(applied);assert.equal(result.complete,true,JSON.stringify(result));
   assert.ok(child.exitCode!==null||child.signalCode!==null,'Broker must exit');
-  await assert.rejects(readdir(options.dir),{code:'ENOENT'});await rm(dirname(applied.resultPath),{recursive:true,force:true});
+  await assert.rejects(readdir(options.dir),{code:'ENOENT'});await rm(dirname(applied.resultPath),{recursive:true,force:true,maxRetries:12,retryDelay:150});
  }finally{if(child.exitCode===null&&child.signalCode===null)child.kill();}
 }));
 
@@ -77,5 +77,5 @@ test('external removal finishes after the calling process has exited',()=>isolat
  const applied=JSON.parse(stdout),result=await workerResult(applied);
  assert.equal(result.complete,true,JSON.stringify(result));
  await assert.rejects(readdir(options.dir),{code:'ENOENT'});
- await rm(dirname(applied.resultPath),{recursive:true,force:true});
+ await rm(dirname(applied.resultPath),{recursive:true,force:true,maxRetries:12,retryDelay:150});
 }));

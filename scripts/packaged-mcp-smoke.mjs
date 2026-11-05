@@ -79,7 +79,7 @@ try{
     const applied=await uninstallApplication({...options,confirm:true,waitPids:[]});
     let result;for(let i=0;i<200;i++){try{result=JSON.parse(await readFile(applied.resultPath,'utf8'));break;}catch{}await new Promise(r=>setTimeout(r,50));}
     if(!result?.complete)throw new Error('Packaged external remover did not complete: '+JSON.stringify(result));
-    await rm(dirname(applied.resultPath),{recursive:true,force:true});console.log('complete');
+    await rm(dirname(applied.resultPath),{recursive:true,force:true,maxRetries:12,retryDelay:150});console.log('complete');
   `],{env:nativeEnv,timeout:20000});
   assert.equal(uninstallResult.trim(),'complete');
   await assert.rejects(access(uninstallOptions.dir),{code:'ENOENT'});
