@@ -110,7 +110,9 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
   let child;
   try{child=spawnFn(windows?'powershell.exe':process.execPath,
     windows?['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script,planPath]:[script,planPath],
-    {detached:true,windowsHide:true,stdio:['ignore',workerLog.fd,workerLog.fd],env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
+    // Windows PowerShell can exit before running -File under DETACHED_PROCESS.
+    // CREATE_NO_WINDOW plus unref keeps the worker independent of the GUI.
+    {detached:!windows,windowsHide:true,stdio:['ignore',workerLog.fd,workerLog.fd],env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
     child.once('exit',(code,signal)=>{void appendFile(workerLogPath,`worker_exit:${code ?? signal}\n`).catch(()=>{});});
     await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();
   }finally{await workerLog.close();}
