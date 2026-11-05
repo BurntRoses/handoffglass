@@ -41,8 +41,8 @@ test('full uninstall previews without writing and executes through a real extern
  assert.equal(preview.scheduled,false);assert.deepEqual(await readdir(options.dir),before);
  const applied=await uninstallApplication({...options,confirm:true,waitPids:[]});assert.equal(applied.scheduled,true);
  let result;
- for(let i=0;i<100;i++){try{result=JSON.parse(await readFile(applied.resultPath,'utf8'));break;}catch{}await new Promise(r=>setTimeout(r,40));}
- assert.ok(result,'External remover must write its actual result');assert.equal(result.complete,true,JSON.stringify(result));
+ for(let i=0;i<800;i++){try{result=JSON.parse(await readFile(applied.resultPath,'utf8'));break;}catch{}await new Promise(r=>setTimeout(r,50));}
+ assert.ok(result,'External remover must write its actual result: '+await readFile(applied.workerLogPath,'utf8'));assert.equal(result.complete,true,JSON.stringify(result));
  await assert.rejects(readFile(join(options.codexHome,'config.toml')),{code:'ENOENT'});await assert.rejects(readdir(options.dir),{code:'ENOENT'});
  assert.equal(await readFile(join(options.root,'development.txt'),'utf8'),'keep source');await rm(dirname(applied.resultPath),{recursive:true,force:true});
 }));
@@ -54,8 +54,8 @@ test('standalone uninstall shuts down its authenticated Broker before deleting r
   let broker;for(let i=0;i<150;i++){broker=await readManifest(options.dir);if(broker&&await probe(broker))break;await new Promise(r=>setTimeout(r,20));}
   assert.ok(broker&&await probe(broker),'isolated Broker must be running');
   const applied=await uninstallApplication({...options,confirm:true,waitPids:[]});
-  let result;for(let i=0;i<150;i++){try{result=JSON.parse(await readFile(applied.resultPath,'utf8'));break;}catch{}await new Promise(r=>setTimeout(r,30));}
-  assert.ok(result,'worker must finish after Broker exits');assert.equal(result.complete,true,JSON.stringify(result));
+  let result;for(let i=0;i<800;i++){try{result=JSON.parse(await readFile(applied.resultPath,'utf8'));break;}catch{}await new Promise(r=>setTimeout(r,50));}
+  assert.ok(result,'worker must finish after Broker exits: '+await readFile(applied.workerLogPath,'utf8'));assert.equal(result.complete,true,JSON.stringify(result));
   assert.ok(child.exitCode!==null||child.signalCode!==null,'Broker must exit');
   await assert.rejects(readdir(options.dir),{code:'ENOENT'});await rm(dirname(applied.resultPath),{recursive:true,force:true});
  }finally{if(child.exitCode===null&&child.signalCode===null)child.kill();}

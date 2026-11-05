@@ -14,17 +14,18 @@ export async function attachSessionCheckpoint(manager, dir) {
       if (prefs.enabled && prefs.continuous) manager.restoreCheckpoint(JSON.parse(await readFile(file, 'utf8')));
     }
   } catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
-  let pending = Promise.resolve();
+  let pending = Promise.resolve(), lastError=null;
   const save = () => {
     const record = manager.exportCheckpoint();
     pending = pending.then(async () => {
+      lastError=null;
       if (!record?.resumeHash) { await rm(file, { force: true }); return; }
       const temporary = join(dir, `.checkpoint-${randomUUID()}.tmp`);
       try {
         await writeFile(temporary, JSON.stringify(record), { mode: 0o600, flag: 'wx' });
         await rename(temporary, file);
       } finally { await rm(temporary, { force: true }); }
-    }).catch(error => { console.error('[handoffglass] Recovery record:', error.code || 'write_failed'); });
+    }).catch(error => { lastError=error;console.error('[handoffglass] Recovery record:', error.code || 'write_failed'); });
   };
   // Coordinates and progress updates do not change the recovery record.
   let last = JSON.stringify(manager.exportCheckpoint());
@@ -33,8 +34,11 @@ export async function attachSessionCheckpoint(manager, dir) {
     if (next !== last) { last = next; save(); }
   };
   manager.on('show', changed); manager.on('change', changed); manager.on('checkpoint', changed);
-  return { flush: () => pending, close: async () => {
+  const flush=async()=>{await pending;if(lastError)throw Object.assign(new Error('Recovery record could not be saved'),{code:'checkpoint_unavailable'});};
+  manager.flushCheckpoint=flush;
+  return { flush, close: async () => {
     manager.off('show', changed); manager.off('change', changed); manager.off('checkpoint', changed);
+    delete manager.flushCheckpoint;
     await pending;
   } };
 }

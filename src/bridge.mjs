@@ -394,6 +394,7 @@ export class LocalBridge {
           if(this.resolvedTargets.size > 128) this.resolvedTargets.delete(this.resolvedTargets.keys().next().value);
         }
         const resumeToken=session.continuous?this.manager.issueResume(session.id,owner):undefined;
+        await this.manager.flushCheckpoint?.();
         return sendJson(res, 200, { session: this.manager.get(session.id), ...(resumeToken?{resumeToken}:{}), nextCursor:this.journal.latestCursor(session.id), visible: !this.headless,
           coordinateSystem: 'global_DIP',
           instruction: 'User-reported completion is not verification. Recheck the target application.' });
@@ -442,6 +443,7 @@ export class LocalBridge {
         if(await isDisabled())return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
         const body=await readJson(req);if(typeof body.sessionId!=='string'||typeof body.resumeToken!=='string'||body.resumeToken.length!==64)return sendJson(res,400,{error:'invalid_resume_token',code:'invalid_resume_token'});
         const result=this.manager.resume(body.sessionId,body.resumeToken,owner);
+        if(!result.error)await this.manager.flushCheckpoint?.();
         return sendJson(res,result.error?409:200,{...result,...(result.error?{code:result.error}:{nextCursor:this.journal.latestCursor(body.sessionId)})});
       }
       if(req.method==='POST' && pathname==='/agent/control'){

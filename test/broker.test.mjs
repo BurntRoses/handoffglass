@@ -91,7 +91,7 @@ test('continuous workflow survives broker restart only as a recoverable checkpoi
   try {
     const first=await ensureBroker({env});pid=first.pid;
     const a=new BrokerClient({env}),s=await a.present('handoff',{...request,continuous:true});
-    process.kill(pid,'SIGTERM');
+    process.kill(pid,'SIGKILL'); // Recovery must not depend on a graceful signal handler.
     for(let i=0;i<60&&await probe(first);i++)await new Promise(resolve=>setTimeout(resolve,50));
     const second=await ensureBroker({env});pid=second.pid;
     const b=new BrokerClient({env});

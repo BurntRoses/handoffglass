@@ -1,7 +1,7 @@
 /** Shared, ownership-aware lifecycle service for app, MCP and CLI. */
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { readdir, rmdir, lstat, mkdtemp, writeFile, copyFile } from 'node:fs/promises';
+import { readdir, rmdir, lstat, mkdtemp, writeFile, copyFile, open } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { planApplicationFiles } from './application-installation.mjs';
@@ -106,10 +106,13 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
   const resultPath=join(stage,'result.json'),planPath=join(stage,'plan.json');
   await writeFile(planPath,JSON.stringify({entries,waitPids:shutdownPids,resultPath,
     priorRetained:[...applied.flatMap(p=>p.retained),...finalFiles.retained],hostActions:result.hostActions}),{mode:0o600,flag:'wx'});
-  const child=spawnFn(windows?'powershell.exe':process.execPath,
+  const workerLogPath=join(stage,'worker.log'),workerLog=await open(workerLogPath,'a',0o600);
+  let child;
+  try{child=spawnFn(windows?'powershell.exe':process.execPath,
     windows?['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script,planPath]:[script,planPath],
-    {detached:true,windowsHide:true,stdio:'ignore',env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
-  await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();
+    {detached:true,windowsHide:true,stdio:['ignore',workerLog.fd,workerLog.fd],env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}});
+    await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject);});child.unref();
+  }finally{await workerLog.close();}
   // App/MCP callers quit after returning their result. The standalone CLI must
   // also stop the authenticated runtime before its external worker removes it.
   if(liveBroker && liveBroker.pid!==process.pid)try{
@@ -117,7 +120,7 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
       headers:{authorization:`Bearer ${desktop.desktopToken}`,'content-type':'application/json'},body:'{}',signal:AbortSignal.timeout(2000)});
     if(!response.ok)result.retained.push({path:dir,reason:'runtime_shutdown_not_acknowledged'});
   }catch{result.retained.push({path:dir,reason:'runtime_shutdown_not_acknowledged'});}
-  return {...result,applied:true,scheduled:true,confirmationRequired:false,resultPath,
+  return {...result,applied:true,scheduled:true,confirmationRequired:false,resultPath,workerLogPath,
     removed:applied.flatMap(p=>p.removed||[]),retained:[...applied.flatMap(p=>p.retained),...finalFiles.retained,...result.retained.filter(r=>r.reason==='runtime_shutdown_not_acknowledged')],
     nextAction:'exit_handoffglass_then_read_uninstall_result',complete:false};
 }
