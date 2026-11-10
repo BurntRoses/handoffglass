@@ -48,9 +48,22 @@ test('local preview serves only website assets, never repository files',async()=
     });
     const base=`http://127.0.0.1:${port}`;
     assert.equal((await fetch(base+'/site/index.html')).status,200);
+    const home=await fetch(base+'/?lang=zh');
+    assert.equal(home.status,200);assert.equal(new URL(home.url).pathname,'/site/index.html');
+    assert.equal(new URL(home.url).search,'?lang=zh');
+    for(const path of ['/site/base.css','/site/shared.mjs','/site/install-prompts.mjs'])assert.equal((await fetch(base+path)).status,200);
     assert.equal((await fetch(base+'/assets/brandmark.svg')).status,200);
     assert.equal((await fetch(base+'/.env.example')).status,403);
     assert.equal((await fetch(base+'/package.json')).status,403);
     assert.equal((await fetch(base+'/site/index.html',{method:'POST'})).status,405);
   } finally {child.kill();if(child.exitCode===null)await Promise.race([once(child,'exit'),new Promise(r=>setTimeout(r,1000))]);}
+});
+
+test('language selection preserves URL, saved preference and browser precedence',async()=>{
+  const {resolveLanguage}=await import('../site/shared.mjs');
+  assert.equal(resolveLanguage({search:'?lang=ja',saved:'zh',browser:'en-US'}),'ja');
+  assert.equal(resolveLanguage({search:'?lang=bad',saved:'zh',browser:'ja-JP'}),'zh');
+  assert.equal(resolveLanguage({search:'?lang=bad',saved:'bad',browser:'zh-TW'}),'zh');
+  assert.equal(resolveLanguage({browser:'ja-JP'}),'ja');
+  assert.equal(resolveLanguage({browser:'de-DE'}),'en');
 });

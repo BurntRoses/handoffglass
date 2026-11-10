@@ -15,6 +15,7 @@
 | Agent 接入 | [接入指南](INTEGRATIONS.md) · [视觉试用](AGENT_VISUAL_TRIAL.md) · [兼容矩阵](COMPATIBILITY.md) · [国产 Harness](CHINA_HARNESS_INTEGRATION.md) |
 | 交互与定位 | [事件](INTERACTION_EVENTS.md) · [几何复核](GEOMETRY_RECHECK.md) · [宿主活动](HOST_ACTIVITY.md) |
 | 桌面 UI | [首次启动](ONBOARDING.md) · [设置中心](CONTROL_CENTER.md) · [连接诊断](CONNECTION_DIAGNOSTICS.md) · [停用与移除](INTEGRATION_LIFECYCLE.md) |
+| 网站 | [前端结构与性能](WEBSITE.md) |
 | 视觉设计 | [视觉语言](VISUAL_LANGUAGE.md) · [动态系统](VISUAL_MOTION.md) · [界面规范](INTERFACE_SYSTEM.md) · [品牌](BRAND.md) |
 | 协议与本地逻辑 | [场景协议](SCENE_PROTOCOL.md) · [Agent 工作流](AGENT_AUTONOMY.md) · [偏好记忆](LOCAL_FIRST_MEMORY.md) |
 | 产品 | [产品定义](PRODUCT.md) · [更新日志](CHANGELOG.md) · [社区构建与发布](COMMUNITY_RELEASE.md) · [使用许可](LICENSING.md) |

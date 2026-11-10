@@ -7,9 +7,11 @@
 <title>Install · HandoffGlass</title>
 <meta name="description" content="Ask your agent to install HandoffGlass, then tell it what you need." />
 <link rel="icon" type="image/svg+xml" href="../assets/brandmark.svg" />
-<link rel="stylesheet" href="./style.css" />
+<link rel="stylesheet" href="./base.css" />
 <link rel="stylesheet" href="./guide.css" />
-<script src="./guide.mjs" type="module" defer></script>
+<link rel="modulepreload" href="./shared.mjs" />
+<link rel="modulepreload" href="./install-prompts.mjs" />
+<script src="./guide.mjs" type="module"></script>
 </head>
 <body>
 <header class="guide-header">
