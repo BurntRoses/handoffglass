@@ -1,3 +1,5 @@
+import {installPrompts} from './install-prompts.mjs';
+
 export const translations = {
   en: {
     'nav.experience':'Experience','nav.features':'Features','nav.integrations':'Integrations','nav.start':'Get started',
@@ -12,7 +14,7 @@ export const translations = {
     'flow.eyebrow':'FROM ONE MOMENT TO THE NEXT','flow.heading':'The thread stays intact.','flow.intro':"A small action shouldn't mean starting over.",
     'flow.one.title':'Agent asks','flow.one.body':'Locate a control or request a handoff.','flow.two.title':'You decide','flow.two.body':'Follow the cue. Complete or decline.','flow.three.title':'Agent resumes','flow.three.body':'Check the result. Continue the task.',
     'integrations.eyebrow':'WORKS WITH YOUR AGENT','integrations.heading':'One runtime. Your agent.','integrations.body':'MCP for broad compatibility. An optional Skill for tool selection. Native extensions where the harness allows it.','integrations.link':'Explore integrations',
-    'start.title':'Install','start.subtitle':'Send this to your agent.','start.label':'To your agent','start.prompt':'Please install https://github.com/BurntRoses/handoffglass','start.copy':'Copy','start.copied':'Copied','start.setupGuide':'Usage',
+    'start.title':'Install','start.subtitle':'Send this to your agent.','start.label':'To your agent','start.prompt':installPrompts.en,'start.copy':'Copy','start.copied':'Copied','start.setupGuide':'Usage',
     'footer.text':'The handoff, made visible.','footer.preview':'Engineering preview','footer.license':'Free for noncommercial use',
     'demo.completeText':'Reported complete','demo.declineText':'Declined','demo.completedBody':'The agent can now check the outcome.','demo.declinedBody':'The agent will respect your decision.'
   },
@@ -29,7 +31,7 @@ export const translations = {
     'flow.eyebrow':'交接前后，任务不断线','flow.heading':'接过来，再接回去。','flow.intro':'一次人工操作，不该让整项任务重头开始。',
     'flow.one.title':'Agent 发起','flow.one.body':'定位控件，或请求人工接管。','flow.two.title':'你来操作','flow.two.body':'按照指引，自行完成或拒绝。','flow.three.title':'Agent 继续','flow.three.body':'核验结果，继续原任务。',
     'integrations.eyebrow':'面向不同 Agent','integrations.heading':'一个运行时，多种接入方式。','integrations.body':'通过 MCP 广泛接入，借助 Skill 学会合适的调用时机；开放插件接口的 Harness 可以进一步深度集成。','integrations.link':'查看接入方式',
-    'start.title':'安装','start.subtitle':'把这句话发给你的 Agent。','start.label':'发送给 Agent','start.prompt':'请安装 https://github.com/BurntRoses/handoffglass','start.copy':'复制','start.copied':'已复制','start.setupGuide':'使用',
+    'start.title':'安装','start.subtitle':'把这句话发给你的 Agent。','start.label':'发送给 Agent','start.prompt':installPrompts.zh,'start.copy':'复制','start.copied':'已复制','start.setupGuide':'使用',
     'footer.text':'下一步，指给你看。','footer.preview':'测试预览','footer.license':'非商业用途免费',
     'demo.completeText':'已报告完成','demo.declineText':'已拒绝','demo.completedBody':'Agent 可以继续核验实际结果。','demo.declinedBody':'Agent 将尊重你的决定。'
   },
@@ -46,7 +48,7 @@ export const translations = {
     'flow.eyebrow':'作業の流れを途切れさせない','flow.heading':'引き継いで、元に戻す。','flow.intro':'少しの手作業で、最初からやり直す必要はありません。',
     'flow.one.title':'エージェントから依頼','flow.one.body':'対象を探すか、人への引き継ぎを要求。','flow.two.title':'あなたが操作','flow.two.body':'案内を見て、実行または拒否。','flow.three.title':'エージェントが再開','flow.three.body':'結果を確認し、作業を続行。',
     'integrations.eyebrow':'既存のエージェントと連携','integrations.heading':'ひとつのランタイム。いつものエージェント。','integrations.body':'MCP で幅広く連携。必要なら Skill や Harness のネイティブプラグインを追加できます。','integrations.link':'連携方法を見る',
-    'start.title':'インストール','start.subtitle':'エージェントに送ってください。','start.label':'エージェントへ','start.prompt':'https://github.com/BurntRoses/handoffglass をインストールしてください。','start.copy':'コピー','start.copied':'コピー済み','start.setupGuide':'使い方',
+    'start.title':'インストール','start.subtitle':'エージェントに送ってください。','start.label':'エージェントへ','start.prompt':installPrompts.ja,'start.copy':'コピー','start.copied':'コピー済み','start.setupGuide':'使い方',
     'footer.text':'次の一手を、見えるかたちに。','footer.preview':'テストプレビュー','footer.license':'非商用利用は無料',
     'demo.completeText':'完了を報告','demo.declineText':'拒否しました','demo.completedBody':'エージェントが結果を確認できます。','demo.declinedBody':'エージェントはあなたの判断を尊重します。'
   }

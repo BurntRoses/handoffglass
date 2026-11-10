@@ -99,6 +99,8 @@ test('scene templates move with a native target and advance revisions only when 
 test('HTTP native-target handoff attaches a live tracker, and manual scene edits take control',async()=>{
   const manager=new HandoffManager();let loc=rect(200,190),calls=0;
   const bridge=new LocalBridge(manager,{headless:true,locator:async()=>{calls++;return loc;}});
+  // This test drives recheck explicitly; slow CI must not add a timed lookup.
+  bridge.anchors.intervalMs=60000;
   await bridge.start();bridge.displays=screen;
   const owner={'x-handoffglass-owner':'11111111-1111-4111-8111-111111111111',authorization:`Bearer ${bridge.agentToken}`,'content-type':'application/json'};
   const request=async path=>fetch(`http://127.0.0.1:${bridge.port}${path}`);

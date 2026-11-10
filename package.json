@@ -58,6 +58,7 @@
     "readiness": "node scripts/readiness.mjs",
     "bench:context": "node scripts/context-budget.mjs",
     "site:preview": "node scripts/site-preview.mjs",
+    "test:site": "electron scripts/site-smoke.mjs",
     "build:icons": "node scripts/build-icons.mjs",
     "connection:check": "node scripts/connection-check.mjs",
     "check:syntax": "node scripts/check-syntax.mjs && node scripts/build-overlay.mjs --check",
