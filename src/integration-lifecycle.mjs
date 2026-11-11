@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { planApplicationFiles } from './application-installation.mjs';
 import { uninstallCodex } from './codex-install.mjs';
+import { codexPluginPlan, removeCodexPlugin } from './codex-plugin-lifecycle.mjs';
 import { readManagedFile, applyFileTransaction, removeEmptyParents, digest } from './managed-files.mjs';
 import { loadPreferences, savePreferences } from './local/preferences.mjs';
 import { WORKBUDDY_FILES as BUNDLE_FILES, readWorkbuddyRecord } from './workbuddy-bundle.mjs';
@@ -52,11 +53,14 @@ async function workbuddyPlan({root=join(homedir(),'HandoffGlass'),dir}={}) {
 }
 async function planFor(host,options){
   if(!INTEGRATION_HOSTS.includes(host))throw new TypeError('Unsupported integration lifecycle host');
-  return host==='codex'?await uninstallCodex({...options,apply:false}):await workbuddyPlan(options);
+  if(host!=='codex')return workbuddyPlan(options);
+  const legacy=await uninstallCodex({...options,apply:false}),plugin=await codexPluginPlan(options);
+  return {...legacy,state:plugin.changed?plugin.state:legacy.state,changed:legacy.changed||plugin.changed,
+    items:[...legacy.items,...plugin.items],retained:[...legacy.retained,...plugin.retained],plugin};
 }
 function publicPlan(host,plan){
-  return {host,state:plan.state,cleanupAvailable:plan.changed,items:plan.items,retained:plan.retained,
-    hostAction:host==='codex'?'restart_codex':plan.hostAction,hostState:'not_observed',scope:host==='codex'?'local_config_and_skill':'local_connector_bundle',
+  return {host,state:plan.state,cleanupAvailable:plan.changed,items:plan.items,retained:plan.retained,...(plan.plugin?.changed?{nativePlugin:true}:{}),
+    hostAction:host==='codex'?'restart_codex':plan.hostAction,hostState:'not_observed',scope:host==='codex'?(plan.plugin?.changed?'plugin_bundle_and_host':'local_config_and_skill'):'local_connector_bundle',
     reloadRequired:plan.changed};
 }
 export async function integrationStatus(host,options={}) {
@@ -66,8 +70,10 @@ export async function cleanupIntegration(host,{confirm=false,...options}={}) {
   const plan=await planFor(host,options),result={...publicPlan(host,plan),confirmationRequired:!confirm,applied:false};
   if(!confirm||!plan.changed)return result;
   if(host==='codex'){
+    const plugin=plan.plugin.changed?await removeCodexPlugin({...options,confirm:true}):null;
     const applied=await uninstallCodex({...options,apply:true});
-    return {...result,applied:applied.applied,removed:applied.removed,retained:applied.retained,complete:!applied.retained.length};
+    const retained=[...applied.retained,...(plugin?.retained||[])];
+    return {...result,applied:applied.applied||!!plugin?.applied,removed:[...(applied.removed||[]),...(plugin?.removed||[])],retained,complete:!retained.length};
   }
   await applyFileTransaction(plan.changes);
   for(const bundle of plan.bundles){

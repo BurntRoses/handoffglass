@@ -8,6 +8,8 @@
 
 **最新升级：** [0.18 连续任务、桌面工作台与完整卸载](qa/2026-11-04-upgrade.md)
 
+**原生插件：** [跨 Harness 升级计划](NATIVE_PLUGIN_UPGRADE.md) · [Codex 本机插件试用](CODEX_PLUGIN.md)
+
 | 方向 | 文档 |
 |---|---|
 | 任务与验收 | [路线图](ROADMAP.md) · [桌面验收](DESKTOP_QA.md) |

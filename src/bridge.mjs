@@ -71,7 +71,7 @@ export class LocalBridge {
     this.hostActivity = new HostActivity();
     this.journal = new InteractionJournal(manager);
     this.displays = [];
-    this.targets=new TargetRegistry();this.agentWaits=new Map();this.connectionEvidence=new Map();this.permissionCache=null;
+    this.pluginBindings=new Map();this.targets=new TargetRegistry();this.agentWaits=new Map();this.connectionEvidence=new Map();this.permissionCache=null;
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
     this.waiters = new Set();
@@ -141,7 +141,7 @@ export class LocalBridge {
       '/agent/displays': 'GET', '/agent/inspect': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
       '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/capabilities': 'GET',
       '/agent/connection': 'GET', '/agent/permissions': 'GET', '/agent/integration-status': 'GET', '/agent/integration-cleanup': 'POST', '/agent/integration-enabled':'POST',
-      '/agent/integration-uninstall':'POST', '/agent/resume':'POST','/agent/control':'POST','/agent/verify': 'POST', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
+      '/agent/plugin-hook':'POST', '/agent/integration-uninstall':'POST', '/agent/resume':'POST','/agent/control':'POST','/agent/verify': 'POST', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
     }
@@ -241,6 +241,33 @@ export class LocalBridge {
         }
       });
       const isDisabled = async () => (await loadPreferences()).enabled === false;
+      if(req.method==='POST' && pathname==='/agent/plugin-hook') {
+        const body=await readJson(req);
+        if(!/^[a-f0-9]{64}$/.test(body.hostSession||'') || !['bind','status','progress','interrupt','end'].includes(body.event))
+          return sendJson(res,400,{code:'invalid_hook',error:'Invalid hook envelope'});
+        if(body.event==='status' && await isDisabled())return sendJson(res,423,{code:'disabled_by_user',error:'Guidance disabled'});
+        const s=this.manager.getByResumeToken(body.sessionId,body.resumeToken);
+        if(!s)return sendJson(res,404,{code:'not_found',error:'Session binding unavailable'});
+        const existing=this.pluginBindings.get(s.id);
+        if(existing && existing.hostSession!==body.hostSession && !(body.event==='bind' && existing.proof!==body.resumeToken))return sendJson(res,409,{code:'binding_conflict',error:'Session belongs to another host chat'});
+        if(body.event==='bind') {
+          this.pluginBindings.set(s.id,{hostSession:body.hostSession,proof:body.resumeToken});
+          while(this.pluginBindings.size>64)this.pluginBindings.delete(this.pluginBindings.keys().next().value);
+        } else if(!existing)return sendJson(res,409,{code:'binding_required',error:'Bind this host chat first'});
+        const stopped=['completed','declined','cancelled','expired','superseded'].includes(s.status);
+        const stepMatches=Number.isInteger(body.expectedStep)&&body.expectedStep===s.step;
+        if(!stopped && body.event!=='status' && body.event!=='bind') {
+          if(!stepMatches)return sendJson(res,409,{code:'stale_step',error:'Hook belongs to an earlier step'});
+          if(body.event==='end'){this.manager.resolve(s.id,'cancelled');this.pluginBindings.delete(s.id);}
+          else if(body.event==='interrupt')this.manager.control(s.id,null,'pause');
+          else if(body.event==='progress') {
+            if(await isDisabled())return sendJson(res,423,{code:'disabled_by_user',error:'Guidance disabled'});
+            if(s.status!=='paused')this.manager.control(s.id,null,'progress',body.phase);
+          }
+        }
+        const current=this.manager.get(s.id),{id,status,phase,nextAction,step,verified}=current;
+        return sendJson(res,200,{session:{id,status,phase,nextAction,step,verified}});
+      }
       if (req.method === 'GET' && pathname === '/agent/displays') {
         if(await isDisabled())return sendJson(res,423,{error:'HandoffGlass is disabled by the user',code:'disabled_by_user'});
         await this.prepare();

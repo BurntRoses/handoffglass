@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "handoffglass",
+  "version": "0.18.0",
+  "description": "Local desktop guidance with continuous handoff tools and Codex lifecycle feedback.",
+  "author": {"name": "BurntRoses"},
+  "repository": "https://github.com/BurntRoses/handoffglass",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "extensions": {
+    "com.openai": {
+      "hooks": "./hooks/hooks.json",
+      "onboardingSkill": "./skills/handoffglass-setup/SKILL.md",
+      "interface": {
+        "displayName": "HandoffGlass",
+        "shortDescription": "在屏幕上指引下一步，接续原任务",
+        "longDescription": "本地桌面引导试用版。包含 MCP、引导技能和需审核的生命周期 Hooks。用户自行操作，Agent 核实后继续。",
+        "developerName": "BurntRoses",
+        "category": "Productivity",
+        "brandColor": "#4E9669",
+        "defaultPrompt": ["用 HandoffGlass 教我打开应用的设置。"],
+        "composerIcon": "./assets/brandmark.svg",
+        "logo": "./assets/brandmark.svg"
+      }
+    }
+  }
+}

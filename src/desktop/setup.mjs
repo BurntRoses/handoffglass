@@ -9,6 +9,7 @@ import { installCodex } from '../codex-install.mjs';
 import { prepareWorkbuddyBundle, readWorkbuddyRecord } from '../workbuddy-bundle.mjs';
 import { appWorkbuddyDirectory } from '../integration-lifecycle.mjs';
 import { connectionState } from '../connection-state.mjs';
+import { codexPluginEvidence } from '../codex-plugin-lifecycle.mjs';
 import { nativePermissionStatus } from '../native/locator.mjs';
 const here=dirname(fileURLToPath(import.meta.url));
 const HOST_ALLOWLIST=new Set(Object.keys(HOSTS));
@@ -23,7 +24,12 @@ let connecting=false;
 export async function connectCodex() {
   if(connecting)return {ok:false,code:'already_running'};
   connecting=true;
-  try {const result=await installCodex({apply:true,replace:true,userHome:app.getPath('home'),configOptions:configOptions()});return {ok:true,installationId:result.installationId,nextAction:'reload_and_call'};}
+  try {
+    const userHome=app.getPath('home'),plugin=await codexPluginEvidence({userHome});
+    if(plugin.installed)return {ok:true,nativePlugin:true,nextAction:plugin.enabled?'reload_and_call':'enable_in_host'};
+    const result=await installCodex({apply:true,replace:true,userHome,configOptions:configOptions()});
+    return {ok:true,installationId:result.installationId,nextAction:'reload_and_call'};
+  }
   catch {return {ok:false,code:'install_failed'};}
   finally {connecting=false;}
 }

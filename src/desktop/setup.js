@@ -122,7 +122,7 @@ function translate(){syncChoices();
 }
 function connectionLabels(){const host=$('host').value,codex=host==='codex',workbuddy=host==='workbuddy',state=connectionStates[host];
  $('copy').textContent=t(connectBusy?'connecting':state?.installed?'checkLoaded':codex?'connect':workbuddy?'prepareConnector':'copy');
- document.querySelector('[data-t="hostNote"]').textContent=state?.hostVerified?t('hostReady'):state?.installed?t(workbuddy?'workbuddyPrepared':'reloadHint'):connectResults[host]?t(connectResults[host]):codex?'':t(workbuddy?'workbuddyConnectHint':'hostNote');
+ document.querySelector('[data-t="hostNote"]').textContent=state?.nextAction==='review_hooks'?(locale==='zh-CN'?'工具已连接。如尚未审核，请到 Codex 的设置 → Hooks 检查 HandoffGlass 脚本。':'Tools are connected. If not reviewed yet, check HandoffGlass scripts in Codex Settings → Hooks.'):state?.hostVerified?t('hostReady'):state?.installed?t(workbuddy?'workbuddyPrepared':'reloadHint'):connectResults[host]?t(connectResults[host]):codex?'':t(workbuddy?'workbuddyConnectHint':'hostNote');
  $('revealConnector').hidden=!(workbuddy&&(state?.installed||connectResults[host]==='workbuddyPrepared'));
 }
 function renderConnection(){const state=connectionStates[$('host').value];renderConnectionSteps($('connectionSteps'),state,locale);$('connectionEvidence').textContent=state?t(state.hostVerified?'hostReady':'hostPending'):'';}

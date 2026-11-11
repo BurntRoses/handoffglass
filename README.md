@@ -30,6 +30,8 @@ Tell your agent what you need: “Show me how to empty the Trash.” During othe
 
 To disable or remove a connection, tell the agent to “disable HandoffGlass” or “clean HandoffGlass from Codex.” It checks the integration first and removes only HandoffGlass-owned content. The same actions are available from the app’s Connections page.
 
+For Codex, use the [native plugin trial](docs/CODEX_PLUGIN.md) to install the MCP, Skill and lifecycle hooks together. Review the plugin hooks in Codex before the first guided task.
+
 <details>
 <summary>Documentation</summary>
 

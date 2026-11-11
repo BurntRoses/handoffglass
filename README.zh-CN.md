@@ -30,6 +30,8 @@ Agent 需要你操作时，在屏幕上指出位置，等待你完成，再继�
 
 如果要停用或移除连接，直接告诉 Agent“停用 HandoffGlass”或“清理 Codex 里的 HandoffGlass”。Agent 会先读取连接状态，给出清理预览，只删除 HandoffGlass 自己写入的内容；也可以在应用的「连接」页面完成停用和卸载。
 
+如果使用 Codex，推荐安装[原生插件试用版](docs/CODEX_PLUGIN.md)：它把 MCP、Skill 和生命周期 Hooks 一起接入。安装后在 Codex 的 Hooks 页面审核脚本，再开始第一次引导。
+
 <details>
 <summary>文档</summary>
 

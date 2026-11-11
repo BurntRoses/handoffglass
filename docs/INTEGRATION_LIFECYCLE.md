@@ -20,6 +20,8 @@ npm run uninstall:host -- enable --apply
 
 ## Codex
 
+原生插件试用版使用单独的 `handoffglass-plugin-install.json`，由 Codex 原生命令管理安装和移除。公共清理服务同时识别插件和旧 MCP 记录；App、MCP 和卸载 CLI 均可清理。插件生成包按摘要删除，用户改动和新增文件保留；同一 Codex 配置的私有 Hook 绑定一并移除。详见[插件试用](CODEX_PLUGIN.md)。以下是独立 MCP 接入的恢复规则。
+
 本版安装会在 Codex 配置目录写入私有安装记录 `handoffglass-install.json`，包含安装前后内容和本次备份清单。安装更新按记录更新“已安装版本”，不会因随包 Skill 升级而丢失原始恢复信息。
 
 移除时：
