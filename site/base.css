@@ -1,19 +1,11 @@
-/* Shared tokens, document defaults and system preferences. */
-:root{color-scheme:dark;--bg:#0b1119;--bg2:#0e1721;--surface:#151f29;--edge:rgba(172,224,220,.13);--text:#eff6f2;--muted:#a6b6bd;--dim:#778d94;--aqua:#aeffe7;--mint:#7be4cc;--focus:#d9fff3;--ease:cubic-bezier(.2,.7,.22,1);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-synthesis:none;font-feature-settings:"ss01" on}
-
-*,*::before,*::after{box-sizing:border-box}
-html{scroll-behavior:smooth;overflow-x:clip}
-body{margin:0;min-width:320px;background:var(--bg);color:var(--text);overflow-x:hidden;-webkit-font-smoothing:antialiased}
-a{color:inherit;text-decoration:none}
-button{font:inherit}
-button:focus-visible,a:focus-visible{outline:2px solid var(--mint);outline-offset:4px}
-button{cursor:pointer}
-.language{display:flex;align-items:center;border:1px solid var(--edge);padding:3px;border-radius:99px;background:rgba(255,255,255,.025)}
-
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}
-*,*::before,*::after{animation:none!important;transition:none!important}
-}
-
-@media(prefers-contrast:more){:root{--muted:#d2e0e0;--dim:#b1c7c6;--edge:rgba(209,248,236,.5)}
-}
-
+@import url('../assets/ui/tokens.css');
+@import url('../assets/ui/controls.css');
+:root { --bg:var(--ambient); --bg2:var(--surface); --text:var(--ink); --muted:var(--sub); --aqua:var(--accent); --mint:var(--accent); --ease:var(--ease-panel); }
+html { scroll-behavior:smooth; scroll-padding-top:6rem; }
+body { margin:0; min-width:320px; background:var(--bg); color:var(--text); font-size:var(--text-large); line-height:1.7; }
+a { color:inherit; text-decoration:none; }
+.language { display:flex; align-items:center; gap:var(--space-1); padding:var(--space-1); border-radius:.75rem; background:var(--raised); }
+.language .ui-button { min-height:32px; padding:4px 9px; font-size:var(--text-caption); color:var(--sub); }
+.language .ui-button[aria-pressed='true'] { background:var(--selection); color:var(--ink); }
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+@media(prefers-contrast:more) { :root { --sub:#d3ded6; --dim:#c0cec3; --edge:#7d8e81; } }

@@ -1,5 +1,6 @@
 /** Real local renderer checks and screenshots. Runs in a disposable runtime. */
 import assert from 'node:assert/strict';
+import {assertPalette,assertNoHorizontalOverflow} from './ui-design-assertions.mjs';
 import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {mkdtempSync} from 'node:fs';
@@ -29,13 +30,15 @@ void app.whenReady().then(async()=>{
   process.env.HANDOFFGLASS_PORT=String(bridge.port);process.env.HANDOFFGLASS_SECRET=bridge.token;
   await import('../src/desktop/main.mjs');await until(()=>bridge.connected,'Desktop did not connect');
   const {showControlCenter}=await import('../src/desktop/center.mjs');center=await showControlCenter();
-  center.webContents.on('console-message',(_e,_l,message)=>{if(/Uncaught|Refused to|Failed to load/i.test(message)){errors.push(message);console.error('Renderer:',message);}});
+  center.webContents.on('console-message',event=>{if(/Uncaught|Refused to|Failed to load/i.test(event.message)){errors.push(event.message);console.error('Renderer:',event.message);}});
   center.webContents.on('render-process-gone',(_e,d)=>errors.push(d.reason));
   const js=async source=>{try{return await center.webContents.executeJavaScript(source);}catch(error){throw new Error('UI script failed: '+source,{cause:error});}};
   await until(async()=>await js('document.querySelector("#appVersion").textContent.startsWith("v")'),'Settings did not load');
   async function capture(name){await pause(name.startsWith('appearance')?1250:300);await writeFile(join(output,`${name}.png`),(await center.webContents.capturePage()).toPNG());}
   async function page(name){await js(`document.querySelector('[data-page="${name}"]').click()`);await pause(100);}
   async function set(id,value){await js(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);}
+  await assertPalette(center.webContents);
+  assert.ok(await js('parseFloat(getComputedStyle(document.body).fontSize)>=14'),'Desktop text is below 14px');
   await capture('guidance-light');
   await js('document.querySelector("#tryGuidance").click()');
   await until(()=>manager.active()?.demo===true,'Local trial did not start');
@@ -79,6 +82,22 @@ void app.whenReady().then(async()=>{
   await js('document.querySelector("#enabled").click()');
   await until(async()=>(await loadPreferences(dir)).enabled,'Global switch did not resume');
   await js('window.scrollTo(0,0)');
+  // Keyboard focus belongs to the control; pointer selection adds no ring to ancestors.
+  await js('document.querySelector(".host-choices>.choice").focus()');
+  center.webContents.sendInputEvent({type:'keyDown',keyCode:'Tab'});center.webContents.sendInputEvent({type:'keyUp',keyCode:'Tab'});
+  await js('document.querySelector(".host-choices>.choice").focus()');
+  assert.equal(await js('document.activeElement.matches(":focus-visible")'),true);
+  assert.equal(await js('getComputedStyle(document.activeElement).outlineWidth'),'2px');
+  assert.equal(await js('getComputedStyle(document.activeElement.parentElement).outlineStyle'),'none');
+  assert.equal(await js('getComputedStyle(document.activeElement.parentElement).boxShadow'),'none');
+  const target=await js('(()=>{const b=document.activeElement.getBoundingClientRect();return {x:Math.round(b.x+b.width/2),y:Math.round(b.y+b.height/2)}})()');
+  await js('document.activeElement.blur()');
+  center.webContents.sendInputEvent({type:'mouseDown',...target,button:'left',clickCount:1});center.webContents.sendInputEvent({type:'mouseUp',...target,button:'left',clickCount:1});
+  assert.equal(await js('document.activeElement.matches(":focus-visible")'),false);
+  await js('document.querySelector("#host").disabled=true;document.querySelector("#host").syncChoices()');
+  assert.equal(await js('[...document.querySelectorAll(".host-choices .choice")].every(b=>b.disabled&&b.tabIndex===-1)'),true,'Disabled select left interactive radio buttons');
+  await js('document.querySelector("#host").disabled=false;document.querySelector("#host").syncChoices()');
+  assert.equal(await js('[...document.querySelectorAll(".host-choices .choice")].filter(b=>b.tabIndex===0).length'),1);
   await capture('connections-light');
   const pendingConnection=await js('window.hgCenter.connection("codex")');
   assert.equal(pendingConnection.hostVerified,false,'Installation alone verified the host');
@@ -179,6 +198,7 @@ void app.whenReady().then(async()=>{
   await capture('displays-dark');
   await js('document.querySelector("#accessibility").click()');
   await until(()=>getAccessibilityConsent({dir,env:{}}),'Permission checkbox did not save');
+  await assertPalette(center.webContents);
   await capture('help-dark');
   await set('locale','zh-CN');await page('appearance');await set('theme','light');await js('document.querySelector("#save").click()');
   await until(async()=>await js('document.documentElement.lang==="zh-CN"'),'Locale did not restore');
@@ -187,6 +207,10 @@ void app.whenReady().then(async()=>{
   await page('diagnostics');await js('document.querySelector(".display-card").scrollIntoView({block:"start"})');
   await capture('displays-small');
   assert.equal(await js('document.documentElement.scrollWidth>innerWidth'),false,'Display guide overflowed');
+  // Text size can increase without clipping the connection controls.
+  await page('connections');await js('document.documentElement.style.fontSize="200%"');
+  await assertNoHorizontalOverflow(center.webContents,'Desktop 200% text');
+  await js('document.documentElement.style.fontSize=""');await page('diagnostics');
   assert.match(await js('document.querySelector("#displayCount").textContent'),/检测到 \d+ 块屏幕/);
   assert.equal(await js('document.querySelector("#displayMap").getAttribute("aria-label")'),'显示器相对位置');
   const {showSetup}=await import('../src/desktop/setup.mjs');setup=await showSetup();

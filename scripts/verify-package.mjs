@@ -19,6 +19,7 @@ const script = `
  const base = path.join(resources, 'app.asar');
  const pkg = JSON.parse(fs.readFileSync(path.join(base, 'package.json'), 'utf8'));
  for (const name of ['LICENSE', 'NOTICE', 'src/mcp.mjs', 'src/desktop/app.mjs', 'src/capabilities.mjs',
+   'assets/ui/tokens.css', 'assets/ui/controls.css', 'src/desktop/ui-tokens.css',
    'skills/visual-handoff/SKILL.md', 'skills/visual-handoff/references/tool-contracts.md',
    'integrations/workbuddy/connector-meta.json', 'integrations/workbuddy/icon.svg',
    'node_modules/@modelcontextprotocol/server/package.json', 'node_modules/zod/package.json', 'node_modules/smol-toml/package.json']) fs.accessSync(path.join(base,name));

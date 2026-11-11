@@ -34,6 +34,9 @@ test('native change notifications do not consume a query response',async()=>fixt
 }));
 test('timed out, crashed or malformed workers restart without poisoning the next query',async()=>fixture(async worker=>{
  await assert.rejects(worker.request({hang:true}),e=>e.code==='native_timeout');
+ // The short deadline tests an unresponsive request. Recovery also includes
+ // cold Node startup on shared CI runners, so give those real processes time.
+ worker.timeoutMs=5000;
  assert.equal((await worker.request({id:1})).id,1);
  await assert.rejects(worker.request({crash:true}),e=>e.code==='native_error');
  assert.equal((await worker.request({id:2})).id,2);

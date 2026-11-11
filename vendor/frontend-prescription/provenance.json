@@ -1,0 +1,81 @@
+{
+  "source": "前端处方/app/src",
+  "adopted": "2026-11-11",
+  "libraries": [
+    {
+      "name": "shadcn/ui",
+      "commit": "4aaea19d9cff3e0908e12a8c1d504b8c5ec34610",
+      "license": "MIT",
+      "use": "Button variant and sizing contract, Toggle whole-surface selection, Switch track/thumb; adapted to native DOM, single outline focus; no React/Radix runtime."
+    },
+    {
+      "name": "@radix-ui/themes",
+      "version": "3.3.0",
+      "license": "MIT",
+      "use": "Typography and spacing scales mapped to rem tokens."
+    },
+    {
+      "name": "open-props",
+      "version": "1.7.23",
+      "license": "MIT",
+      "use": "ease-3 and ease-out-4 mapped to state and panel transitions."
+    }
+  ],
+  "runtime": [
+    "assets/ui/tokens.css",
+    "assets/ui/controls.css",
+    "src/desktop/choice-controls.mjs"
+  ],
+  "files": [
+    {
+      "snapshot": "shadcn/button.tsx.source",
+      "source": "vendor/templates/shadcn-shared/ui/button.tsx.source",
+      "sha256": "79dd6f75f8136394442202d6b8b922fb269eaad0a5dba579397c9d5b41f893bb"
+    },
+    {
+      "snapshot": "shadcn/switch.tsx.source",
+      "source": "vendor/templates/shadcn-shared/ui/switch.tsx.source",
+      "sha256": "743676f33f823ffa8008bbd5eb94cb68e227599447d60e132a202291a395f8e4"
+    },
+    {
+      "snapshot": "shadcn/toggle.tsx.source",
+      "source": "vendor/templates/shadcn-shared/ui/toggle.tsx.source",
+      "sha256": "28ae7d72730890a3ba6c668fd511c63a358ad26534c2c25d5922748d47e1fa99"
+    },
+    {
+      "snapshot": "shadcn/toggle-group.tsx.source",
+      "source": "vendor/templates/shadcn-shared/ui/toggle-group.tsx.source",
+      "sha256": "45186473eaa30a966adf16e2b0aa0d16522425fda0658e2c85b8dcb1b62956ef"
+    },
+    {
+      "snapshot": "shadcn/LICENSE",
+      "source": "vendor/templates/shadcn-shared/LICENSE.md",
+      "sha256": "1564074e13439397221ffd522e2e504d56561994a23d371aa5e3ad43e4f5423f"
+    },
+    {
+      "snapshot": "radix/typography.css.source",
+      "source": "vendor/foundations/radix-ui-themes/src/styles/tokens/typography.css",
+      "sha256": "6e3eceb987598abf72bdd8a338e7270d91000ab326bfc3d2852368e5436f04cd"
+    },
+    {
+      "snapshot": "radix/space.css.source",
+      "source": "vendor/foundations/radix-ui-themes/src/styles/tokens/space.css",
+      "sha256": "e7ef02a71575ecc896c0d330ad88d3548bdf68b58bce5a828fa37a497452cc2a"
+    },
+    {
+      "snapshot": "radix/LICENSE",
+      "source": "vendor/foundations/radix-ui-themes/LICENSE",
+      "sha256": "89e4ae7d91c640c6e8a3ca90ba578d799eb2491b766ed65e0725ba36499d56ba"
+    },
+    {
+      "snapshot": "open-props/easing.css.source",
+      "source": "vendor/foundations/open-props/src/props.easing.css",
+      "sha256": "0767db9d3c7a630d21cd399cf9797357713a4b675e48c8281af62cddd8f01ee0"
+    },
+    {
+      "snapshot": "open-props/LICENSE",
+      "source": "vendor/foundations/open-props/LICENSE",
+      "sha256": "fed3aa342094f6bb33701d09133c159a4c124e509ede255a889dd2c28ec3ab6e"
+    }
+  ]
+}

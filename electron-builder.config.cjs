@@ -21,7 +21,7 @@ module.exports = {
   appId: 'dev.handoffglass.desktop', productName: 'HandoffGlass',
   asar: true, directories: { output: process.env.HANDOFFGLASS_DIST_DIR || `dist/desktop-${process.platform}-${process.arch}` },
   extraMetadata: { handoffglassBuild: { schemaVersion:1, version, commit, dirty: changes === null || changes.length > 0, channel:'engineering-preview' } },
-  files: [ 'src/**', 'skills/visual-handoff/**', 'integrations/workbuddy/connector-meta.json', 'integrations/workbuddy/icon.svg', 'assets/brandmark.svg', 'scripts/remove-owned-files.mjs', 'scripts/remove-owned-files.ps1', 'package.json', 'LICENSE', 'NOTICE', ...optionalPackages ],
+  files: [ 'src/**', 'skills/visual-handoff/**', 'integrations/workbuddy/connector-meta.json', 'integrations/workbuddy/icon.svg', 'assets/brandmark.svg', 'assets/ui/**', 'scripts/remove-owned-files.mjs', 'scripts/remove-owned-files.ps1', 'package.json', 'LICENSE', 'NOTICE', ...optionalPackages ],
   extraResources: [...native, { from:'build/notices', to:'notices' }],
   afterAllArtifactBuild: async result => (await import('./scripts/release-build-receipt.mjs')).recordBuiltArtifacts(result),
   mac: { icon: 'build/icons/icon.icns', target: ['zip'], category: 'public.app-category.productivity', identity: null,

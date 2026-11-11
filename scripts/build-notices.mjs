@@ -18,6 +18,10 @@ for (const [path, info] of Object.entries(lock.packages).sort(([a], [b]) => a.lo
   sections.push(`${pkg.name}@${pkg.version} (${pkg.license || 'see license text'})`);
   for (const name of names.sort()) sections.push(await readFile(join(base, name), 'utf8'));
 }
+const sourceNotices = join(root, 'vendor', 'frontend-prescription');
+for (const family of ['shadcn', 'radix', 'open-props']) {
+  sections.push(`Frontend adaptation: ${family}`, await readFile(join(sourceNotices, family, 'LICENSE'), 'utf8'));
+}
 const output = join(root, 'build', 'notices');
 await mkdir(output, { recursive: true });
 await writeFile(join(output, 'THIRD_PARTY_NOTICES.txt'), sections.join('\n\n---\n\n') + '\n');
