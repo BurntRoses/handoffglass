@@ -86,7 +86,7 @@
 .handoff-buttons { display:flex; gap:var(--space-2); margin-top:var(--space-3); flex-wrap:wrap; }
 .handoff-buttons button { min-height:36px; padding:6px 10px; }
 .decline-button { background:var(--surface); }
-.stage-caption { position:absolute; bottom:5px; right:var(--space-3); font-size:11px; color:var(--dim); z-index:5; }
+.stage-caption { position:absolute; bottom:5px; right:var(--space-3); font-size:var(--text-caption); color:var(--dim); z-index:5; }
 .stage-caption-mark { margin-right:var(--space-1); }
 .scene-controls { display:flex; flex-wrap:wrap; gap:var(--space-1); justify-content:center; width:max-content; max-width:100%; padding:var(--space-1); margin:var(--space-4) auto 0; background:var(--raised); border-radius:.75rem; }
 .scene-tab { color:var(--sub); min-height:36px; padding:6px 12px; }
@@ -164,7 +164,7 @@
   .stage-body { height:360px; }.stage-topbar { padding-inline:var(--space-3); }.fake-location { display:none; }
   .handoff-card { left:var(--space-3); bottom:var(--space-5); width:calc(100% - 24px); padding:var(--space-4); }.handoff-title { margin-top:var(--space-2); }
   .handoff-buttons { margin-top:var(--space-2); }.handoff-buttons button { min-height:40px; }.scene-controls { width:100%; }.scene-tab { flex:1; padding-inline:var(--space-2); }
-  .target-tag { display:none; }.stage-caption { left:var(--space-3); font-size:11px; }
+  .target-tag { display:none; }.stage-caption { left:var(--space-3); }
   .section { padding-top:var(--space-9); }.feature-grid { grid-template-columns:1fr; gap:var(--space-6); }.feature-card { display:grid; grid-template-columns:64px minmax(0,1fr); gap:var(--space-4); }
   .feature-index { grid-column:1/-1; }.feature-icon, .feature-illustration { height:100px; margin:0; }.feature-text { grid-column:2; grid-row:2; }.feature-card-mini { display:none; }
   .flow-line { grid-template-columns:1fr; gap:var(--space-5); }.flow-line article { display:flex; gap:var(--space-4); }.flow-step-num { flex:none; margin:0; }
