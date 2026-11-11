@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { BrokerClient, ensureBroker, readManifest, probe } from '../src/runtime.mjs';
+import { BrokerClient, ensureBroker, readManifest, readDesktopManifest, probe } from '../src/runtime.mjs';
 
 const request = { title: 'Review permissions', message: 'A human must decide', timeoutSeconds: 30 };
 async function fixture(run) {
@@ -109,4 +109,28 @@ test('continuous workflow survives broker restart only as a recoverable checkpoi
     for(let i=0;i<40;i++){const info=await readManifest(dir);if(!info||!await probe(info))break;await new Promise(resolve=>setTimeout(resolve,50));}
     await rm(dir,{recursive:true,force:true,maxRetries:10,retryDelay:100});
   }
+});
+
+test('an acknowledged user report remains verifiable after an abrupt Broker crash',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'hg-report-crash-')),env={...process.env,HANDOFFGLASS_RUNTIME_DIR:dir,HANDOFFGLASS_HEADLESS:'1'};let pid;
+ try{
+  const first=await ensureBroker({env});pid=first.pid;
+  const a=new BrokerClient({env}),started=await a.present('handoff',{...request,continuous:true,execution:'parked'});
+  const desktop=await readDesktopManifest(dir);
+  const response=await fetch(`http://127.0.0.1:${desktop.port}/decision`,{method:'POST',headers:{authorization:`Bearer ${desktop.desktopToken}`,'content-type':'application/json'},body:JSON.stringify({id:started.session.id,status:'completed',step:1})});
+  assert.equal(response.status,200);
+  assert.equal(JSON.parse(await readFile(join(dir,'session-checkpoint.json'),'utf8')).pendingVerification,true);
+  process.kill(pid,'SIGKILL');
+  for(let i=0;i<60&&await probe(first);i++)await new Promise(r=>setTimeout(r,50));
+  const restarted=await ensureBroker({env});pid=restarted.pid;
+  const b=new BrokerClient({env}),recovered=await b.resume(started.session.id,started.resumeToken);
+  assert.equal(recovered.session.status,'user_action_reported');assert.equal(recovered.session.completionSource,'user_report');
+  assert.equal(recovered.session.verified,false);assert.deepEqual(recovered.session.annotations,[]);
+  await assert.rejects(()=>b.present('handoff',{...request,continuous:true,sessionId:started.session.id}),e=>e.code==='verification_due');
+  assert.equal((await b.verify(started.session.id,true,true,1)).session.verified,true);
+ }finally{
+  if(pid){try{process.kill(pid,'SIGTERM');}catch{}}
+  for(let i=0;i<40;i++){const info=await readManifest(dir);if(!info||!await probe(info))break;await new Promise(r=>setTimeout(r,50));}
+  await rm(dir,{recursive:true,force:true,maxRetries:10,retryDelay:100});
+ }
 });

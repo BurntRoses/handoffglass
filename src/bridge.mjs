@@ -199,6 +199,7 @@ export class LocalBridge {
       if(!['pause','resume','retry_target','text_fallback','park','attach'].includes(body.action))return sendJson(res,400,{error:'invalid_action'});
       const result=this.manager.control(body.id,null,body.action);
       if(!['progress','park','attach'].includes(body.action))this.anchors.clearFor(body.id);
+      if(!result.error)await this.manager.flushCheckpoint?.();
       return sendJson(res,result.error?409:200,{...result,...this.snapshot()});
     }
     if(req.method==='POST' && pathname==='/desktop/trial'){
@@ -584,6 +585,7 @@ export class LocalBridge {
       }
       if(body.step!==undefined && body.step!==this.manager.get(body.id)?.step)return sendJson(res,409,{error:'stale_step'});
       const result = this.manager.resolve(body.id, body.status);
+      if(!result.error)await this.manager.flushCheckpoint?.();
       return sendJson(res, result.error ? 409 : 200, {...result,...this.snapshot()});
     }
     return sendJson(res, 404, { error: 'Unknown endpoint' });

@@ -38,7 +38,7 @@ Guidance starts parked by default. For guidance that can stay on the desktop whi
 4. Keep the same session and wait with its cursor. Empty waits need no narration or fresh inspection. Ordinary geometry changes are handled locally. Do not restart a workflow for an ordinary event.
 5. On a report or candidate change, inspect the original app and call `session_verify` with the actual result and `expectedStep`. Success permits the next step; failure requires re-observation. Use a fresh `requestId` per new or corrected presentation. Only final verified success uses `finish:true`.
 
-Store the recovery token in the current task context, never in a public file or tool explanation. After reconnecting, call `session_resume` and save its replacement token. It clears old marks and returns `observe_app`; re-present the recovered step before continuing. Never replay a user action. A paused task waits for the user's resume request.
+Store the recovery token in the current task context, never in a public file or tool explanation. After reconnecting, call `session_resume` and save its replacement token. It clears old marks and preserves a pending report or explicit pause. On `observe_app`, inspect and re-present the recovered step. On `verify_in_app`, inspect and verify the existing report; do not ask the user to repeat the action. On `wait_for_resume`, wait for the user’s resume request. If the user is continuing a parked task, attach before inspecting and verifying. Never replay a user action.
 
 Report phases through `session_control(action:"progress",phase:...)` only when beginning actual observation, location or verification work. Do not invent thinking percentages or timing. Reuse observations until the target or application changes.
 

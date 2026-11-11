@@ -212,7 +212,7 @@ function makeServer() {
     annotations: { readOnlyHint: false }
   }, safe(({ sessionId, verified, finish,expectedStep }) => broker.verify(sessionId, verified, finish,expectedStep)));
   register('session_resume', {
-    title:'Recover an interrupted session',description:'Reclaim with the saved sessionId and resumeToken after MCP or Broker restart. Returns a rotated token; observe the app before presenting. Never replay a user action.',
+    title:'Recover an interrupted session',description:'Reclaim with the saved sessionId and resumeToken after MCP or Broker restart. Rotates the token and clears marks; preserves pending verification and pause. Observe the app before continuing; never replay a user action.',
     inputSchema:z.object({sessionId:z.string().uuid(),resumeToken:z.string().regex(/^[0-9a-f]{64}$/)}),annotations:{readOnlyHint:false}
   },safe(({sessionId,resumeToken})=>broker.resume(sessionId,resumeToken)));
   register('session_control', {

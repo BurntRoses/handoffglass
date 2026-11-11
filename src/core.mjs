@@ -247,8 +247,11 @@ export class HandoffManager extends EventEmitter {
     const session=this.get(id);if(!session || TERMINAL.has(session.status))return {error:'already_final'};
     for(const [key,entry] of this.requestKeys)if(entry.id===id)this.requestKeys.delete(key);
     this.owners.set(id,owner);const s=this.sessions.get(id);s.epoch=(s.epoch||1)+1;
-    s.status='observing';s.phase='reconnecting';s.nextAction='observe_app';s.recoveryRequired=true;s.annotations=[];delete s.scene;delete s.targetTracking;
-    s.stepTimeoutAt=this.clock()+1800000;s.agentState={phase:'observing',at:this.clock()};this.#arm(s);
+    const paused=s.status==='paused',reported=s.status==='user_action_reported'||(paused&&s.pausedFrom==='user_action_reported');
+    s.status=paused?'paused':reported?'user_action_reported':'observing';s.phase=paused?'paused':reported?'verifying':'reconnecting';
+    s.nextAction=paused?'wait_for_resume':reported?'verify_in_app':'observe_app';s.recoveryRequired=!reported;s.verified=false;
+    s.annotations=[];delete s.scene;delete s.targetTracking;
+    s.stepTimeoutAt=this.clock()+1800000;s.agentState={phase:'idle',at:this.clock()};this.#arm(s);
     this.resumeTokens.delete(id);const resumeToken=this.issueResume(id,owner);this.emit('change',copySession(s));return {session:copySession(s),resumeToken};
   }
   control(id,owner,action,phase) {
@@ -288,11 +291,18 @@ export class HandoffManager extends EventEmitter {
   exportCheckpoint() {
     const s=this.activeId && this.sessions.get(this.activeId);
     if(!s || !s.continuous || s.demo || TERMINAL.has(s.status))return null;
-    return {version:1,execution:s.execution,id:s.id,owner:this.owners.get(s.id),resumeHash:this.resumeKeys.get(s.id),step:s.step,epoch:s.epoch,taskTimeoutAt:s.taskTimeoutAt,sensitive:s.sensitive,confirmationTimeoutAt:s.confirmationTimeoutAt};
+    const pendingVerification=s.status==='user_action_reported'||(s.status==='paused'&&s.pausedFrom==='user_action_reported');
+    return {version:1,execution:s.execution,id:s.id,owner:this.owners.get(s.id),resumeHash:this.resumeKeys.get(s.id),step:s.step,epoch:s.epoch,taskTimeoutAt:s.taskTimeoutAt,sensitive:s.sensitive,confirmationTimeoutAt:s.confirmationTimeoutAt,
+      pendingVerification,...(pendingVerification?{completionSource:s.completionSource}:{}),paused:s.status==='paused',...(s.status==='paused'?{remainingMs:s.remainingMs}:{})};
   }
   restoreCheckpoint(c) {
     if(!c || c.version!==1 || !/^[0-9a-f-]{36}$/.test(c.id||'') || !/^[0-9a-f]{64}$/.test(c.resumeHash||'') || typeof c.owner!=='string' || !c.owner || c.owner.length>128 || !Number.isFinite(c.taskTimeoutAt) || c.taskTimeoutAt>this.clock()+86400000 || c.taskTimeoutAt<=this.clock() || (c.sensitive && c.confirmationTimeoutAt && c.confirmationTimeoutAt<=this.clock()))return false;
+    if((c.pendingVerification!==undefined&&typeof c.pendingVerification!=='boolean')||(c.paused!==undefined&&typeof c.paused!=='boolean')||
+      (c.pendingVerification&&!['user_report','native_observation','agent_observation'].includes(c.completionSource))||
+      (c.remainingMs!==undefined&&(!Number.isFinite(c.remainingMs)||c.remainingMs<0||c.remainingMs>3600000)))return false;
     const now=this.clock(),s={id:c.id,execution:c.execution==='parked'?'parked':'attached',continuous:true,mode:'handoff',title:'恢复引导',message:'回到原会话继续。',annotations:[],completion:{kind:'user_report'},status:'observing',phase:'reconnecting',nextAction:'observe_app',createdAt:now,updatedAt:now,step:c.step||1,epoch:c.epoch||1,taskTimeoutAt:c.taskTimeoutAt,stepTimeoutAt:now+1800000,confirmationTimeoutAt:c.confirmationTimeoutAt,sensitive:c.sensitive,recoveryRequired:true,verified:false,agentState:{phase:'idle',at:now}};
+    if(c.pendingVerification){s.status='user_action_reported';s.phase='verifying';s.nextAction='verify_in_app';s.completionSource=c.completionSource;s.recoveryRequired=false;}
+    if(c.paused){s.pausedFrom=s.status;s.status='paused';s.phase='paused';s.nextAction='wait_for_resume';s.remainingMs=c.remainingMs??1800000;}
     this.sessions.set(s.id,s);this.owners.set(s.id,c.owner);this.resumeKeys.set(s.id,c.resumeHash);this.activeId=s.id;this.#arm(s);return true;
   }
   stopActive() {const session=this.activeId&&this.sessions.get(this.activeId);if(session)this.#finish(session,'cancelled');}

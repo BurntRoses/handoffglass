@@ -1,7 +1,7 @@
 ## 0.19.2 · 2026-11-12
 
 - Submit changed setting fields through the Broker and serialize writes; independent switches, display choices and appearance no longer restore stale values. Preserve appearance drafts while refreshing real enable/disable state, with inline unsaved/save feedback.
-- Preserve an unverified user report through pause/resume. Do not duplicate the user action in the event stream or allow advancing past verification.
+- Preserve an unverified user report and explicit pause through token recovery and Broker restart; flush acknowledged reports before replying to the desktop. Preserve the report through pause/resume. Do not duplicate the user action in the event stream or allow advancing past verification.
 - Keep the recorded-action receipt visible, hide the obsolete action text, and give a direct return-to-chat instruction. Only the Agent can attach a parked workflow; the desktop no longer offers a button that suggests waking an idle model.
 - Immediately release an attached wait when parked; return completed sessions immediately even after their event cursor has been consumed.
 - Skip unchanged overlay frames and native bounds updates when only Agent activity or wait state changes. Revoke target marks immediately when control lookup is disabled.
