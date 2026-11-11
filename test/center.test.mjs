@@ -74,7 +74,7 @@ test('desktop control center is a separate sandboxed surface with narrow IPC',as
   assert.doesNotMatch(preload,/hg:decision|ipcRenderer\.send\(/);
   assert.match(html,/default-src 'none'/);
   for(const page of ['overview','connections','appearance','diagnostics'])assert.match(html,new RegExp(`data-view="${page}"`));
-  assert.match(css,/prefers-reduced-motion/);
+  assert.match(html,/ui-tokens\.css/);
   assert.match(ui,/textContent/);
   assert.match(html,/id=\"hostEvidence\"/);
   assert.match(ui,/config_declared|observedHosts/);

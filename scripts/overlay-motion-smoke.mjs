@@ -1,5 +1,6 @@
 /** Render and sample real CSS/SVG animations in an isolated Electron profile. */
 import assert from 'node:assert/strict';
+import {assertPalette,assertNoHorizontalOverflow} from './ui-design-assertions.mjs';
 import {app,BrowserWindow} from 'electron';
 import {mkdtempSync} from 'node:fs';
 import {mkdir,rm,writeFile} from 'node:fs/promises';
@@ -21,7 +22,9 @@ void app.whenReady().then(async()=>{
   await win.loadURL(`http://127.0.0.1:${server.address().port}/`);
   const js=source=>win.webContents.executeJavaScript(source);
   console.log('Sampling gallery');
+  await assertPalette(win.webContents);await assertNoHorizontalOverflow(win.webContents,'Gallery');
   await pause(1200);
+  await writeFile(join(output,'gallery.png'),(await win.webContents.capturePage()).toPNG());
   assert.equal(await js('document.querySelector("#canvas .hg-trace") && getComputedStyle(document.querySelector("#canvas .hg-trace")).animationName.includes("hg-handwrite")'),true,'Gallery failed to load production motion CSS');
   await js('document.querySelector("[data-view=collection]").click()');await pause(1400);
   assert.equal(await js('document.querySelectorAll(".specimen .hg-mark").length'),SHAPES.length);

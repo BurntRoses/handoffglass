@@ -1,0 +1,44 @@
+/* shadcn/ui Button, Toggle and Switch adapted to semantic HTML + project tokens.
+   No React or Radix runtime is loaded. See vendor/frontend-prescription. */
+.ui-button {
+  display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; gap:var(--space-2);
+  min-height:var(--control-height); padding:.5rem 1rem;
+  border:1px solid transparent; border-radius:var(--radius-control);
+  background:transparent; color:var(--ink);
+  font-size:var(--text-body); font-weight:500; line-height:1.4;
+  text-decoration:none; text-align:center; white-space:nowrap;
+  transition:background-color var(--duration-state) var(--ease-state), color var(--duration-state) var(--ease-state), transform var(--duration-press) var(--ease-state);
+}
+.ui-button svg { width:1rem; height:1rem; flex:none; pointer-events:none; }
+.ui-button:active:not(:disabled) { transform:translateY(1px); }
+.ui-button:disabled { opacity:.5; pointer-events:none; }
+.ui-button:where(.primary, .button-next, .action-primary, .primary-button, .complete-button) { background:var(--button); color:var(--button-ink); }
+.ui-button:where(.quiet-button, .action-quiet, .secondary, .decline-button, .github-link, .button-back) { background:var(--raised); color:var(--ink); }
+.ui-button:where(.icon-button) { width:var(--control-small); min-height:var(--control-small); padding:0; }
+.icon-button svg { fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.ui-button[data-feedback='error'] { color:var(--error); background:var(--error-surface); }
+.danger { color:var(--error); }
+.danger:hover { background:var(--error-surface); }
+@media (hover: hover) {
+  .ui-button:hover:not(:disabled) { background:var(--hover); }
+  .ui-button:where(.primary, .button-next, .action-primary, .primary-button, .complete-button):hover:not(:disabled) { background:color-mix(in srgb, var(--button) 90%, var(--ink)); }
+  .ui-button:is([aria-checked='true'], [aria-pressed='true'], [aria-selected='true'], [aria-current='page'], .is-active):hover:not(:disabled) { background:var(--selection); }
+}
+/* The switch owns its boundary and thumb. Focus is one independent outline. */
+input[role='switch'] {
+  appearance:none; width:2.5rem; height:1.5rem; flex:none; margin:0;
+  border:1px solid var(--edge-strong); border-radius:999px; background:var(--raised); cursor:pointer;
+  transition:background-color var(--duration-state) var(--ease-state);
+}
+input[role='switch']::before {
+  content:''; display:block; width:1.125rem; height:1.125rem; margin:2px; border-radius:50%; background:var(--sub);
+  transition:transform var(--duration-state) var(--ease-panel);
+}
+input[role='switch']:checked { background:var(--accent); border-color:transparent; }
+input[role='switch']:checked::before { background:var(--accent-ink); transform:translateX(1rem); }
+input[type='checkbox']:not([role='switch']) { width:1.125rem; height:1.125rem; margin:0; accent-color:var(--accent); flex:none; }
+input:disabled { opacity:.5; cursor:default; }
+@media (forced-colors: active) {
+  .ui-button, input[role='switch'] { border:1px solid ButtonText; }
+  .ui-button[aria-checked='true'], .ui-button[aria-pressed='true'] { border-color:Highlight; }
+}

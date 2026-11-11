@@ -15,13 +15,13 @@ export function createMarkPicker({categories,choices,onChange,shape='spotlight',
   function refresh(){
     const zh=locale()==='zh-CN';categories.replaceChildren();choices.replaceChildren();
     for(const c of MARK_CATEGORIES){
-      const button=document.createElement('button');button.type='button';button.setAttribute('role','tab');button.dataset.category=c.id;
+      const button=document.createElement('button');button.type='button';button.className='ui-button';button.setAttribute('role','tab');button.dataset.category=c.id;
       button.setAttribute('aria-selected',String(c.id===category));button.tabIndex=c.id===category?0:-1;button.textContent=zh?c.zh:c.en;
       button.addEventListener('click',()=>{category=c.id;current=c.shapes.includes(current)?current:c.shapes[0];refresh();categories.querySelector('[aria-selected=true]')?.focus({preventScroll:true});onChange(current);});categories.append(button);
     }
     const selected=MARK_CATEGORIES.find(c=>c.id===category);choices.setAttribute('aria-label',zh?selected.zh:selected.en);
     for(const key of selected.shapes){
-      const button=document.createElement('button');button.type='button';button.className='mark-choice';button.dataset.shape=key;
+      const button=document.createElement('button');button.type='button';button.className='ui-button mark-choice';button.dataset.shape=key;
       button.setAttribute('role','radio');button.setAttribute('aria-checked',String(key===current));button.tabIndex=key===current?0:-1;
       const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('aria-hidden','true');
       const text=document.createElement('span');text.textContent=MARK_NAMES[key][zh?0:1];button.append(svg,text);

@@ -1,11 +1,13 @@
-/** Real Chromium regression: unchanged pixels, layout, motion, copy and three locales. */
+/** Real Chromium checks for layout, state, copy, three locales and optional baseline comparison. */
 import assert from 'node:assert/strict';
+import {assertPalette,assertNoHorizontalOverflow} from './ui-design-assertions.mjs';
 import {app,BrowserWindow,nativeImage} from 'electron';
 import {mkdtempSync} from 'node:fs';
 import {mkdir,readFile,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 import {startSitePreview} from './site-preview.mjs';
+import {startDemo} from '../demo/server.mjs';
 const profile=mkdtempSync(join(tmpdir(),'hg-site-'));app.setPath('userData',profile);
 app.on('window-all-closed',()=>{});
 const baseline=process.argv.includes('--baseline'),compare=process.argv.includes('--compare');
@@ -27,6 +29,8 @@ void app.whenReady().then(async()=>{
   }
   async function record(key){
    await settle();
+   await assertNoHorizontalOverflow(win.webContents,key);
+   await assertPalette(win.webContents);
    const snapshot=await js(`(()=>{
     const elements=[...document.body.querySelectorAll('*')];
     const props=['display','position','width','height','padding','font','color','background','border','boxShadow','filter','backdropFilter','opacity','transform','overflow','clipPath','stroke','strokeDasharray','strokeDashoffset','animationName','animationDuration','animationDelay','animationTimingFunction','animationFillMode','transition','outline','boxSizing'];
@@ -132,8 +136,24 @@ void app.whenReady().then(async()=>{
    }
    await win.webContents.debugger.sendCommand('Page.removeScriptToEvaluateOnNewDocument',{identifier:blocked.identifier});
   }
+  win.setContentSize(390,844);await win.loadURL(base+'index.html?lang=zh');await pause(100);
+  await js('document.documentElement.style.fontSize="200%"');await settle();
+  await assertNoHorizontalOverflow(win.webContents,'Site 200% text');
+  const demo=await startDemo();
+  try {
+   win.setContentSize(1440,1000);await win.loadURL(`http://127.0.0.1:${demo.address().port}`);await pause(80);
+   await assertPalette(win.webContents);await assertNoHorizontalOverflow(win.webContents,'Demo');
+   const click=id=>js(`document.getElementById('${id}').click()`);
+   await click('begin');assert.equal(await js('document.querySelector("#annotation").classList.contains("show")'),true);
+   await writeFile(join(after,'demo-desktop.png'),(await win.capturePage()).toPNG());
+   await click('completed');await click('verify');assert.equal(await js('status'),'verification_failed');
+   await click('begin');await click('allowActual');await click('completed');await click('verify');assert.equal(await js('status'),'verified');
+   await click('begin');await click('declined');assert.equal(await js('status'),'declined');
+   win.setContentSize(900,1000);await js('document.documentElement.style.fontSize="200%"');await pause(80);
+   await assertNoHorizontalOverflow(win.webContents,'Demo 200% text');
+  } finally {await new Promise(r=>demo.close(r));}
   win.webContents.debugger.detach();assert.deepEqual(errors,[]);
   await writeFile(join(baseline?before:after,'metrics.json'),JSON.stringify(metrics,null,2)+'\n');
-  console.log(`PASS site ${baseline?'baseline':'regression'}: 18 locale/viewports, three scenes, both outcomes, reduced motion, clipboard fallback and saved language. ${baseline?'Baseline saved.':compare?'Exact pixels/layout/motion match.':''}`);
+  console.log(`PASS site ${baseline?'baseline':'regression'}: 18 locale/viewports, three scenes, both outcomes, reduced motion, clipboard fallback, saved language and demo verification branches. ${baseline?'Baseline saved.':compare?'Exact pixels/layout/motion match.':''}`);
  }finally{win?.destroy();await new Promise(r=>server.close(r));await rm(profile,{recursive:true,force:true});}
 }).then(()=>app.exit(0),error=>{console.error(error);app.exit(1);});

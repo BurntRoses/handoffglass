@@ -48,14 +48,16 @@ test('decision panel follows the same typographic tokens and supports high contr
   const html=await asset('src/desktop/panel.html');
   const js=await asset('src/desktop/panel.js');
   const css=await asset('src/desktop/panel.css');
-  const tokens=await asset('src/desktop/ui-tokens.css');
+  const imports=await asset('src/desktop/ui-tokens.css');
+  const tokens=await asset('assets/ui/tokens.css');
   assert.match(html,/ui-tokens\.css/);
   assert.match(js,/dataset\.theme/);
   assert.match(js,/await window\.handoffglass\.decide/);
   assert.match(html,/id="pause"/);
   assert.match(html,/id="collapse"[^>]*aria-expanded/);
   assert.doesNotMatch(js,/window\.close\s*\(/);
-  assert.match(css,/prefers-reduced-motion:reduce/);
+  assert.match(imports,/@import url\('\.\.\/\.\.\/assets\/ui\/tokens\.css'\)/);
+  assert.match(tokens,/prefers-reduced-motion:\s*reduce/);
   assert.match(css,/forced-colors:active/);
   assert.match(tokens,/color-scheme: light/);
   assert.match(tokens,/font-synthesis: none/);

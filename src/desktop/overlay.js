@@ -42,8 +42,8 @@ function placeLabel(a, width, height, occupied) {
   let content = [...String(a.label || '')].slice(0, 48).join('');
   if (!content || a.shape === 'badge' || width < 180 || height < 100) return null;
   const units = [...content].reduce((n, c) => n + (/[^\u0000-\u00ff]/.test(c) ? 1.75 : 1), 0);
-  const w = Math.min(width - 24, Math.max(72, units * 6.8 + 35)), h = 30;
-  if (units * 6.8 + 35 > w) content = [...content].slice(0, Math.max(1, Math.floor((w - 45) / 12))).join('') + '…';
+  const w = Math.min(width - 24, Math.max(72, units * 8.2 + 36)), h = 36;
+  if (units * 8.2 + 36 > w) content = [...content].slice(0, Math.max(1, Math.floor((w - 45) / 14))).join('') + '…';
   const rw = a.width ?? 112, rh = a.height ?? 56;
   const choices = [
     { x: a.x - w / 2, y: a.y - rh / 2 - h - 24 },
@@ -59,10 +59,10 @@ function placeLabel(a, width, height, occupied) {
 function label(group, box, accent) {
   if (!box) return;
   const g = node('g', { class: 'hg-label' });
-  g.append(node('rect', { x: box.x, y: box.y, width: box.width, height: box.height, rx: 10,
-    fill: '#111d24', 'fill-opacity': .94, stroke: '#ffffff', 'stroke-opacity': .15, 'stroke-width': .8 }));
-  g.append(node('circle', { cx: box.x + 13, cy: box.y + 15, r: 2.5, fill: accent }));
-  const t = node('text', { x: box.x + 23, y: box.y + 19.5, fill: '#f4f8f6', 'font-size': 11.5,
+  g.append(node('rect', { x: box.x, y: box.y, width: box.width, height: box.height, rx: 8,
+    fill: '#1b201d', 'fill-opacity': .94, stroke: '#ffffff', 'stroke-opacity': .15, 'stroke-width': .8 }));
+  g.append(node('circle', { cx: box.x + 13, cy: box.y + 18, r: 2.5, fill: accent }));
+  const t = node('text', { x: box.x + 23, y: box.y + 23, fill: '#f4f8f6', 'font-size': 14,
     'font-family': '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif', 'font-weight': 550, 'letter-spacing': .15 });
   t.textContent = box.content;
   g.append(t); group.append(g);
@@ -158,7 +158,7 @@ function buildMark(a, accent, visualStyle, viewport, box) {
   } else if (a.shape === 'badge') {
     const {x:bx, y:by} = badgePosition(a, viewport);
     group.append(node('circle', { cx: bx, cy: by, r: 13, fill: '#14251f', stroke: accent, 'stroke-width': 1.4 }));
-    const t = node('text', { x: bx, y: by + 4.2, 'font-size': 11.5, 'font-weight': 650, 'font-family': 'system-ui,sans-serif', 'text-anchor': 'middle', fill: accent });
+    const t = node('text', { x: bx, y: by + 5, 'font-size': 14, 'font-weight': 650, 'font-family': 'system-ui,sans-serif', 'text-anchor': 'middle', fill: accent });
     t.textContent = [...String(a.label || '•')].slice(0, 3).join(''); group.append(t);
   }
   if (visualStyle === 'luminous') {

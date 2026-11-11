@@ -25,7 +25,7 @@ for(const [i,key] of order.entries()){
 }
 $('mock').insertBefore(collection,$('canvas'));
 function rect(el){const a=el.getBoundingClientRect(),b=$('mock').getBoundingClientRect();return {x:a.left-b.left+a.width/2,y:a.top-b.top+a.height/2,width:a.width,height:a.height};}
-function mark(target,key,i=0){return {id:`mark_${i}`, ...rect(target),shape:key,color,effect:$('effect').value,exit:$('exit').value,maskStyle:$('maskStyle').value,durationMs:Number($('duration').value),label:key==='badge'?'2':$('labels').checked&&view!=='collection'?'打开项目，继续创作':''};}
+function mark(target,key,i=0){return {id:`mark_${i}`, ...rect(target),shape:key,color,effect:$('effect').value,exit:$('exit').value,maskStyle:$('maskStyle').value,durationMs:Number($('duration').value),label:key==='badge'?'2':$('labels').checked&&view!=='collection'?'打开项目':''};}
 function paint(){
  $('dismiss').textContent=hidden?'显示标记':'收起标记';$('maskControl').hidden=shape!=='spotlight'&&view!=='collection';
  if(hidden){

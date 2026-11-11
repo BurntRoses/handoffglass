@@ -18,7 +18,7 @@ export function upgradeChoices(root=document){
       const others=document.createElement('div');others.className='other-host-grid';more.append(others);group.append(more);
     }
     for(const option of select.options){
-      const button=document.createElement('button');button.type='button';button.className='choice';button.dataset.value=option.value;button.setAttribute('role','radio');
+      const button=document.createElement('button');button.type='button';button.className='ui-button choice';button.dataset.value=option.value;button.setAttribute('role','radio');
       if(select.id==='visualStyle'){
         const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 100 44');svg.setAttribute('aria-hidden','true');
         renderOverlay(svg,{sessionId:'choice-'+option.value,visualStyle:option.value,motion:'off',annotations:[{id:'sample',x:50,y:22,width:46,height:22,shape:'ring',color:'#5c9278'}]},{width:100,height:44});button.append(svg);
@@ -32,23 +32,26 @@ export function upgradeChoices(root=document){
       buttons.push(button);
     }
     const sync=()=>{
-      group.setAttribute('aria-label',field.firstElementChild?.textContent||select.id);
+      const caption=field.firstElementChild;if(caption&&caption!==select){caption.id ||= 'choice-label-'+select.id;group.setAttribute('aria-labelledby',caption.id);}else group.setAttribute('aria-label',select.id);
       for(const button of buttons){
         const option=[...select.options].find(o=>o.value===button.dataset.value),selected=select.value===option.value;
         button.querySelector('.choice-label').textContent=option.textContent;
-        button.setAttribute('aria-checked',String(selected));button.tabIndex=selected?0:-1;
+        button.disabled=select.disabled||option.disabled;button.setAttribute('aria-checked',String(selected));button.tabIndex=selected&&!button.disabled?0:-1;
         if(selected && button.parentElement===more?.lastChild)more.open=true;
+      }
+      if(!buttons.some(button=>button.tabIndex===0)) {
+        const first=buttons.find(button=>!button.disabled);if(first)first.tabIndex=0;
       }
       if(more)more.firstChild.textContent=document.documentElement.lang.startsWith('zh')?'其他应用':'Other apps';
     };
     group.addEventListener('keydown',event=>{
       if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key))return;
-      event.preventDefault();let index=buttons.indexOf(document.activeElement);if(index<0)return;
-      index=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(['ArrowLeft','ArrowUp'].includes(event.key)?-1:1)+buttons.length)%buttons.length;
-      buttons[index].click();buttons[index].focus();
+      const available=buttons.filter(button=>!button.disabled);let index=available.indexOf(document.activeElement);if(index<0)return;event.preventDefault();
+      index=event.key==='Home'?0:event.key==='End'?available.length-1:(index+(['ArrowLeft','ArrowUp'].includes(event.key)?-1:1)+available.length)%available.length;
+      available[index].click();available[index].focus();
     });
     select.after(group);select.addEventListener('change',sync);
-    new MutationObserver(sync).observe(select,{subtree:true,childList:true,characterData:true});
+    new MutationObserver(sync).observe(select,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled']});
     new MutationObserver(sync).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
     sync();
     // Programmatic form refreshes call this without dispatching a user edit.

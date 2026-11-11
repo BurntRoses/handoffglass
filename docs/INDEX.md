@@ -27,3 +27,5 @@
 [2026-10-20 项目审查与连续会话改造](qa/2026-10-20-lifecycle-audit.md)
 
 [2026-10-21 社区发布检查](qa/2026-10-21-community-release.md)
+
+- [界面处方](../DESIGN.md) · [逐项核对与整改](FRONTEND_REDESIGN.md)

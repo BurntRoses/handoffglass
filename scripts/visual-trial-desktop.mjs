@@ -12,6 +12,7 @@ import {HandoffManager} from '../src/core.mjs';
 import {LocalBridge} from '../src/bridge.mjs';
 import {writeManifest} from '../src/runtime.mjs';
 import {savePreferences} from '../src/local/preferences.mjs';
+import {assertPalette,assertNoHorizontalOverflow} from './ui-design-assertions.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const dir=mkdtempSync(join(tmpdir(),'handoffglass-visual-'));
 app.setPath('userData',join(dir,'electron'));
@@ -105,6 +106,7 @@ void app.whenReady().then(async()=>{
    webPreferences:{preload:join(root,'scripts/visual-trial-preload.cjs'),sandbox:true,contextIsolation:true,nodeIntegration:false}});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   await win.loadFile(join(root,'examples/agent-trial.html'));win.center();win.show();app.focus({steal:true});win.focus();
+  await assertPalette(win.webContents);await assertNoHorizontalOverflow(win.webContents,'Agent trial');
   ipcMain.handle('hg:trial:action',(event,name,value)=>{
    if(event.sender!==win.webContents)return {ok:false};
    return enqueue(async()=>{
