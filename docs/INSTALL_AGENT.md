@@ -20,6 +20,8 @@ Use this procedure when the user asks to install this repository. The request is
 
 ### Codex
 
+When the user specifically requests the **native plugin trial**, follow [Codex plugin](CODEX_PLUGIN.md) and run `npm run plugin:codex:install` after preparing dependencies. It bundles MCP and Skills; do not also run the standalone installer below. Keep hook review as an explicit host step.
+
 Run from the persistent installation:
 
 ```bash

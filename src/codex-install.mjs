@@ -55,6 +55,11 @@ export async function installCodex(options={}) {
     readManagedFile(p.configPath),readManagedFile(p.skillPath),
     readFile(new URL('../skills/visual-handoff/SKILL.md',import.meta.url),'utf8'),readReceipt(p.receiptPath)
   ]);
+  if(priorConfig){
+    let parsed;
+    try{parsed=parse(priorConfig);}catch(error){throw new Error(`malformed Codex config: ${error.message}`);}
+    if(parsed.plugins?.['handoffglass@handoffglass-local'])throw new Error('The HandoffGlass native plugin is installed. Enable or check that plugin instead of adding a standalone MCP.');
+  }
   const resources=await Promise.all(SKILL_RESOURCES.map(async name=>({name,path:join(dirname(p.skillPath),name),
     prior:await readManagedFile(join(dirname(p.skillPath),name)),next:await readFile(new URL('../skills/visual-handoff/'+name,import.meta.url),'utf8')})));
   for(const resource of resources){

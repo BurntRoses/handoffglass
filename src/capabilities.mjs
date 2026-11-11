@@ -11,7 +11,7 @@ export const CAPABILITY_MANIFEST = Object.freeze({
   workflow: Object.freeze(['observe', 'present', 'wait', 'verify']),
   lifecycle: Object.freeze(['integration_status', 'integration_cleanup', 'integration_set_enabled', 'integration_uninstall', 'permission_status']),
   hosts: Object.freeze([
-    { id: 'codex', transport: 'local stdio', setup: 'config.toml + visual-handoff Skill', cleanup: 'integration_cleanup' },
+    { id: 'codex', transport: 'local stdio', setup: 'native plugin (MCP + Skills + reviewed Hooks), or standalone config.toml + Skill; choose one', cleanup: 'integration_cleanup' },
     { id: 'workbuddy', transport: 'local stdio connector', setup: 'one MCP server + Skill; trust and enable in WorkBuddy', cleanup: 'integration_cleanup' }
   ]),
   capabilities: Object.freeze([

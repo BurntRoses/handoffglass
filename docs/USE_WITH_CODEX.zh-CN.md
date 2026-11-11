@@ -12,6 +12,8 @@
 
 安装与接入由 Codex 按[项目内的要求](INSTALL_AGENT.md)完成。
 
+需要试用生命周期 Hooks 与随包 Skill，使用[原生插件试用版](CODEX_PLUGIN.md)。已有独立 MCP 时先移除旧连接，选择一条接入路径。
+
 ## 使用
 
 直接说：

@@ -9,6 +9,7 @@ import {HandoffManager} from '../src/core.mjs';
 import {LocalBridge} from '../src/bridge.mjs';
 import {savePreferences,loadPreferences} from '../src/local/preferences.mjs';
 import {getAccessibilityConsent} from '../src/native/preferences.mjs';
+import {buildCodexPlugin,CODEX_PLUGIN} from '../src/codex-plugin.mjs';
 const uiProfile=mkdtempSync(join(tmpdir(),'handoffglass-ui-profile-'));app.setPath('userData',uiProfile);
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 async function until(check,message){for(let i=0;i<100;i++){if(await check())return;await pause(50);}throw Error(message);}
@@ -82,6 +83,25 @@ void app.whenReady().then(async()=>{
   const pendingConnection=await js('window.hgCenter.connection("codex")');
   assert.equal(pendingConnection.hostVerified,false,'Installation alone verified the host');
   assert.equal(await js('document.querySelectorAll("#connectionSteps li").length'),6);
+
+  // The native plugin is a separate installation path; App must not add MCP again.
+  const configPath=join(dir,'codex','config.toml'),standalone=await readFile(configPath,'utf8');
+  const pluginId='native-plugin-ui-fixture';
+  const built=await buildCodexPlugin({output:join(dir,'plugin-fixture'),envOverrides:{HANDOFFGLASS_CONNECTION_ID:pluginId}});
+  await writeFile(configPath,standalone+'\n[plugins."'+CODEX_PLUGIN+'"]\nenabled=true\n');
+  const pluginRecord=join(dir,'codex','handoffglass-plugin-install.json');
+  await writeFile(pluginRecord,JSON.stringify({version:1,plugin:CODEX_PLUGIN,installationId:pluginId,marketplaceRoot:built.marketplaceRoot,command:'unused-fixture-command'}));
+  await page('overview');await page('connections');
+  await until(async()=>await js('document.querySelector("#integrationState").textContent.includes("插件已安装")'),'Native plugin status was not rendered');
+  assert.equal(await js('document.querySelector("#copy").textContent'),'检查是否已加载');
+  const beforePluginCheck=await readFile(configPath,'utf8');
+  const connectedPlugin=await js('window.hgCenter.connect("codex")');
+  assert.equal(connectedPlugin.nativePlugin,true);assert.equal(await readFile(configPath,'utf8'),beforePluginCheck);
+  bridge.connectionEvidence.set(pluginId,{connectionId:pluginId,host:'codex',lastSuccessAt:Date.now(),lastTool:'connection'});
+  await page('overview');await page('connections');
+  await until(async()=>await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent.includes("Hooks")'),'Native Hook review step was not rendered');
+  await capture('codex-plugin-light');
+  bridge.connectionEvidence.delete(pluginId);await rm(pluginRecord);await writeFile(configPath,standalone);
 
   await set('host','workbuddy');await until(async()=>await js('!document.querySelector("#copy").disabled'),'WorkBuddy preview did not load');
   assert.equal(await js('document.querySelector("#copy").textContent'),'生成连接器');

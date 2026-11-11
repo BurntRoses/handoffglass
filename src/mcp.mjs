@@ -210,7 +210,7 @@ function makeServer() {
   },safe(({sessionId,resumeToken})=>broker.resume(sessionId,resumeToken)));
   register('session_control', {
     title:'Pause, recover or report a session phase',description:'Pause/resume on user request, request target recovery, or report an actual observation/verification phase. Progress is factual; do not invent model thinking.',
-    inputSchema:z.object({sessionId:z.string().uuid(),action:z.enum(['pause','resume','retry_target','text_fallback','progress']),phase:z.enum(['observing','locating','presenting','verifying','idle']).optional(),expectedStep:z.number().int().min(1).optional()}),annotations:{readOnlyHint:false}
+    inputSchema:z.object({sessionId:z.string().uuid(),action:z.enum(['pause','resume','retry_target','text_fallback','progress']),phase:z.enum(['observing','locating','presenting','verifying','thinking','idle']).optional(),expectedStep:z.number().int().min(1).optional()}),annotations:{readOnlyHint:false}
   },safe(({sessionId,action,phase,expectedStep})=>broker.control(sessionId,action,phase,expectedStep)));
   register('connection_status', {
     title: 'Read host connection status',

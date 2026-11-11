@@ -33,6 +33,8 @@ const lex = {
   "integrationConfirm": "移除连接",
   "integrationNotInstalled": "尚未安装此连接",
   "integrationInstalled": "已写入本机配置和技能",
+  "integrationPluginInstalled": "Codex 插件已安装",
+  "reviewHooksHint": "工具已连接。如尚未审核，请到 Codex 的设置 → Hooks 检查 HandoffGlass 脚本。",
   "integrationModified": "发现修改，将保留相关内容",
   "integrationBundleReady": "本地连接器已生成，WorkBuddy 中的连接尚未验证",
   "integrationCleanupReady": "将进行以下变更。修改过的文件和其他应用设置会保留。",
@@ -183,6 +185,8 @@ const lex = {
   "integrationConfirm": "Remove connection",
   "integrationNotInstalled": "This connection is not installed",
   "integrationInstalled": "Local configuration and Skill installed",
+  "integrationPluginInstalled": "Codex plugin installed",
+  "reviewHooksHint": "Tools are connected. If not reviewed yet, check HandoffGlass scripts in Codex Settings → Hooks.",
   "integrationModified": "Changed content will be kept",
   "integrationBundleReady": "Local connector prepared; the WorkBuddy connection is not yet verified",
   "integrationCleanupReady": "Review the changes below. Edited files and other app settings are kept.",
@@ -382,7 +386,7 @@ let connectBusy=false;const connectResults={};
 function connectionLabels(){
  const host=$('host').value,codex=host==='codex',workbuddy=host==='workbuddy',state=connectionStates[host];
  $('copy').textContent=translateKey(connectBusy?'connecting':state?.installed?'checkLoaded':codex?'connect':workbuddy?'prepareConnector':'copy');
- const hint=state?.nextAction==='ready'?'hostReady':state?.nextAction==='reload_and_call'?'reloadHint':state?.nextAction==='enable_in_host'?'enableHint':state?.nextAction==='review_configuration'?'reviewConfigHint':state?.nextAction==='import_trust_enable_reload_and_call'?'workbuddyPrepared':null;
+ const hint=state?.nextAction==='review_hooks'?'reviewHooksHint':state?.nextAction==='ready'?'hostReady':state?.nextAction==='reload_and_call'?'reloadHint':state?.nextAction==='enable_in_host'?'enableHint':state?.nextAction==='review_configuration'?'reviewConfigHint':state?.nextAction==='import_trust_enable_reload_and_call'?'workbuddyPrepared':null;
  document.querySelector('[data-i="connectDesc"]').textContent=hint?translateKey(hint):connectResults[host]?translateKey(connectResults[host]):workbuddy?translateKey('workbuddyConnectHint'):codex?'':translateKey('connectDesc');
  $('revealConnector').hidden=!(workbuddy&&(state?.installed||connectResults[host]==='workbuddyPrepared'));
 }
@@ -394,8 +398,8 @@ async function refreshPermission(){try{const r=await window.hgCenter.permissionS
 function renderPermission(){value('permissionStatus',permissionLabel(lastPermission,prefs?.locale));value('permissionOverview',!lastPermission?(prefs?.locale==='zh-CN'?'待检查':'Not checked'):lastPermission.localConsent&&['granted','available'].includes(lastPermission.osPermission)?translateKey('present'):translateKey('disabled'));}
 async function preview(){const id=++preview.seq;const host=$('host').value;connectionLabels();value('config',translateKey('loading'));value('configFormat',host==='codex'?'TOML':'JSON');try{const r=await window.hgCenter.preview(host);if(id!==preview.seq)return;value('config',r?.ok?r.content:translateKey('na'));$('copy').disabled=connectBusy||!r?.ok;}catch{if(id===preview.seq){value('config',translateKey('na'));$('copy').disabled=true;}}}
 preview.seq=0;
-function integrationLabel(state){return state==='installed'?'integrationInstalled':['modified','unmanaged'].includes(state)?'integrationModified':state==='bundle_ready'?'integrationBundleReady':'integrationNotInstalled';}
-function renderIntegration(result){$('cleanupItems').replaceChildren();value('cleanupNote','');const node=$('integrationState');if(!result?.ok){node.textContent=translateKey('integrationUnsupported');node.dataset.state='unsupported';$('confirmCleanup').hidden=true;return;}const status=result.status||{};node.textContent=translateKey(integrationLabel(status.state));node.dataset.state=status.state||'unknown';$('confirmCleanup').hidden=true;}
+function integrationLabel(state,nativePlugin=false){return state==='installed'?(nativePlugin?'integrationPluginInstalled':'integrationInstalled'):['modified','unmanaged'].includes(state)?'integrationModified':state==='bundle_ready'?'integrationBundleReady':'integrationNotInstalled';}
+function renderIntegration(result){$('cleanupItems').replaceChildren();value('cleanupNote','');const node=$('integrationState');if(!result?.ok){node.textContent=translateKey('integrationUnsupported');node.dataset.state='unsupported';$('confirmCleanup').hidden=true;return;}const status=result.status||{};node.textContent=translateKey(integrationLabel(status.state,status.nativePlugin));node.dataset.state=status.state||'unknown';$('confirmCleanup').hidden=true;}
 async function inspectIntegration(){const host=$('host').value;try{const result=await window.hgCenter.lifecycleStatus(host);if(host!==$('host').value)return;renderIntegration(result);}catch{value('integrationState',translateKey('failed'));$('confirmCleanup').hidden=true;}}
 document.querySelectorAll('[data-page]').forEach(button=>button.addEventListener('click',()=>showPage(button.dataset.page)));
 function refreshPage(){void refresh();if(currentPage==='diagnostics')void refreshDisplays();}
@@ -414,7 +418,7 @@ $('inspectIntegration').addEventListener('click',inspectIntegration);
 function renderCleanup(plan){
  const list=$('cleanupItems');list.replaceChildren();
  const zh=prefs?.locale==='zh-CN';
- for(const item of plan.items||[]){const li=document.createElement('li');const title=document.createElement('span');title.textContent=(zh?{mcp_entry:'MCP 配置',skill:'引导技能',skill_resource:'技能参考',backup:'安装备份',installation_record:'安装记录',connector_file:'连接器文件'}:{mcp_entry:'MCP entry',skill:'Guidance Skill',skill_resource:'Skill reference',backup:'Installation backup',installation_record:'Installation record',connector_file:'Connector file'})[item.kind]||item.kind;const path=document.createElement('small');path.textContent=item.path;li.append(title,path);list.append(li);}
+ for(const item of plan.items||[]){const li=document.createElement('li');const title=document.createElement('span');const labels=zh?{mcp_entry:'MCP 配置',skill:'引导技能',skill_resource:'技能参考',backup:'安装备份',installation_record:'安装记录',connector_file:'连接器文件',plugin_file:'插件文件',native_plugin:'Codex 原生插件',hook_binding:'会话绑定'}:{mcp_entry:'MCP entry',skill:'Guidance Skill',skill_resource:'Skill reference',backup:'Installation backup',installation_record:'Installation record',connector_file:'Connector file',plugin_file:'Plugin file',native_plugin:'Codex native plugin',hook_binding:'Session binding'};title.textContent=labels[item.kind]||item.kind;const path=document.createElement('small');path.textContent=item.path;li.append(title,path);list.append(li);}
  value('cleanupNote',plan.host==='workbuddy'?(zh?'这里只清理本地连接器包。已导入的连接需在 WorkBuddy 中停用并移除。':'This removes the local bundle. Disable and remove the imported connector in WorkBuddy.'):(plan.retained?.length?(zh?'有修改过的内容，将予以保留。':'Edited content will be kept.'):(zh?'仅移除宿主连接。HandoffGlass 应用和外观设置仍保留。':'Removes the host connection. The HandoffGlass app and appearance settings are kept.')));
 }
 $('cleanupIntegration').addEventListener('click',async()=>{const host=$('host').value;try{const r=await window.hgCenter.cleanup(host,false);if(host!==$('host').value)return;if(!r?.ok)throw Error();renderCleanup(r.result);value('integrationState',translateKey(r.result.cleanupAvailable?'integrationCleanupReady':integrationLabel(r.result.state)));$('confirmCleanup').hidden=!r.result.cleanupAvailable;}catch{value('integrationState',translateKey('failed'));}});

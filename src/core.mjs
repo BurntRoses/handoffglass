@@ -232,6 +232,12 @@ export class HandoffManager extends EventEmitter {
     const token=randomBytes(32).toString('hex');this.resumeTokens.set(id,token);this.resumeKeys.set(id,createHash('sha256').update(token).digest('hex'));
     this.emit('checkpoint');return token;
   }
+  getByResumeToken(id,token) {
+    const expected=this.resumeKeys.get(id);
+    if(!expected || typeof token!=='string' || !/^[0-9a-f]{64}$/.test(token))return null;
+    const hash=createHash('sha256').update(token).digest('hex');
+    return timingSafeEqual(Buffer.from(hash),Buffer.from(expected))?this.get(id):null;
+  }
   resume(id,token,owner) {
     const expected=this.resumeKeys.get(id),hash=createHash('sha256').update(String(token)).digest('hex');
     if(!expected || !timingSafeEqual(Buffer.from(hash),Buffer.from(expected)))return {error:'invalid_resume_token'};
@@ -256,7 +262,7 @@ export class HandoffManager extends EventEmitter {
       s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='retry_target'?'reobserve_target':'present_text_step';
       delete s.targetTracking;
     } else if(action==='progress') {
-      if(!['observing','locating','presenting','verifying','idle'].includes(phase))throw new TypeError('Invalid agent phase');
+      if(!['observing','locating','presenting','verifying','thinking','idle'].includes(phase))throw new TypeError('Invalid agent phase');
       s.agentState={phase,at:this.clock()};
     } else throw new TypeError('Invalid control action');
     s.updatedAt=this.clock();this.#arm(s);this.emit('change',copySession(s));return {session:copySession(s)};

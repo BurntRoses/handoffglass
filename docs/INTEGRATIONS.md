@@ -4,6 +4,8 @@ Ask your agent: `Please install https://github.com/BurntRoses/handoffglass`. It 
 
 HandoffGlass exposes a **local MCP server**. Skills provide invocation guidance; compatible hosts start the server using Node.js.
 
+For the Codex lifecycle plugin trial, use [Codex native plugin](CODEX_PLUGIN.md) instead of adding another MCP entry. The [cross-Harness upgrade plan](NATIVE_PLUGIN_UPGRADE.md) separates tested Codex support from upcoming DeepSeek Harness, Claude Code and OpenCode adapters.
+
 ## Print the configuration for your machine
 
 From the repository root:
