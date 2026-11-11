@@ -58,7 +58,7 @@ export async function handleCodexHook(input, {env=process.env, request=requestCo
     if(!fresh && state?.id!==session.id)return {};
     if(fresh && state?.id!==session.id)state=null;
     const next={id:session.id,resumeToken:fresh?result.resumeToken:state.resumeToken,hostSession,
-      step:session.step||1,updatedAt:Date.now(),...(state?.reminder?{reminder:state.reminder}:{})};
+      execution:session.execution||'attached',step:session.step||1,updatedAt:Date.now(),...(state?.reminder?{reminder:state.reminder}:{})};
     await secureRuntimeDir(root);
     await compareWrite({path,prior,next:JSON.stringify(next)});state=next;prior=JSON.stringify(next);
     await request(env,state,'bind');return {};
@@ -69,10 +69,11 @@ export async function handleCodexHook(input, {env=process.env, request=requestCo
     await request(env,state,event==='Interrupt'?'interrupt':'end');
     if(event==='SessionEnd')await rm(path,{force:true});return {};
   }
+  if(state.execution==='parked' && !['Interrupt','SessionEnd'].includes(event))return {};
   if(event==='Stop') {
     if(input.stop_hook_active===true)return {};
     const current=await request(env,state,'status');
-    if(!current?.session || terminal.has(current.session.status)||current.session.status==='paused')return {};
+    if(!current?.session || terminal.has(current.session.status)||current.session.status==='paused'||current.session.execution==='parked')return {};
     const s=current.session,key=`${s.step}:${s.phase}:${s.nextAction}`;
     if(state.reminder===key)return {};
     state.reminder=key;await compareWrite({path,prior,next:JSON.stringify(state)});

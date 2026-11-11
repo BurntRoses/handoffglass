@@ -1,0 +1,7 @@
+/* shadcn Accordion: content clipping, reversible height, state-driven chevron. */
+[data-disclosure] > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; list-style:none; }
+[data-disclosure] > summary::-webkit-details-marker { display:none; }
+[data-disclosure] > summary::after { content:""; mask:url(assets/chevron.svg) center/contain no-repeat; background:currentColor; width:16px; height:16px; flex:none; transition:transform 200ms var(--ease-panel,cubic-bezier(.16,1,.3,1)); }
+[data-disclosure] > summary[data-state='open']::after { transform:rotate(180deg); }
+.disclosure-content[hidden],.card-body[hidden] { display:none; }
+@media(prefers-reduced-motion:reduce) { [data-disclosure] > summary::after { transition:none; } }

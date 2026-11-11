@@ -1,3 +1,9 @@
+## Quick drawing and parked delivery (0.19)
+
+`screen_mark({shape:"ring",size:220,durationSeconds:20})` places one explicit temporary drawing at the live display center. No observation, task session or waiting. Optional `displayId`, `color` and `requestId`; never use it as a guessed app target. An active task returns `busy`.
+
+`session_start execution:"parked"` leaves native tracking, rendering and user actions with the Broker. `session_wait` returns immediately with `nextAction:"yield_to_user"`, events and `nextCursor`. Stop the chat turn; retain id, token and cursor. `session_control action:"park"|"attach"` changes delivery without changing step, clearing marks or claiming verification. The App's current-status disclosure offers the same action. Pausing hides marks; parking retains them. User reports remain `verified:false`; on return attach, inspect, verify, then present. SessionEnd retains a parked task; an explicit interrupt pauses it. Broker restart restores only minimal recovery evidence and requires fresh observation.
+
 # Tool contracts for setup or troubleshooting
 
 The live MCP schemas are authoritative. Read this reference when a host cannot show them or when explaining an example; it is not needed for each step.

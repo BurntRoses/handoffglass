@@ -6,7 +6,7 @@
 import { VISUAL_CAPABILITIES } from './visual/catalog.mjs';
 export const CAPABILITY_MANIFEST = Object.freeze({
   schemaVersion: 1,
-  version: 4,
+  version: 5,
   visuals: VISUAL_CAPABILITIES,
   workflow: Object.freeze(['observe', 'present', 'wait', 'verify']),
   lifecycle: Object.freeze(['integration_status', 'integration_cleanup', 'integration_set_enabled', 'integration_uninstall', 'permission_status']),
@@ -15,6 +15,7 @@ export const CAPABILITY_MANIFEST = Object.freeze({
     { id: 'workbuddy', transport: 'local stdio connector', setup: 'one MCP server + Skill; trust and enable in WorkBuddy', cleanup: 'integration_cleanup' }
   ]),
   capabilities: Object.freeze([
+    {id:'mark',tool:'screen_mark',phase:'draw',when:'Explicit simple screen drawing; call once, without inspection or waiting.',requires:['enabled'],returns:'visible mark, automatic expiry'},
     { id:'start',tool:'session_start',phase:'present',when:'Start one workflow.',requires:['enabled'],returns:'session id and nextAction' },
     {id:'resume',tool:'session_resume',phase:'recover',when:'MCP or Broker restarted; saved recovery token available.',requires:['sessionId','resumeToken'],returns:'rotated token; observe before presenting'},
     {id:'control',tool:'session_control',phase:'recover',when:'User pauses/resumes or an actual observation phase begins.',requires:['sessionId'],returns:'session state'},
@@ -50,5 +51,5 @@ export const CAPABILITY_MANIFEST = Object.freeze({
 });
 
 export function capabilityInstructions() {
-  return "HandoffGlass is the agent's hand: observe once → session_start → session_wait(cursor) → inspect app → session_verify → session_present. Put one action in the card; never ask the user to name a tool. Never guess coordinates, click or approve. Save session.id/resumeToken/nextCursor; session_resume recovers after restart, then observe again. User reports and native changes need verification. Stop on refusal/disable/busy. User-requested removal: integration_cleanup or integration_uninstall.";
+  return "HandoffGlass is the agent's hand. Simple drawing: screen_mark once; no inspect/wait. Tasks: observe → session_start → session_wait(cursor) → inspect → session_verify → session_present. Use execution:parked to keep local guidance and yield the chat; attach on return. Put one action in the card; never ask the user to name a tool. Never guess controls/click/approve. Save id/resumeToken/cursor; resume then observe. Verify user reports. Stop on refusal/disable/busy. Removal: integration_cleanup/uninstall.";
 }

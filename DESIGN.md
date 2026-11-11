@@ -36,7 +36,7 @@
 
 | 来源 | 本项目实际采用 | 适配 |
 | --- | --- | --- |
-| shadcn/ui，commit `4aaea19`，MIT | Button、Toggle、ToggleGroup、Switch 的尺寸、变体及状态结构 | 转成原生 DOM/CSS；焦点改为单一 outline；单选保留 Radio 语义；不声称运行 Radix 原语 |
+| shadcn/ui，commit `4aaea19`，MIT | Accordion、Button、Toggle、ToggleGroup、Switch 的尺寸、变体及状态结构 | 转成原生 DOM/CSS；焦点改为单一 outline；单选保留 Radio 语义；不声称运行 Radix 原语 |
 | Radix Themes 3.3.0，MIT | 字阶与空间尺度 | px 令牌转换为 rem；补充 13px 元数据级与 HandoffGlass 语义色 |
 | Open Props 1.7.23，MIT | `ease-3`、`ease-out-4` | 分别映射状态与面板动画 |
 
@@ -52,3 +52,5 @@
 6. 真实运行中检查中英文、网站日文、深浅主题、窄窗口、200% 字号、Tab/方向键、禁用、加载、失败和减少动态。
 
 逐页整改与验证见 [前端核对记录](docs/FRONTEND_REDESIGN.md)。
+
+展开区域采用 shadcn Accordion 的触发器/内容状态结构。面板和高级设置共享原生 DOM 控制器，内容高度与窗口同步，快速反向从当前帧继续；收起时移回焦点并将内容设为 inert，减少动态时即时切换。

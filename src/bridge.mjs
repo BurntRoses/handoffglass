@@ -12,6 +12,7 @@ import { InteractionJournal, recoveryFor } from './local/interaction-journal.mjs
 import { getAccessibilityConsent } from './native/preferences.mjs';
 import { TargetRegistry } from './visual/target-registry.mjs';
 import { CAPABILITY_MANIFEST } from './capabilities.mjs';
+import { quickMarkRequest } from './visual/quick-mark.mjs';
 import { startDesktopTrial } from './local/desktop-trial.mjs';
 import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled, uninstallApplication } from './integration-lifecycle.mjs';
 import { dirname, resolve } from 'node:path';
@@ -92,8 +93,13 @@ export class LocalBridge {
   }
   #publish() {
     this.revision++;
-    for(const stream of this.streams)stream.write(this.snapshot());
-    for (const responder of [...this.waiters]) responder(this.snapshot());
+    if(this.publishQueued)return;
+    this.publishQueued=true;
+    queueMicrotask(()=>{
+      this.publishQueued=false;const snapshot=this.snapshot();
+      for(const stream of this.streams)stream.write(snapshot);
+      for(const responder of [...this.waiters])responder(snapshot);
+    });
   }
   async start() {
     if (this.server) return this.port;
@@ -188,9 +194,9 @@ export class LocalBridge {
     if(req.method==='POST' && pathname==='/desktop/control'){
       const body=await readJson(req);const active=this.manager.active();
       if(!active || body.id!==active.id || (body.step!==undefined && body.step!==active.step))return sendJson(res,409,{error:'stale_step'});
-      if(!['pause','resume','retry_target','text_fallback'].includes(body.action))return sendJson(res,400,{error:'invalid_action'});
+      if(!['pause','resume','retry_target','text_fallback','park','attach'].includes(body.action))return sendJson(res,400,{error:'invalid_action'});
       const result=this.manager.control(body.id,null,body.action);
-      if(body.action!=='progress')this.anchors.clearFor(body.id);
+      if(!['progress','park','attach'].includes(body.action))this.anchors.clearFor(body.id);
       return sendJson(res,result.error?409:200,{...result,...this.snapshot()});
     }
     if(req.method==='POST' && pathname==='/desktop/trial'){
@@ -210,6 +216,7 @@ export class LocalBridge {
     }
     if(req.method==='GET' && pathname==='/desktop/stream'){
       if(this.streams.size>=4)return sendJson(res,503,{error:'Too many desktop streams'});
+      res.socket?.setNoDelay(true);
       res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-store','x-content-type-options':'nosniff'});
       const stream={write:state=>{
         if(res.destroyed||res.writableEnded)return;
@@ -258,15 +265,15 @@ export class LocalBridge {
         const stepMatches=Number.isInteger(body.expectedStep)&&body.expectedStep===s.step;
         if(!stopped && body.event!=='status' && body.event!=='bind') {
           if(!stepMatches)return sendJson(res,409,{code:'stale_step',error:'Hook belongs to an earlier step'});
-          if(body.event==='end'){this.manager.resolve(s.id,'cancelled');this.pluginBindings.delete(s.id);}
+          if(body.event==='end'){if(s.execution!=='parked')this.manager.resolve(s.id,'cancelled');this.pluginBindings.delete(s.id);}
           else if(body.event==='interrupt')this.manager.control(s.id,null,'pause');
           else if(body.event==='progress') {
             if(await isDisabled())return sendJson(res,423,{code:'disabled_by_user',error:'Guidance disabled'});
-            if(s.status!=='paused')this.manager.control(s.id,null,'progress',body.phase);
+            if(s.status!=='paused' && s.execution!=='parked')this.manager.control(s.id,null,'progress',body.phase);
           }
         }
-        const current=this.manager.get(s.id),{id,status,phase,nextAction,step,verified}=current;
-        return sendJson(res,200,{session:{id,status,phase,nextAction,step,verified}});
+        const current=this.manager.get(s.id),{id,status,phase,nextAction,step,verified,execution}=current;
+        return sendJson(res,200,{session:{id,status,phase,nextAction,step,verified,execution}});
       }
       if (req.method === 'GET' && pathname === '/agent/displays') {
         if(await isDisabled())return sendJson(res,423,{error:'HandoffGlass is disabled by the user',code:'disabled_by_user'});
@@ -342,6 +349,19 @@ export class LocalBridge {
         return sendJson(res, 200, { targetRef:this.targets.add(owner,groundedQuery,signature),target: {...located, layoutSignature:signature},
           ...(comparison ? { comparison } : {}), coordinateSystem: 'global_DIP',
           warning: 'This is an observation, not permission to click or approve. Revalidate after UI changes.' });
+      }
+      if(req.method==='POST' && pathname==='/agent/mark') {
+        const started=performance.now(),body=await readJson(req),preference=await loadPreferences();
+        if(!preference.enabled)return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
+        // Validate before preparing a desktop; placement is computed from live display bounds.
+        quickMarkRequest(body,[{id:body.displayId||'validate',x:0,y:0,width:2000,height:1200}],preference);
+        await this.prepare();
+        if(!this.headless&&!this.connected)return sendJson(res,503,{error:'no_desktop',code:'no_desktop'});
+        if(!(await loadPreferences()).enabled)return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
+        if(this.manager.active()?.continuous)return sendJson(res,409,{error:'busy',code:'busy'});
+        const request=quickMarkRequest(body,this.displays,preference),session=this.manager.show(request,owner);
+        if(session.error)return sendJson(res,409,{error:session.error,code:session.error});
+        return sendJson(res,200,{id:session.id,visible:!this.headless,expiresAt:session.timeoutAt,nextAction:'done',localMs:Math.round((performance.now()-started)*10)/10});
       }
       if (req.method === 'POST' && pathname === '/agent/show') {
         const body = await readJson(req);
@@ -455,6 +475,8 @@ export class LocalBridge {
           if(!this.manager.getOwned(id,owner))return sendJson(res,404,{error:'Session not found',code:'not_found'});
           const cursor=Number(parsed.searchParams.get('cursor')??0);
           if(!Number.isSafeInteger(cursor)||cursor<0)return sendJson(res,400,{error:'Invalid cursor',code:'invalid_cursor'});
+          const parked=this.manager.getOwned(id,owner);
+          if(parked.execution==='parked')return sendJson(res,200,{...this.journal.read(id,{after:cursor}),session:parked,pending:true,nextAction:'yield_to_user',delivery:{mode:'parked',resume:'session_control attach; inspect before verification'}});
           const abort=new AbortController(),onClose=()=>abort.abort();res.on('close',onClose);
           const priorWait=this.agentWaits.get(id);this.agentWaits.set(id,{count:(priorWait?.count||0)+1,until:Math.max(priorWait?.until||0,Date.now()+ms)});this.#publish();
           try{
@@ -479,7 +501,7 @@ export class LocalBridge {
         if(!session)return sendJson(res,404,{error:'not_found',code:'not_found'});
         if(body.expectedStep!==undefined&&body.expectedStep!==session.step)return sendJson(res,409,{error:'stale_step',code:'stale_step'});
         const result=this.manager.control(body.sessionId,owner,body.action,body.phase);
-        if(!result.error && body.action!=='progress')this.anchors.clearFor(body.sessionId);
+        if(!result.error && !['progress','park','attach'].includes(body.action))this.anchors.clearFor(body.sessionId);
         return sendJson(res,result.error?409:200,{...result,...(result.error?{code:result.error}:{})});
       }
       if (req.method === 'POST' && pathname === '/agent/verify') {

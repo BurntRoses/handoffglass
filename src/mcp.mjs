@@ -48,6 +48,7 @@ const uiTarget = z.object({ app: z.string().trim().min(1).max(128), role: z.stri
 const presentation = z.object({
   sessionId: z.string().uuid().optional(),
   mode: z.enum(['guide', 'handoff']).optional(),
+  execution:z.enum(['attached','parked']).optional(),
   target: uiTarget.optional(),
   targetRef:z.string().regex(/^target_[0-9a-f-]{36}$/).optional(),
   intent:z.enum(['focus','point','inspect','caution','verify']).optional(),
@@ -85,7 +86,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.18.0' }, { instructions: SERVER_INSTRUCTIONS });
+  const server = new McpServer({ name: 'handoffglass', version: '0.19.0' }, { instructions: SERVER_INSTRUCTIONS });
   const legacy=process.env.HANDOFFGLASS_LEGACY_TOOLS==='1';
   const legacyNames=new Set(['visual_show','handoff_request','visual_scene_update','handoff_status','handoff_events','handoff_wait','handoff_cancel']);
   const replacements={visual_scene_update:'session_update',handoff_cancel:'session_stop'};
@@ -128,6 +129,12 @@ function makeServer() {
     description: 'Return connected screen bounds in device-independent pixels (DIP). No screenshots or UI element location.',
     inputSchema: z.object({}), annotations: { readOnlyHint: true }
   }, safe(() => broker.displays()));
+  register('screen_mark', {
+    title:'Draw a temporary screen mark',
+    description:'For “draw a circle on my screen”: call directly once. Local placement at display center; no inspection, display query, session waiting or verification needed. Returns immediately; auto-clears. Never use to guess an application control.',
+    inputSchema:z.object({shape:z.enum(['ring','double_ring','scribble','halo','dot','crosshair']).default('ring'),displayId:z.string().max(80).optional(),size:z.number().min(24).max(800).default(220),durationSeconds:z.number().int().min(10).max(120).default(20),color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),requestId:z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()}),
+    annotations:{readOnlyHint:false}
+  },safe(args=>broker.mark(args)));
   register('capability_manifest', {
     title: 'Read the local capability manifest',
     description: 'Read workflow rules and actual desktop, helper, permission and host capabilities once at setup or recovery. No screen contents or model calls.',
@@ -135,10 +142,10 @@ function makeServer() {
   }, safe(() => broker.capabilities()));
   register('session_start', {
     title: 'Start a continuous guided session',
-    description: 'Start one owned session and keep it alive through session_wait. Use one concrete step; inspect or locate first when the target is not grounded.',
+    description: 'Present one grounded step. Default execution:parked keeps local guidance alive while returning the chat to idle; user returns to chat after acting. attached uses session_wait for live Agent continuation. For a simple screen circle use screen_mark.',
     inputSchema: presentation.omit({sessionId:true}),
     annotations: { readOnlyHint: false }
-  }, safe(({ mode = 'handoff', ...args }) => broker.present(mode, {...args,continuous:true})));
+  }, safe(({ mode = 'handoff', execution='parked', ...args }) => broker.present(mode, {...args,execution,continuous:true})));
   register('session_present', {
     title: 'Present the next guided step',
     description: 'Advance the same sessionId after verification. Keep a fresh requestId for each step. The local renderer owns layout, follow-target and animation.',
@@ -210,7 +217,7 @@ function makeServer() {
   },safe(({sessionId,resumeToken})=>broker.resume(sessionId,resumeToken)));
   register('session_control', {
     title:'Pause, recover or report a session phase',description:'Pause/resume on user request, request target recovery, or report an actual observation/verification phase. Progress is factual; do not invent model thinking.',
-    inputSchema:z.object({sessionId:z.string().uuid(),action:z.enum(['pause','resume','retry_target','text_fallback','progress']),phase:z.enum(['observing','locating','presenting','verifying','thinking','idle']).optional(),expectedStep:z.number().int().min(1).optional()}),annotations:{readOnlyHint:false}
+    inputSchema:z.object({sessionId:z.string().uuid(),action:z.enum(['pause','resume','retry_target','text_fallback','progress','park','attach']),phase:z.enum(['observing','locating','presenting','verifying','thinking','idle']).optional(),expectedStep:z.number().int().min(1).optional()}),annotations:{readOnlyHint:false}
   },safe(({sessionId,action,phase,expectedStep})=>broker.control(sessionId,action,phase,expectedStep)));
   register('connection_status', {
     title: 'Read host connection status',

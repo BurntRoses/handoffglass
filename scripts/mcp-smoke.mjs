@@ -38,7 +38,7 @@ try {
   assert.match(a.getInstructions() || '', /agent's hand/);
   assert.match(a.getInstructions() || '', /never ask the user to name a tool/);
   const { tools } = await a.listTools();
-  const names=['screen_displays','ui_inspect','ui_locate','capability_manifest','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control','integration_uninstall','connection_status','permission_status','integration_status','integration_cleanup','integration_set_enabled'];
+  const names=['screen_mark','screen_displays','ui_inspect','ui_locate','capability_manifest','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control','integration_uninstall','connection_status','permission_status','integration_status','integration_cleanup','integration_set_enabled'];
   if(legacy)names.push('visual_show','handoff_request','visual_scene_update','handoff_status','handoff_events','handoff_wait','handoff_cancel');
   if (extras) names.push('handoff_context', 'handoff_blueprint', 'handoff_assess');
   assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());
@@ -87,9 +87,11 @@ try {
   assert.equal((await invoke(a, 'session_wait', { sessionId: id,maxWaitSeconds:0 })).session.status, 'awaiting_user');
   const stream = await invoke(a,'session_wait',{sessionId:id,cursor:0,maxWaitSeconds:0});
   assert.equal(stream.events[0].type,'session_started');
-  assert.equal(stream.nextAction,'wait_for_user');
+  assert.equal(stream.nextAction,'yield_to_user');
+  assert.equal(first.session.execution,'parked');
+  await invoke(a,'session_control',{sessionId:id,action:'attach'});
   const next = await invoke(a,'session_wait',{sessionId:id,cursor:stream.nextCursor,maxWaitSeconds:0});
-  assert.equal(next.events.length,0);
+  assert.deepEqual(next.events.map(e=>e.type),['session_attached']);
   assert.equal((await invoke(a, 'session_stop', { sessionId: id })).session.status, 'cancelled');
   assert.equal((await invoke(a, 'session_wait', { sessionId: id })).session.status, 'cancelled');
   const second = await invoke(b, 'session_start', params);
@@ -113,7 +115,7 @@ try {
   assert.equal((await invoke(a,'session_update',mutating)).session.sceneRevision,2);
   assert.equal((await invoke(a,'session_wait',{sessionId:painted.session.id,maxWaitSeconds:0})).session.annotations.length,0);
   assert.equal((await invoke(a,'session_verify',{sessionId:painted.session.id,verified:true,finish:true,expectedStep:1})).session.status,'completed');
-  const continuous=await invoke(a,'session_start',{title:'Step one',message:'Review the current screen',requestId:'continuous-smoke-1'});
+  const continuous=await invoke(a,'session_start',{execution:'attached',title:'Step one',message:'Review the current screen',requestId:'continuous-smoke-1'});
   assert.equal(continuous.session.continuous,true);
   const initial=await invoke(a,'session_wait',{sessionId:continuous.session.id,cursor:0,maxWaitSeconds:0});
   assert.ok(initial.events.length);

@@ -7,6 +7,12 @@ description: Guide a user through a desktop task with HandoffGlass when they ask
 
 A request such as “教我清空废纸篓” is enough: choose the steps and tools yourself. Keep the current instruction in the desktop card without repeating it in chat. Do not ask the user for tool names, coordinates or a procedure.
 
+## Fast paths
+
+For an explicit “在屏幕上画个圈”, call `screen_mark` once. Do not inspect, query displays, create a task session, or wait. The local renderer places it at the display center and clears it automatically. This is a drawing, not an application target.
+
+Guidance starts parked by default. For guidance that can stay on the desktop while the chat returns, start with `execution:"parked"` or use `session_control action:"park"`. Local rendering, target following, user actions and event recording continue without model calls. On `yield_to_user`, finish the chat turn with one short status. Do not loop or call a long wait. When the user returns, `session_control action:"attach"`, inspect the original app, then verify. `park` keeps the guide visible; `pause` hides marks. Idle models cannot be awakened by this plugin.
+
 ## Tool routing
 
 | Need | Call | Use the result |

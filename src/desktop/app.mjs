@@ -1,3 +1,4 @@
+import {desktopOwner} from './identity.mjs';
 import { registerApplicationInstallation } from '../application-installation.mjs';
 import { attachSessionCheckpoint } from '../local/session-checkpoint.mjs';
 /** Packaged GUI entry: self-hosts the broker so ordinary users need no Node installation. */
@@ -6,7 +7,7 @@ import { resolve, join } from 'node:path';
 import { rm, mkdir, stat } from 'node:fs/promises';
 import { HandoffManager } from '../core.mjs';
 import { LocalBridge } from '../bridge.mjs';
-import { runtimeDir, secureRuntimeDir, readManifest, writeManifest, writeDesktopManifest, probe } from '../runtime.mjs';
+import { runtimeDir, secureRuntimeDir, readManifest, writeManifest, writeDesktopManifest, readDesktopManifest, probe } from '../runtime.mjs';
 
 if (app.isPackaged) process.env.HANDOFFGLASS_NATIVE_RESOURCE_DIR = resolve(process.resourcesPath, 'native');
 function showStartupError(error){
@@ -22,17 +23,14 @@ function showStartupError(error){
 // A packaged Electron executable always loads package.json's main, even when
 // the Broker supplies main.mjs as an argument. Join its authenticated Bridge
 // instead of creating a competing Broker and waiting on our own startup lock.
-if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
+if(!desktopOwner) {
+  // The first desktop receives second-instance and opens its control center.
+} else if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
   void import('./main.mjs').catch(error => {
     console.error('[handoffglass] Attached desktop startup failed:', error);
     app.exit(1);
   });
-} else if (!app.requestSingleInstanceLock()) {
-  app.quit();
 } else {
-  app.on('second-instance', () => {
-    void import('./center.mjs').then(({showControlCenter})=>showControlCenter());
-  });
   // Leave ESM evaluation free to finish so Electron can emit ready.
   void app.whenReady().then(async () => {
     const dir = await secureRuntimeDir(runtimeDir());
@@ -51,9 +49,18 @@ if (process.env.HANDOFFGLASS_PORT || process.env.HANDOFFGLASS_SECRET) {
       }
       if (!acquired) throw new Error('Could not acquire local startup lock');
       const active = await readManifest(dir);
-      if (active && await probe(active)) throw Object.assign(new Error('Existing broker'),{code:'already_running'});
+      if(active && await probe(active)) {
+        const desktop=await readDesktopManifest(dir);
+        if(!desktop || desktop.pid!==active.pid || desktop.port!==active.port)throw new Error('Desktop discovery unavailable');
+        process.env.HANDOFFGLASS_PORT=String(desktop.port);process.env.HANDOFFGLASS_SECRET=desktop.desktopToken;
+        if(acquired){await rm(lock,{recursive:true,force:true});acquired=false;}
+        if(app.isPackaged)await registerApplicationInstallation({dir,userHome:app.getPath('home'),appPath:process.platform==='darwin'?resolve(process.execPath,'../../..'):resolve(process.execPath,'..'),dataPaths:process.env.HANDOFFGLASS_RUNTIME_DIR?[]:[app.getPath('userData')],appVersion:app.getVersion()});
+        await import('./main.mjs');
+        await import('./center.mjs').then(m=>m.showControlCenter());
+        return;
+      }
       if (active) await rm(join(dir,'broker.json'), {force:true});
-      if(app.isPackaged)try{await registerApplicationInstallation({dir,userHome:app.getPath('home'),appPath:process.platform==='darwin'?resolve(process.execPath,'../../..'):resolve(process.execPath,'..'),dataPaths:[app.getPath('userData')],appVersion:app.getVersion()});}catch(error){console.warn('[handoffglass] Application removal record unavailable:',error.code||'identity_not_verified');}
+      if(app.isPackaged)try{await registerApplicationInstallation({dir,userHome:app.getPath('home'),appPath:process.platform==='darwin'?resolve(process.execPath,'../../..'):resolve(process.execPath,'..'),dataPaths:process.env.HANDOFFGLASS_RUNTIME_DIR?[]:[app.getPath('userData')],appVersion:app.getVersion()});}catch(error){console.warn('[handoffglass] Application removal record unavailable:',error.code||'identity_not_verified');}
       manager = new HandoffManager();
       checkpoint=await attachSessionCheckpoint(manager,dir);
       bridge = new LocalBridge(manager);

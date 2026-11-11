@@ -1,6 +1,6 @@
 {
   "name": "handoffglass",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "private": true,
   "description": "Single-instance visual handoff broker for MCP agents with owned human decisions and safe desktop overlays",
   "type": "module",
@@ -71,6 +71,7 @@
     "handoff:check": "npm run verify && npm run scene:lint",
     "visual:trial": "node scripts/visual-trial.mjs",
     "test:visual": "node scripts/visual-trial.mjs --smoke",
+    "test:runtime-ui": "electron scripts/runtime-ui-smoke.mjs",
     "test:motion": "electron scripts/overlay-motion-smoke.mjs",
     "test:release-ui": "electron scripts/release-ui-smoke.mjs",
     "bench:continuity": "node scripts/benchmark-continuity.mjs",

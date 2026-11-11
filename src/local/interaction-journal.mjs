@@ -10,7 +10,7 @@ const REASONS = new Set(['consent_required','permission_denied','target_not_foun
 export const EVENT_TYPES = Object.freeze(['started','session_started','target_acquired','target_moved',
   'target_lost','target_restored','display_changed','desktop_unavailable',
   'scene_changed','scene_updated','session_finished','tracking_released','completed','declined','cancelled',
-  'expired','superseded','user_action','verification_required','agent_ready','permission_required','connection_changed','session_paused','session_resumed','recovery_requested']);
+  'expired','superseded','user_action','verification_required','agent_ready','permission_required','connection_changed','session_parked','session_attached','session_paused','session_resumed','recovery_requested']);
 const TYPES = new Set(EVENT_TYPES);
 const rectangle = s => JSON.stringify((s?.annotations ?? []).map(
   a => [a.x,a.y,a.width,a.height,a.opacity]));
@@ -67,6 +67,7 @@ export class InteractionJournal extends EventEmitter {
     }
     rec.nextAction=session.nextAction;
     const prior=rec.previous;
+    if(prior && session.execution!==prior.execution)this.#append(rec,session.execution==='parked'?'session_parked':'session_attached');
     if(prior && session.status==='paused' && prior.status!=='paused')this.#append(rec,'session_paused');
     if(prior && session.phase==='reconnecting' && prior.phase!=='reconnecting')this.#append(rec,prior.status==='paused'?'session_resumed':'connection_changed');
     if(prior && session.recoveryRequired && session.phase==='blocked' && session.nextAction!==prior.nextAction)this.#append(rec,'recovery_requested');
@@ -95,7 +96,7 @@ export class InteractionJournal extends EventEmitter {
       if(session.sceneRevision!==prior.sceneRevision && nextState!=='tracking' && nextState!=='manual')
         this.#append(rec,'scene_changed');
     }else if(session.targetTracking?.status==='tracking') this.#append(rec,'target_acquired');
-    rec.previous={nextAction:session.nextAction,step:session.step,phase:session.phase,status:session.status,targetTracking:session.targetTracking ? {...session.targetTracking}:null,
+    rec.previous={execution:session.execution,nextAction:session.nextAction,step:session.step,phase:session.phase,status:session.status,targetTracking:session.targetTracking ? {...session.targetTracking}:null,
       sceneRevision:session.sceneRevision,annotations:session.annotations?.map(a=>({...a}))};
     // LRU: old sessions cannot hold unbounded data. A live session is always newest.
     this.entries.delete(session.id);this.entries.set(session.id,rec);

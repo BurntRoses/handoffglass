@@ -104,7 +104,7 @@ export async function ensureBroker({ env = process.env, spawnBroker = null, time
  * Only retry a handoff POST when an idempotency key makes replay safe. */
 export function safeBrokerRetry(path, method, body) {
   return method === 'GET' ||
-    (path === '/agent/show' && method === 'POST' && typeof body?.requestId === 'string' && body.requestId.length >= 8) ||
+    (['/agent/show','/agent/mark'].includes(path) && method === 'POST' && typeof body?.requestId === 'string' && body.requestId.length >= 8) ||
     (path === '/agent/cancel' && method === 'POST' && typeof body?.sessionId === 'string');
 }
 export class BrokerClient {
@@ -115,7 +115,8 @@ export class BrokerClient {
     this.declaredHost = typeof env.HANDOFFGLASS_HOST_ID === 'string' ? env.HANDOFFGLASS_HOST_ID : '';
   }
   async request(path, { method = 'GET', body, timeoutMs = 34000 } = {}) {
-    let info = await ensureBroker(this.options);
+    let info = this.live || await ensureBroker(this.options);
+    this.live=info;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const response = await fetch(`http://127.0.0.1:${info.port}${path}`, {
@@ -129,8 +130,11 @@ export class BrokerClient {
         if (!response.ok) throw Object.assign(new Error(result.error || 'Broker request failed'), { code: result.code, httpCode: response.status });
         return result;
       } catch (error) {
-        if (error.httpCode || attempt || !safeBrokerRetry(path, method, body)) throw error;
-        info = await ensureBroker(this.options);
+        if(!error.httpCode)this.live=null;
+        // A refused connection sent no request bytes; other failures may have committed.
+        const unsent=error.cause?.code==='ECONNREFUSED';
+        if (error.httpCode || attempt || (!unsent && !safeBrokerRetry(path, method, body))) throw error;
+        info = await ensureBroker(this.options);this.live=info;
       }
     }
   }
@@ -145,6 +149,7 @@ export class BrokerClient {
   async blueprint(blueprint, locale) { return this.request('/agent/blueprint', { method: 'POST', body: { blueprint, locale } }); }
   async present(mode, args) { return this.request('/agent/show', { method: 'POST', body: { ...args, mode } }); }
   async displays() { return this.request('/agent/displays'); }
+  async mark(args) { return this.request('/agent/mark',{method:'POST',body:args}); }
   async inspect() {
     try { return await this.request('/agent/inspect'); }
     catch(error) {

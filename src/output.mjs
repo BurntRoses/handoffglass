@@ -1,6 +1,7 @@
 /** Machine-readable continuation survives compact output. */
 export function continuationFor(session) {
   if (!session) return 'check_session';
+  if(session.execution==='parked' && !['completed','declined','cancelled','expired','superseded'].includes(session.status))return 'yield_to_user';
   if (session.nextAction) return session.nextAction;
   if (session.status === 'completed') return 'verify_in_app';
   if (['declined','cancelled','expired','superseded'].includes(session.status)) return 'stop';
@@ -12,8 +13,8 @@ export function continuationFor(session) {
 }
 function compactSession(session) {
   if (!session) return null;
-  const { id, status, mode, phase, nextAction, continuous, step, totalSteps, epoch, completion, taskTimeoutAt, stepTimeoutAt, timeoutAt, verified, completionSource, sceneRevision, targetTracking } = session;
-  return { id, status, mode, ...(continuous?{continuous,step,totalSteps,epoch,completion,taskTimeoutAt,stepTimeoutAt}:{}), ...(phase ? { phase } : {}), ...(nextAction ? { nextAction } : {}), timeoutAt, verified, completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}) };
+  const { id, status, mode, execution, phase, nextAction, continuous, step, totalSteps, epoch, completion, taskTimeoutAt, stepTimeoutAt, timeoutAt, verified, completionSource, sceneRevision, targetTracking } = session;
+  return { id, status, mode, ...(execution?{execution}:{}), ...(continuous?{continuous,step,totalSteps,epoch,completion,taskTimeoutAt,stepTimeoutAt}:{}), ...(phase ? { phase } : {}), ...(nextAction ? { nextAction } : {}), timeoutAt, verified, completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}) };
 }
 export function formatToolResult(value, { compact = false } = {}) {
   if (!value || typeof value !== 'object') return value;

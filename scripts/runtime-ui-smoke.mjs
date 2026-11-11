@@ -1,0 +1,78 @@
+/** Real paint + reversible disclosure + parked local execution; no model calls. */
+import assert from 'node:assert/strict';
+import {app,BrowserWindow} from 'electron';
+import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
+import {mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+import {HandoffManager} from '../src/core.mjs';
+import {LocalBridge} from '../src/bridge.mjs';
+import {savePreferences} from '../src/local/preferences.mjs';
+const profile=mkdtempSync(join(tmpdir(),'hg-ui-profile-'));app.setPath('userData',profile);
+const pause=ms=>new Promise(r=>setTimeout(r,ms));
+async function until(fn,label){for(let i=0;i<100;i++){if(await fn())return;await pause(10);}throw Error(label);}
+void app.whenReady().then(async()=>{
+  const dir=await mkdtemp(join(tmpdir(),'hg-runtime-ui-')),output=resolve('.tmp/runtime-ui');
+  process.env.HANDOFFGLASS_RUNTIME_DIR=dir;await savePreferences({theme:'light'},dir);
+  const m=new HandoffManager(),b=new LocalBridge(m),errors=[];
+  await b.start();process.env.HANDOFFGLASS_PORT=String(b.port);process.env.HANDOFFGLASS_SECRET=b.token;
+  const owner='11111111-1111-4111-8111-111111111111';
+  const post=async(path,body)=>{
+    const r=await fetch(`http://127.0.0.1:${b.port}${path}`,{method:'POST',headers:{authorization:`Bearer ${b.agentToken}`,'x-handoffglass-owner':owner,'content-type':'application/json'},body:JSON.stringify(body)});
+    const value=await r.json();assert.equal(r.status,200,JSON.stringify(value));return value;
+  };
+  try{
+    await import('../src/desktop/main.mjs');await until(()=>b.connected,'Desktop offline');
+    const panel=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/panel.html'));
+    await until(()=>!panel.webContents.isLoading(),'Panel loading');
+    for(const win of BrowserWindow.getAllWindows())win.webContents.on('console-message',e=>{if(/Uncaught|Refused/.test(e.message))errors.push(e.message);});
+    let overlay;await until(()=>{overlay=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/overlay.html'));return !!overlay;},'Overlay absent');
+    await until(()=>!overlay.webContents.isLoading(),'Overlay loading');
+    const samples=[];
+    for(let i=0;i<12;i++){
+      const started=performance.now(),mark=await post('/agent/mark',{shape:i%2?'double_ring':'ring',requestId:'paint-check-'+i});
+      const response=performance.now()-started;
+      await until(()=>overlay.webContents.executeJavaScript(`!!document.querySelector('[data-shape="${i%2?'double_ring':'ring'}"]')`),'Mark did not render');
+      const domMs=performance.now()-started;
+      await overlay.webContents.capturePage();
+      samples.push({responseMs:response,domMs,paintMs:performance.now()-started,brokerMs:mark.localMs});
+    }
+    await mkdir(output,{recursive:true});await writeFile(join(output,'quick-circle.png'),(await overlay.webContents.capturePage()).toPNG());
+    const s=m.show({continuous:true,execution:'parked',title:'打开设置',message:'在原窗口点击设置，完成后返回会话。'},owner);
+    const js=code=>panel.webContents.executeJavaScript(code);
+    await until(()=>js(`document.querySelector('#title').textContent==='打开设置'`),'Parked panel absent');
+    assert.match(await js("document.querySelector('#phase').textContent"),/本地引导/);
+    panel.webContents.debugger.attach('1.3');
+    await panel.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
+    const before=await js("document.querySelector('#cardBody').getBoundingClientRect().height");
+    await js("document.querySelector('#collapse').click()");await pause(55);
+    const mid=await js("document.querySelector('#cardBody').getBoundingClientRect().height");
+    assert.ok(mid>0 && mid<before,`No intermediate frame: ${mid}/${before}`);
+    await js("document.querySelector('#collapse').click()");await pause(230);
+    assert.equal(await js("document.querySelector('#cardBody').hidden"),false);
+    assert.equal(await js("document.querySelector('#collapse').getAttribute('aria-expanded')"),'true');
+    assert.ok(Math.abs((await js("document.querySelector('#cardBody').getBoundingClientRect().height"))-before)<2);
+    await js("document.querySelector('#done').focus();document.querySelector('#collapse').click()");await pause(230);
+    assert.equal(await js('document.activeElement.id'),'collapse');
+    assert.equal(await js("document.querySelector('#cardBody').inert"),true);
+    await js("document.querySelector('#collapse').click()");await pause(230);
+    await writeFile(join(output,'parked-panel.png'),(await panel.webContents.capturePage()).toPNG());
+    const bounds=panel.getBounds(),height=await js("document.querySelector('#panel').getBoundingClientRect().height");assert.ok(Math.abs(bounds.height-height)<3);
+    await js("document.querySelector('#detailsLabel').click()");await pause(230);
+    assert.equal(await js("document.querySelector('#detailsLabel').getAttribute('aria-expanded')"),'true');
+    await js("document.querySelector('#execution').click()");await until(()=>m.get(s.id).execution==='attached','Desktop attach failed');
+    await js("document.querySelector('#execution').click()");await until(()=>m.get(s.id).execution==='parked','Desktop park failed');
+    await js("document.querySelector('#detailsLabel').click()");await pause(230);
+    await until(async()=>!await js("document.querySelector('#stepDetails').open"),'Details did not finish closing');
+    assert.equal(await js("getComputedStyle(document.querySelector('#detailsLabel'),'::after').width"),'16px');
+    await panel.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+    await js("document.querySelector('#collapse').click()");
+    assert.equal(await js("document.querySelector('#cardBody').hidden"),true);panel.webContents.debugger.detach();
+    m.resolve(s.id,'completed');assert.equal(m.get(s.id).verified,false);
+    assert.equal(m.get(s.id).phase,'verifying');m.control(s.id,owner,'attach');m.verify(s.id,owner,true,true);
+    assert.deepEqual(errors,[]);
+    const stats=key=>{const sorted=samples.slice(2).map(s=>s[key]).sort((a,b)=>a-b);return {p50Ms:+sorted[5].toFixed(1),p95Ms:+sorted[9].toFixed(1)};};
+    const report={samples:10,warmup:2,broker:stats('brokerMs'),response:stats('responseMs'),dom:stats('domMs'),paint:stats('paintMs'),window:{visible:overlay.isVisible(),visibility:await overlay.webContents.executeJavaScript('document.visibilityState'),throttling:overlay.webContents.getBackgroundThrottling()},scope:'Warm loopback HTTP to Electron SVG DOM/capturePage; excludes host/model. One physical display. Capture includes OS scheduling.',checks:['reversible collapse','focus return','inert','disclosure','reduced motion','parked local action and verification'],errors};
+    await writeFile(join(output,'report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
+  }finally{m.close();await b.stop();for(const w of BrowserWindow.getAllWindows())w.destroy();await rm(dir,{recursive:true,force:true});await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:100});}
+}).then(()=>app.exit(0)).catch(e=>{console.error(e);app.exit(1);});
