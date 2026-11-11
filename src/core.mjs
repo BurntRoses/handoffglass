@@ -307,7 +307,7 @@ export class HandoffManager extends EventEmitter {
   }
   stopActive() {const session=this.activeId&&this.sessions.get(this.activeId);if(session)this.#finish(session,'cancelled');}
   /** Optimistic, owner-scoped and atomic scene change; never renews the handoff TTL. */
-  updateScene(id, owner, expectedRevision, operations) {
+  updateScene(id, owner, expectedRevision, operations, appearance={}) {
     if (this.owners.get(id) !== owner) return { error: 'not_found' };
     const session = this.sessions.get(id);
     this.get(id); // Re-evaluate expiration first.
@@ -319,11 +319,14 @@ export class HandoffManager extends EventEmitter {
     if (!Number.isInteger(expectedRevision) || expectedRevision !== session.sceneRevision) {
       return { error: 'revision_conflict', sceneRevision: session.sceneRevision };
     }
+    if(appearance.visualStyle!==undefined&&!VISUAL_STYLES.includes(appearance.visualStyle))throw new TypeError('Invalid visual style');
+    if(appearance.motion!==undefined&&!MOTION_MODES.includes(appearance.motion))throw new TypeError('Invalid motion');
     const next = patchScene(session.scene, operations);
     const flattened = flattenScene(next);
     // Allow temporarily hiding every layer to clear the screen without finishing a handoff.
     session.scene = next;
     session.annotations = flattened;
+    for(const key of ['visualStyle','motion'])if(appearance[key]!==undefined)session[key]=appearance[key];
     // A manual scene edit transfers control from native auto-follow to the Agent.
     if (session.targetTracking) session.targetTracking = { status: 'manual', observedAt: null };
     session.sceneRevision++;

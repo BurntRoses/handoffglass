@@ -47,6 +47,19 @@
             <label><span data-i="exitStyle">收起</span><select id="previewExit"><option value="fade" data-option="fadeOut">渐隐</option><option value="retract" data-option="retract">收笔</option><option value="shrink" data-option="shrink">缩隐</option></select></label>
             <label id="previewMaskRow"><span data-i="maskStyle">遮罩</span><select id="previewMask"><option value="soft" data-option="maskSoft">柔边</option><option value="crisp" data-option="maskCrisp">清晰边缘</option><option value="deep" data-option="maskDeep">深色</option></select></label>
           </div>
+          <details class="disclosure drawing-options" id="drawingOptions"><summary data-i="drawingOptions">尺寸与批注</summary>
+            <div class="drawing-grid">
+              <label><span data-i="drawingWidth">宽度 · DIP</span><input id="drawWidth" type="number" min="24" max="800" step="1" value="220"></label>
+              <label><span data-i="drawingHeight">高度 · DIP</span><input id="drawHeight" type="number" min="24" max="800" step="1" value="220"></label>
+              <label class="drawing-label"><span data-i="drawingLabel">批注</span><input id="drawLabel" type="text" maxlength="64" autocomplete="off"></label>
+              <label><span data-i="drawingPlacement">屏幕位置</span><select id="drawPlacement"><option value="center" data-option="placeCenter">中央</option><option value="left" data-option="placeLeft">左侧</option><option value="right" data-option="placeRight">右侧</option><option value="top" data-option="placeTop">上方</option><option value="bottom" data-option="placeBottom">下方</option><option value="top_left" data-option="placeTopLeft">左上</option><option value="top_right" data-option="placeTopRight">右上</option><option value="bottom_left" data-option="placeBottomLeft">左下</option><option value="bottom_right" data-option="placeBottomRight">右下</option></select></label>
+              <label><span data-i="drawingColor">颜色</span><select id="drawColor"><option value="#52ca94" data-option="colorGreen">绿色</option><option value="#75b9ff" data-option="colorBlue">蓝色</option><option value="#ffc16e" data-option="colorAmber">琥珀</option><option value="#ff8585" data-option="colorCoral">珊瑚</option></select></label>
+              <label><span data-i="drawingLine">笔触</span><select id="drawLine"><option value="solid" data-option="lineSolid">实线</option><option value="dashed" data-option="lineDashed">虚线</option></select></label>
+              <label><span data-i="drawingWeight">线宽</span><input id="drawWeight" type="number" min="1" max="8" step="0.5" value="2.5"></label>
+              <label id="drawDirectionRow"><span data-i="drawingDirection">箭头方向</span><select id="drawDirection"><option value="auto" data-option="directionAuto">自动</option><option value="left" data-option="placeLeft">向左</option><option value="right" data-option="placeRight">向右</option><option value="up" data-option="placeTop">向上</option><option value="down" data-option="placeBottom">向下</option></select></label>
+            </div>
+          </details>
+          <div class="drawing-actions"><span id="drawFeedback" role="status" aria-live="polite"></span><button type="button" class="ui-button quiet-button" id="clearDrawing" data-i="clearDrawing" disabled>清除标记</button><button type="button" class="ui-button primary" id="drawScreen" data-i="drawScreen">在屏幕试画</button></div>
           <div class="preview-footer"><span data-i="previewHint">样式库仅用于预览，实际标记按当前步骤选用。</span><button type="button" class="ui-button quiet-button" id="previewDismiss" data-i="dismiss">收起预览</button></div>
         </div>
         <form id="preferences" novalidate><div class="settings-list">

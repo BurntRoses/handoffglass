@@ -41,6 +41,15 @@ export function normalizeAnnotation(input) {
     height: input.height == null ? null : number(input.height, 'height', Number.EPSILON, 5000),
     label: cap(input.label, 64)
   };
+  if(input.direction!==undefined){
+    if(!['auto','left','right','up','down'].includes(input.direction))throw new TypeError('Unknown arrow direction');
+    result.direction=input.direction;
+  }
+  if(input.strokeWidth!==undefined)result.strokeWidth=number(input.strokeWidth,'strokeWidth',1,8);
+  if(input.lineStyle!==undefined){
+    if(!['solid','dashed'].includes(input.lineStyle))throw new TypeError('Unknown line style');
+    result.lineStyle=input.lineStyle;
+  }
   if (input.id !== undefined) result.id = identifier(input.id, 'annotation id');
   if (input.tone !== undefined) result.tone = tone;
   if (input.opacity !== undefined) result.opacity = number(input.opacity, 'opacity', 0, 1);

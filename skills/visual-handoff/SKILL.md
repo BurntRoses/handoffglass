@@ -1,6 +1,6 @@
 ---
 name: visual-handoff
-description: Guide a user through a desktop task with HandoffGlass when they ask to be taught or shown how, or when a screen step needs their hand. Also manage HandoffGlass when they ask to pause, remove a connection, or uninstall it.
+description: Draw or revise screen annotations, or guide a user through a desktop task with HandoffGlass when they ask to be taught or shown how, or when a screen step needs their hand. Also manage HandoffGlass when they ask to pause, remove a connection, or uninstall it.
 ---
 
 # HandoffGlass
@@ -9,7 +9,7 @@ A request such as “教我清空废纸篓” is enough: choose the steps and to
 
 ## Fast paths
 
-For an explicit “在屏幕上画个圈”, call `screen_mark` once. Do not inspect, query displays, create a task session, or wait. The local renderer places it at the display center and clears it automatically. This is a drawing, not an application target.
+For an explicit “在屏幕上画个圈”, call `screen_mark` once. Do not inspect, query displays, create a task session, or wait. The local renderer places it at the display center and clears it automatically. Use `placement` for a screen region, `label` for a caption and `marks` for up to eight shapes. `sequence:true` adds step numbers locally. Reuse returned `id` and `revision` as `expectedRevision` for `action:"update"` or `action:"clear"`. Updates keep the original expiry; replace `marks` to change a group. This is explicit drawing; application targets still need observation.
 
 Guidance starts parked by default. For guidance that can stay on the desktop while the chat returns, start with `execution:"parked"` or use `session_control action:"park"`. Local rendering, target following, user actions and event recording continue without model calls. On `yield_to_user`, finish the chat turn with one short status. Do not loop or call a long wait. When the user returns, `session_control action:"attach"`, inspect the original app, then verify. `park` keeps the guide visible; `pause` hides marks. Idle models cannot be awakened by this plugin.
 

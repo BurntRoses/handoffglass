@@ -75,7 +75,7 @@ function buildMark(a, accent, visualStyle, viewport, box) {
     'data-exit': a.exit ?? (['ring','scribble','underline','strike','double_ring'].includes(a.shape) ? 'retract' : ['dot','ripple','check','cross','badge'].includes(a.shape) ? 'shrink' : 'fade'),
     'data-shape': a.shape, 'data-layer': a.layerId ?? 'legacy', 'data-effect': effect });
   styles(group, {'transform-origin': `${x}px ${y}px`, '--hg-accent': accent});
-  const stroke = { stroke: accent, fill: 'none', 'stroke-width': ink ? 2.3 : 1.8,
+  const stroke = { stroke: accent, fill: 'none', 'stroke-width': a.strokeWidth ?? (ink ? 2.3 : 1.8),
     'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
   const rect = { x: x - rw / 2 - 7, y: y - rh / 2 - 7, width: rw + 14, height: rh + 14, rx: Math.min(14, rh / 3 + 5) };
   if (a.shape === 'ring' || a.shape === 'scribble' || a.shape === 'double_ring') {
@@ -114,12 +114,13 @@ function buildMark(a, accent, visualStyle, viewport, box) {
     trace(group,'path',{d:`M ${x-size*.55} ${y-size*.55} L ${x+size*.55} ${y+size*.55}`,...stroke,'stroke-width':2.6});
     trace(group,'path',{d:`M ${x+size*.55} ${y-size*.55} L ${x-size*.55} ${y+size*.55}`,...stroke,'stroke-width':2.6},'hg-second-stroke');
   } else if (a.shape === 'arrow') {
-    const side = x > viewport.width - 210 ? -1 : 1, vertical = y < 155 ? 1 : -1;
+    const vectors={left:[1,0],right:[-1,0],up:[0,1],down:[0,-1]};
+    const [side,vertical]=vectors[a.direction]??[x > viewport.width - 210 ? -1 : 1,y < 155 ? 1 : -1];
     const sx = clamp(x + side * (rw / 2 + 82), 24, viewport.width - 24);
     const sy = clamp(y + vertical * (rh / 2 + 66), 24, viewport.height - 24);
-    const ex = x + side * Math.min(12, rw / 4), ey = y + vertical * Math.min(10, rh / 4);
-    const cx = sx + (ex - sx) * .1, cy = ey - vertical * 18;
-    trace(group, 'path', { d: `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`, ...stroke, 'stroke-width': ink ? 3 : 2.4 });
+    const ex = x, ey = y;
+    const cx = sx + (ex - sx) * .1, cy = ey + vertical * 18;
+    trace(group, 'path', { d: `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`, ...stroke, 'stroke-width': a.strokeWidth ?? (ink ? 3 : 2.4) });
     const angle = Math.atan2(ey - cy, ex - cx), size = 10;
     trace(group, 'path', { d: `M ${f(ex - Math.cos(angle - .55) * size)} ${f(ey - Math.sin(angle - .55) * size)} L ${ex} ${ey} L ${f(ex - Math.cos(angle + .55) * size)} ${f(ey - Math.sin(angle + .55) * size)}`, ...stroke }, 'hg-arrow-head');
     group.append(node('circle', { cx: x, cy: y, r: 3, fill: accent, class: 'hg-target-dot' }));
@@ -173,6 +174,17 @@ function buildMark(a, accent, visualStyle, viewport, box) {
       underlay.append(copy);
     }
     group.insertBefore(underlay,group.children[0]||null);
+  }
+  if(a.lineStyle==='dashed')for(const path of group.querySelectorAll('.hg-trace')){
+    // The dash pattern is geometric; entrance uses opacity so it cannot overwrite the pattern.
+    styles(path,{'stroke-dasharray':'.045 .035'});
+    group.setAttribute('data-effect',effect==='still'?'still':'fade');
+  }
+  if(box){
+    const bx=clamp(x,box.x,box.x+box.width),by=clamp(y,box.y,box.y+box.height);
+    const dx=bx-x,dy=by-y,point=['arrow','dot','ripple','cursor','crosshair'].includes(a.shape);
+    const edge=point?0:Math.min(1,(rw/2+8)/Math.max(1,Math.abs(dx)),(rh/2+8)/Math.max(1,Math.abs(dy)));
+    group.append(node('path',{d:`M ${f(x+dx*edge)} ${f(y+dy*edge)} L ${bx} ${by}`,stroke:accent,'stroke-width':1,'stroke-opacity':.45,fill:'none',class:'hg-label-leader'}));
   }
   label(group, box, accent);
   return group;

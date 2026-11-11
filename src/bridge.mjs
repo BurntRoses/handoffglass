@@ -12,7 +12,7 @@ import { InteractionJournal, recoveryFor } from './local/interaction-journal.mjs
 import { getAccessibilityConsent, setAccessibilityConsent } from './native/preferences.mjs';
 import { TargetRegistry } from './visual/target-registry.mjs';
 import { CAPABILITY_MANIFEST } from './capabilities.mjs';
-import { quickMarkRequest } from './visual/quick-mark.mjs';
+import { quickMarkRequest, drawingScene } from './visual/quick-mark.mjs';
 import { continuationFor } from './output.mjs';
 import { TERMINAL_STATES } from './core.mjs';
 import { startDesktopTrial } from './local/desktop-trial.mjs';
@@ -74,7 +74,7 @@ export class LocalBridge {
     this.hostActivity = new HostActivity();
     this.journal = new InteractionJournal(manager);
     this.displays = [];
-    this.pluginBindings=new Map();this.targets=new TargetRegistry();this.agentWaits=new Map();this.connectionEvidence=new Map();this.permissionCache=null;
+    this.drawings=new Map();this.pluginBindings=new Map();this.targets=new TargetRegistry();this.agentWaits=new Map();this.connectionEvidence=new Map();this.permissionCache=null;
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
     this.waiters = new Set();
@@ -134,6 +134,51 @@ export class LocalBridge {
     this.manager.off('show', this.onManagerChange);
     this.manager.off('change', this.onManagerChange);
   }
+  /** Drawings use the existing scene engine, never a task wait or another Broker. */
+  async mark(body,owner){
+    const started=performance.now(),action=body.action??'draw';
+    const error=(status,code,extra={})=>({status,body:{error:code,code,...extra}});
+    if(!['draw','update','clear'].includes(action))return error(400,'invalid_action');
+    const preference=await loadPreferences();
+    if(!preference.enabled)return error(423,'disabled_by_user');
+    const record=body.id&&this.drawings.get(body.id);
+    if(action!=='draw'){
+      const owned=record&&this.manager.getOwned(body.id,owner);
+      if(!owned)return error(404,'not_found');
+      if(TERMINAL_STATES.includes(owned.status))return error(409,'already_final');
+      if(!Number.isInteger(body.expectedRevision)||body.expectedRevision!==owned.sceneRevision)return error(409,'revision_conflict',{revision:owned.sceneRevision});
+      if(action==='clear'){
+        const result=this.manager.resolve(body.id,'cancelled',owner);
+        if(result.error)return error(409,result.error);
+        this.drawings.delete(body.id);
+        return {status:200,body:{id:body.id,revision:owned.sceneRevision,visible:false,nextAction:'done',localMs:+(performance.now()-started).toFixed(1)}};
+      }
+      if(!this.headless&&!this.connected)return error(503,'no_desktop');
+      const {action:ignoredAction,id:ignoredId,expectedRevision:ignoredRevision,...patch}=body;
+      const input={...record.input,...patch};delete input.requestId;
+      const compiled=quickMarkRequest(input,this.displays,preference);
+      const result=this.manager.updateScene(body.id,owner,body.expectedRevision,[{op:'upsert_layer',layer:drawingScene(compiled).layers[0]}],{visualStyle:compiled.visualStyle,motion:compiled.motion});
+      if(result.error)return error(409,result.error);
+      record.input=input;
+      return {status:200,body:this.markResult(result.session,started)};
+    }
+    if(body.id!==undefined||body.expectedRevision!==undefined)return error(400,'draw_does_not_take_id');
+    // Reject malformed input before starting Electron. Live bounds determine the final placement.
+    quickMarkRequest(body,[{id:body.displayId||'validate',x:0,y:0,width:2000,height:1200}],preference,{validateOnly:true});
+    await this.prepare();
+    if(!this.headless&&!this.connected)return error(503,'no_desktop');
+    if(!(await loadPreferences()).enabled)return error(423,'disabled_by_user');
+    if(this.manager.active()?.continuous)return error(409,'busy');
+    const compiled=quickMarkRequest(body,this.displays,preference);
+    const {annotations,...request}=compiled;
+    const session=this.manager.show({...request,scene:drawingScene(compiled)},owner);
+    if(session.error)return error(409,session.error);
+    if(TERMINAL_STATES.includes(session.status))return error(409,'already_final');
+    if(!this.drawings.has(session.id))this.drawings.set(session.id,{input:structuredClone(body)});
+    while(this.drawings.size>64)this.drawings.delete(this.drawings.keys().next().value);
+    return {status:200,body:this.markResult(session,started)};
+  }
+  markResult(session,started){return {id:session.id,revision:session.sceneRevision,count:session.annotations.length,visible:!this.headless,expiresAt:session.timeoutAt,nextAction:'done',localMs:+(performance.now()-started).toFixed(1)};}
   async #handle(req, res) {
     // Authorization header cannot be supplied by ordinary cross-origin browser
     // fetch without a CORS preflight, and we do not enable CORS.
@@ -145,7 +190,7 @@ export class LocalBridge {
     const pathname = parsed.pathname;
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/desktop/diagnostics': 'GET', '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
-      '/desktop/preferences':'POST', '/desktop/stream':'GET', '/desktop/control':'POST', '/desktop/permissions':'GET', '/desktop/trial':'POST', '/desktop/shutdown':'POST',
+      '/desktop/mark':'POST', '/agent/mark':'POST', '/desktop/preferences':'POST', '/desktop/stream':'GET', '/desktop/control':'POST', '/desktop/permissions':'GET', '/desktop/trial':'POST', '/desktop/shutdown':'POST',
       '/agent/displays': 'GET', '/agent/inspect': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
       '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/capabilities': 'GET',
       '/agent/connection': 'GET', '/agent/permissions': 'GET', '/agent/integration-status': 'GET', '/agent/integration-cleanup': 'POST', '/agent/integration-enabled':'POST',
@@ -170,7 +215,7 @@ export class LocalBridge {
       const formerLayout = layoutSignature(this.displays);
       this.displays = body.displays.map(d => ({
         id: d.id, x: d.x, y: d.y, width: d.width,
-        height: d.height, scaleFactor: Number.isFinite(d.scaleFactor) ? d.scaleFactor : 1,
+        height: d.height, primary:d.primary===true, scaleFactor: Number.isFinite(d.scaleFactor) ? d.scaleFactor : 1,
         ...(d.physicalBounds ? { physicalBounds: d.physicalBounds } : {})
       }));
       this.lastPoll = Date.now();
@@ -201,6 +246,10 @@ export class LocalBridge {
       if(!['progress','park','attach'].includes(body.action))this.anchors.clearFor(body.id);
       if(!result.error)await this.manager.flushCheckpoint?.();
       return sendJson(res,result.error?409:200,{...result,...this.snapshot()});
+    }
+    if(req.method==='POST' && pathname==='/desktop/mark'){
+      const result=await this.mark(await readJson(req),'desktop-drawing');
+      return sendJson(res,result.status,result.body);
     }
     if(req.method==='POST' && pathname==='/desktop/trial'){
       await readJson(req);
@@ -362,17 +411,8 @@ export class LocalBridge {
           warning: 'This is an observation, not permission to click or approve. Revalidate after UI changes.' });
       }
       if(req.method==='POST' && pathname==='/agent/mark') {
-        const started=performance.now(),body=await readJson(req),preference=await loadPreferences();
-        if(!preference.enabled)return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
-        // Validate before preparing a desktop; placement is computed from live display bounds.
-        quickMarkRequest(body,[{id:body.displayId||'validate',x:0,y:0,width:2000,height:1200}],preference);
-        await this.prepare();
-        if(!this.headless&&!this.connected)return sendJson(res,503,{error:'no_desktop',code:'no_desktop'});
-        if(!(await loadPreferences()).enabled)return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
-        if(this.manager.active()?.continuous)return sendJson(res,409,{error:'busy',code:'busy'});
-        const request=quickMarkRequest(body,this.displays,preference),session=this.manager.show(request,owner);
-        if(session.error)return sendJson(res,409,{error:session.error,code:session.error});
-        return sendJson(res,200,{id:session.id,visible:!this.headless,expiresAt:session.timeoutAt,nextAction:'done',localMs:Math.round((performance.now()-started)*10)/10});
+        const result=await this.mark(await readJson(req),owner);
+        return sendJson(res,result.status,result.body);
       }
       if (req.method === 'POST' && pathname === '/agent/show') {
         const body = await readJson(req);

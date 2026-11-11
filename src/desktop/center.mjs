@@ -36,7 +36,7 @@ export async function showControlCenter() {
   center.show();
   return center;
 }
-export function registerCenterIPC({getDiagnostics,getDisplayInfo,identifyDisplays,runTrial,showCurrent}) {
+export function registerCenterIPC({getDiagnostics,getDisplayInfo,identifyDisplays,runTrial,showCurrent,drawMark}) {
   if (typeof getDiagnostics !== 'function' || typeof getDisplayInfo !== 'function') throw new TypeError('Diagnostics and display providers are required');
   ipcMain.handle('hg:center:connection',async(event,host)=>{
     if(!authorized(event)||!['codex','workbuddy'].includes(host))return {ok:false,code:'unsupported_host'};
@@ -54,6 +54,10 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo,identifyDisplay
       try{return {ok:true,...await callback()};}catch(error){return {ok:false,code:error.code||'unavailable'};}
     });
   }
+  ipcMain.handle('hg:center:mark',async(event,body)=>{
+    if(!authorized(event)||!body||typeof body!=='object'||Array.isArray(body))return {ok:false,code:'invalid_request'};
+    try{return {ok:true,...await drawMark(body)};}catch(error){return {ok:false,code:error.code||'unavailable'};}
+  });
   ipcMain.handle('hg:center:uninstall',async(event,confirm=false)=>{
     if(!authorized(event)||typeof confirm!=='boolean')return {ok:false,code:'invalid_request'};
     try {

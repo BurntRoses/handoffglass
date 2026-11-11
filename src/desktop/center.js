@@ -5,6 +5,7 @@ import { createMarkPicker } from './mark-picker.mjs';
 import { renderOverlay } from './overlay-renderer.mjs';
 const lex = {
  "zh-CN": {
+  "drawingOptions":"尺寸与批注","drawingWidth":"宽度 · DIP","drawingHeight":"高度 · DIP","drawingLabel":"批注","drawingPlacement":"屏幕位置","drawingColor":"颜色","drawingLine":"笔触","drawingWeight":"线宽","drawingDirection":"箭头方向","directionAuto":"自动","lineSolid":"实线","lineDashed":"虚线","placeCenter":"中央","placeLeft":"左侧","placeRight":"右侧","placeTop":"上方","placeBottom":"下方","placeTopLeft":"左上","placeTopRight":"右上","placeBottomLeft":"左下","placeBottomRight":"右下","colorGreen":"绿色","colorBlue":"蓝色","colorAmber":"琥珀","colorCoral":"珊瑚","clearDrawing":"清除标记","drawScreen":"在屏幕试画","updateDrawing":"更新标记","drawingVisible":"已显示，将自动清除。","drawingCleared":"已清除。","drawingExpired":"标记已到期。","drawingBusy":"正在引导中，结束后再试画。","drawingDisabled":"请先启用 HandoffGlass。","drawingInvalid":"请检查尺寸（24–800）和线宽（1–8）。","drawingFailed":"标记未更新，请重试。",
   "markCategories":"标记用途","entrance":"出现与停留","exitStyle":"收起","maskStyle":"遮罩","draw":"描绘","fade":"渐变","fadeIn":"渐显","fadeOut":"渐隐","pop":"轻弹","pulse":"呼吸","flow":"流线","still":"静态","retract":"收笔","shrink":"缩隐","maskSoft":"柔边","maskCrisp":"清晰边缘","maskDeep":"深色","dismiss":"收起预览","restore":"显示预览","previewHint":"预览标记与动效。",
 
   "event_session_started":"引导已开始","event_scene_updated":"已显示下一步","event_session_finished":"引导已结束","event_user_action":"已提交操作结果","event_verification_required":"等待核实","event_agent_ready":"准备下一步",
@@ -157,6 +158,7 @@ const lex = {
   "offlineDesc": "桌面引导暂不可用，请稍后重试。"
  },
  "en-US": {
+  "drawingOptions":"Size & caption","drawingWidth":"Width · DIP","drawingHeight":"Height · DIP","drawingLabel":"Caption","drawingPlacement":"Screen position","drawingColor":"Color","drawingLine":"Stroke","drawingWeight":"Stroke width","drawingDirection":"Arrow direction","directionAuto":"Auto","lineSolid":"Solid","lineDashed":"Dashed","placeCenter":"Center","placeLeft":"Left","placeRight":"Right","placeTop":"Top","placeBottom":"Bottom","placeTopLeft":"Top left","placeTopRight":"Top right","placeBottomLeft":"Bottom left","placeBottomRight":"Bottom right","colorGreen":"Green","colorBlue":"Blue","colorAmber":"Amber","colorCoral":"Coral","clearDrawing":"Clear marks","drawScreen":"Draw on screen","updateDrawing":"Update marks","drawingVisible":"Visible; clears automatically.","drawingCleared":"Cleared.","drawingExpired":"Mark expired.","drawingBusy":"Guidance is active. Finish it before drawing.","drawingDisabled":"Enable HandoffGlass first.","drawingInvalid":"Check size (24–800) and stroke width (1–8).","drawingFailed":"Could not update the mark. Try again.",
   "markCategories":"Mark purpose","entrance":"Entrance & hold","exitStyle":"Exit","maskStyle":"Shade","draw":"Draw","fade":"Fade","fadeIn":"Fade in","fadeOut":"Fade out","pop":"Pop","pulse":"Pulse","flow":"Flow","still":"Still","retract":"Retract","shrink":"Shrink","maskSoft":"Soft","maskCrisp":"Crisp","maskDeep":"Deep","dismiss":"Hide preview","restore":"Show preview","previewHint":"Preview marks and motion.",
 
   "event_session_started":"Guidance started","event_scene_updated":"Next step shown","event_session_finished":"Guidance ended","event_user_action":"Action reported","event_verification_required":"Awaiting verification","event_agent_ready":"Preparing next step",
@@ -328,7 +330,7 @@ function savePatch(patch){
 let hostPlatform=null,lastDisplays=null,displaySettingsState=null,lastPermission=null;
 const connectionStates={};
 const translateKey=key=>(lex[prefs?.locale]||lex['zh-CN'])[key]||key;
-function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();renderDisplays(lastDisplays);renderConnection();renderPermission();if(currentPage==='appearance')renderPreview();}
+function applyLocale(){const lang=lex[prefs?.locale]?prefs.locale:'zh-CN';document.documentElement.lang=lang;document.documentElement.dataset.theme=prefs?.theme||'system';document.querySelectorAll('[data-i]').forEach(el=>{el.textContent=translateKey(el.dataset.i)});document.querySelectorAll('[data-option]').forEach(el=>{el.textContent=translateKey(el.dataset.option)});document.querySelectorAll('[data-label]').forEach(el=>el.setAttribute('aria-label',translateKey(el.dataset.label)));$('crumb').textContent=translateKey(currentPage);syncChoices();connectionLabels();renderLocal();renderDisplays(lastDisplays);renderConnection();renderPermission();if(currentPage==='appearance')renderPreview();drawingControls();}
 function showPage(page){if(!['overview','connections','appearance','diagnostics'].includes(page))return;currentPage=page;document.querySelectorAll('[data-view]').forEach(el=>el.hidden=el.dataset.view!==page);document.querySelectorAll('[data-page]').forEach(el=>el.getAttribute('data-page')===page?el.setAttribute('aria-current','page'):el.removeAttribute('aria-current'));$('crumb').textContent=translateKey(page);if(page==='connections'){void preview();void refresh();void inspectIntegration();void refreshConnection();}if(page==='diagnostics'||page==='overview')void refresh();if(page==='diagnostics'){void refreshDisplays();void refreshPermission();}if(page==='appearance')requestAnimationFrame(renderPreview);}
 function value(id,text){$(id).textContent=text;}
 let observedHosts=[];
@@ -535,15 +537,45 @@ function renderPreview(){
  const svg=$('stylePreview'),bounds=svg.getBoundingClientRect(),target=document.querySelector('.preview-target').getBoundingClientRect();
  if(!bounds.width||!target.width)return;
  $('previewMaskRow').hidden=markPicker.shape!=='spotlight';
+ $('drawDirectionRow').hidden=markPicker.shape!=='arrow';
  value('previewDismiss',translateKey(previewHidden?'restore':'dismiss'));
  renderOverlay(svg,{sessionId:`settings-${previewRevision}`,visualStyle:$('visualStyle').value,motion:$('motion').value,animateExit:previewHidden,
-  annotations:previewHidden?[]:[{id:'preview',x:target.x-bounds.x+target.width/2,y:target.y-bounds.y+target.height/2,width:target.width,height:target.height,shape:markPicker.shape,effect:$('previewEffect').value,exit:$('previewExit').value,maskStyle:$('previewMask').value,label:markPicker.shape==='badge'?'2':'',color:getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()}]},
+  annotations:previewHidden?[]:[{id:'preview',x:target.x-bounds.x+target.width/2,y:target.y-bounds.y+target.height/2,width:target.width*Number($('drawWidth').value||220)/220,height:target.height*Number($('drawHeight').value||220)/220,shape:markPicker.shape,direction:$('drawDirection').value,lineStyle:$('drawLine').value,strokeWidth:Number($('drawWeight').value||2.5),effect:$('previewEffect').value,exit:$('previewExit').value,maskStyle:$('previewMask').value,label:markPicker.shape==='badge'?'2':$('drawLabel').value,color:$('drawColor').value}]},
   {width:bounds.width,height:bounds.height});
 }
 $('replay').addEventListener('click',()=>{previewRevision++;previewHidden=false;renderPreview();});
 $('previewDismiss').addEventListener('click',()=>{previewHidden=!previewHidden;if(!previewHidden)previewRevision++;renderPreview();});
 for(const id of ['previewEffect','previewExit','previewMask'])$(id).addEventListener('change',()=>{previewRevision++;previewHidden=false;renderPreview();});
 new ResizeObserver(()=>renderPreview()).observe(document.querySelector('.style-preview'));
+for(const id of ['drawWidth','drawHeight','drawLabel','drawColor','drawLine','drawWeight','drawDirection'])$(id).addEventListener('input',()=>{previewRevision++;previewHidden=false;renderPreview();});
+let drawing=null,drawingBusy=false,drawingTimer;
+function drawingControls(){
+ $('drawScreen').textContent=translateKey(drawing?'updateDrawing':'drawScreen');
+ $('drawScreen').disabled=drawingBusy;$('clearDrawing').disabled=drawingBusy||!drawing;
+}
+async function drawOnScreen(clear=false){
+ if(drawingBusy)return;
+ const numeric=['drawWidth','drawHeight','drawWeight'].map(id=>$(id));
+ if(!clear&&numeric.some(e=>!e.checkValidity())){value('drawFeedback',translateKey('drawingInvalid'));$('drawFeedback').dataset.error='true';numeric.find(e=>!e.checkValidity())?.focus();return;}
+ drawingBusy=true;drawingControls();$('drawFeedback').dataset.error='false';
+ try{
+   const request={...(drawing?{id:drawing.id,expectedRevision:drawing.revision}:{}),action:clear?'clear':drawing?'update':'draw'};
+   if(!clear)Object.assign(request,{shape:markPicker.shape,width:Number($('drawWidth').value),height:Number($('drawHeight').value),label:$('drawLabel').value,
+     placement:$('drawPlacement').value,color:$('drawColor').value,lineStyle:$('drawLine').value,strokeWidth:Number($('drawWeight').value),direction:$('drawDirection').value,
+     effect:$('previewEffect').value,exit:$('previewExit').value,maskStyle:$('previewMask').value,visualStyle:$('visualStyle').value,motion:$('motion').value});
+   const result=await window.hgCenter.mark(request);if(!result?.ok)throw Object.assign(new Error(),{code:result?.code});
+   clearTimeout(drawingTimer);drawing=clear?null:result;
+   value('drawFeedback',translateKey(clear?'drawingCleared':'drawingVisible'));
+   if(drawing)drawingTimer=setTimeout(()=>{drawing=null;drawingControls();value('drawFeedback',translateKey('drawingExpired'));},Math.max(0,result.expiresAt-Date.now()));
+ }catch(error){
+   const code=error.code;
+   if(['already_final','not_found'].includes(code)){drawing=null;clearTimeout(drawingTimer);}
+   value('drawFeedback',translateKey(code==='busy'?'drawingBusy':code==='disabled_by_user'?'drawingDisabled':['already_final','not_found'].includes(code)?'drawingExpired':'drawingFailed'));
+   $('drawFeedback').dataset.error='true';
+ }finally{drawingBusy=false;drawingControls();}
+}
+$('drawScreen').addEventListener('click',()=>drawOnScreen());$('clearDrawing').addEventListener('click',()=>drawOnScreen(true));
+
 for(const switchId of ['accessibility','continuous'])$(switchId).addEventListener('change',async()=>{
  if(!prefs)return;
  const node=$(switchId),requested=node.checked;node.disabled=true;

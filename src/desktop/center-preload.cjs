@@ -2,6 +2,7 @@ const {contextBridge, ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('hgCenter',Object.freeze({
   uninstall:(confirm=false)=>ipcRenderer.invoke('hg:center:uninstall',confirm),
   identifyDisplays:()=>ipcRenderer.invoke('hg:center:identify-displays'),
+  mark:request=>ipcRenderer.invoke('hg:center:mark',request),
   trial:()=>ipcRenderer.invoke('hg:center:trial'),
   showCurrent:()=>ipcRenderer.invoke('hg:center:show-current'),
   connection:host=>ipcRenderer.invoke('hg:center:connection',host),

@@ -1,3 +1,10 @@
+## 0.20.0 · 2026-11-12
+
+- Expand direct screen drawing to all 19 shapes, nine display positions, captions, directional arrows, stroke weight/dashes and numbered compositions of up to eight marks. Compute layout locally in one call.
+- Update or clear an owned drawing with its ID and revision. Preserve expiry, reject stale writes and other owners; return only a compact receipt.
+- Add screen trial, update and clear actions beside the shared preview. Keep size/caption controls in the prescription's reversible Accordion with keyboard focus return and inert content.
+- Preserve primary-display identity in the desktop handshake; use the primary display even when another screen appears first.
+
 ## 0.19.2 · 2026-11-12
 
 - Submit changed setting fields through the Broker and serialize writes; independent switches, display choices and appearance no longer restore stale values. Preserve appearance drafts while refreshing real enable/disable state, with inline unsaved/save feedback.

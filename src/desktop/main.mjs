@@ -30,7 +30,7 @@ async function call(method, path, body) {
     method, headers, body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(16000)
   });
-  if (!res.ok) throw new Error(`Local bridge: HTTP ${res.status}`);
+  if (!res.ok) {const result=await res.json().catch(()=>({}));throw Object.assign(new Error(`Local bridge: HTTP ${res.status}`),{code:result.code||result.error||'unavailable'});}
   return res.json();
 }
 function lockDown(win) {
@@ -242,6 +242,7 @@ async function startDesktop() {
   }
   registerSetupIPC();
   registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics'),
+    drawMark:body=>call('POST','/desktop/mark',body),
     runTrial:()=>call('POST','/desktop/trial',{}),
     showCurrent:()=>{if(current&&panel){panel.showInactive();panel.moveTop();return {ok:true};}return {ok:false,code:'no_active_session'};},
     identifyDisplays:async()=>{

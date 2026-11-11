@@ -38,6 +38,22 @@ void app.whenReady().then(async()=>{
       samples.push({responseMs:response,domMs,paintMs:performance.now()-started,brokerMs:mark.localMs});
     }
     await mkdir(output,{recursive:true});await writeFile(join(output,'quick-circle.png'),(await overlay.webContents.capturePage()).toPNG());
+    const group=await post('/agent/mark',{sequence:true,marks:[
+      {id:'region',shape:'spotlight',placement:'left',width:280,height:160,label:'查看此区域'},
+      {id:'pointer',shape:'arrow',placement:'right',width:180,height:100,direction:'left',label:'从这里开始'},
+      {id:'ink',shape:'scribble',placement:'bottom',width:200,height:90,label:'手绘批注'}
+    ]});
+    await until(()=>overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark").length===6'),'Composed drawing absent');
+    assert.equal(panel.isVisible(),false,'Simple drawing opened a task panel');
+    assert.equal(await overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-veil").length'),1);
+    assert.equal(await overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-label-leader").length'),3);
+    await pause(550);await writeFile(join(output,'drawing-composition.png'),(await overlay.webContents.capturePage()).toPNG());
+    const changed=await post('/agent/mark',{action:'update',id:group.id,expectedRevision:group.revision,lineStyle:'dashed',color:'#75b9ff',marks:[{shape:'ring',placement:'top_right',width:280,height:120,label:'已更新'}],sequence:false});
+    assert.equal(changed.expiresAt,group.expiresAt);assert.equal(changed.id,group.id);
+    await until(()=>overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark").length===1 && document.querySelector(".hg-mark").dataset.shape==="ring"'),'Group update absent');
+    assert.match(await overlay.webContents.executeJavaScript('getComputedStyle(document.querySelector(".hg-mark .hg-trace")).strokeDasharray'),/0.045/);
+    await post('/agent/mark',{action:'clear',id:group.id,expectedRevision:changed.revision});
+    await until(()=>overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark").length===0'),'Drawing did not clear');
     const s=m.show({continuous:true,execution:'parked',title:'打开设置',message:'在原窗口点击设置，完成后返回会话。',x:100,y:100},owner);
     const js=code=>panel.webContents.executeJavaScript(code);
     await until(()=>js(`document.querySelector('#title').textContent==='打开设置'`),'Parked panel absent');
@@ -109,7 +125,7 @@ void app.whenReady().then(async()=>{
     m.resolve(fresh.id,'cancelled');
     assert.deepEqual(errors,[]);
     const stats=key=>{const sorted=samples.slice(2).map(s=>s[key]).sort((a,b)=>a-b);return {p50Ms:+sorted[5].toFixed(1),p95Ms:+sorted[9].toFixed(1)};};
-    const report={samples:10,warmup:2,broker:stats('brokerMs'),response:stats('responseMs'),dom:stats('domMs'),paint:stats('paintMs'),window:{visible:overlay.isVisible(),visibility:await overlay.webContents.executeJavaScript('document.visibilityState'),throttling:overlay.webContents.getBackgroundThrottling()},scope:'Warm loopback HTTP to Electron SVG DOM/capturePage; excludes host/model. One physical display. Capture includes OS scheduling.',checks:['reversible collapse','focus return','inert','disclosure','reduced motion','parked local action and verification','no hidden refresh','readable icon controls','long-content scroll','persistent action error','visible parked receipt','pause preserves verification','no false desktop wake button','no mark repaint on agent phase'],errors};
+    const report={samples:10,warmup:2,broker:stats('brokerMs'),response:stats('responseMs'),dom:stats('domMs'),paint:stats('paintMs'),window:{visible:overlay.isVisible(),visibility:await overlay.webContents.executeJavaScript('document.visibilityState'),throttling:overlay.webContents.getBackgroundThrottling()},scope:'Warm loopback HTTP to Electron SVG DOM/capturePage; excludes host/model. One physical display. Capture includes OS scheduling.',checks:['composed drawing and captions','owner revision update and clear','dash pattern rendering','reversible collapse','focus return','inert','disclosure','reduced motion','parked local action and verification','no hidden refresh','readable icon controls','long-content scroll','persistent action error','visible parked receipt','pause preserves verification','no false desktop wake button','no mark repaint on agent phase'],errors};
     await writeFile(join(output,'report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
   }finally{m.close();await b.stop();for(const w of BrowserWindow.getAllWindows())w.destroy();await rm(dir,{recursive:true,force:true});await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:100});}
 }).then(()=>app.exit(0)).catch(e=>{console.error(e);app.exit(1);});
