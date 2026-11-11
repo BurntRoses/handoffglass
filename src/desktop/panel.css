@@ -24,7 +24,7 @@ p { font-size:var(--text-body); color:var(--sub); line-height:1.8; margin:0; ove
 .step-details p { font-size:var(--text-caption); margin-top:var(--space-2); }
 .strip-footer { display:flex; gap:var(--space-3); justify-content:space-between; font-size:var(--text-caption); color:var(--dim); padding-top:var(--space-2); }
 .strip-footer:has(#elapsed:empty):has(#timer[hidden]) { display:none; }
-.panel[data-compact='true'] { padding:var(--space-3); }
-.panel[data-compact='true'] .card-body { display:none; }
+
+
 .panel[data-density='compact'] .panel-content { padding-top:var(--space-4); }
 @media(forced-colors:active) { .panel { border-color:ButtonText; } }

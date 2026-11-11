@@ -1,3 +1,4 @@
+import {disclosure} from './disclosure.mjs';
 'use strict';
 let active=null,busy=false,collapsed=false,manualCollapse=false,stepKey='';
 const $=id=>document.getElementById(id);
@@ -6,6 +7,7 @@ const UI={
  'en-US':{done:'I completed this',ack:'I completed this',decline:'Decline',cancel:'End',pause:'Pause',resume:'Resume',collapse:'Collapse',expand:'Expand',retry:'Locate again',fallback:'Use text guidance',sending:'Sending…',failed:'Could not send. Try again.',step:n=>`Step ${n}`,total:(n,t)=>`Step ${n} of ${t}`,remaining:n=>`Ends in ${n}s`,elapsed:n=>`Waiting ${n}s`,waiting:'Waiting for you',submitted:'Submitted · waiting for your agent',next:'Waiting for the next step',paused:'Guidance paused',reconnecting:'Reconnecting',notWaiting:'Agent has not resumed · return to the chat',lost:'Target position unavailable',permission:'Check control lookup permission',lostNote:'Check the target in its original window, or choose a recovery action.',pausedNote:'Resuming will check the target again.',offlineNote:'Reconnecting to the local service. Marks are hidden.',details:'Current status',detail:'Your agent will check the original app before presenting the next step.',phase:{thinking:'Agent is working',observing:'Reading the interface',locating:'Locating the target',presenting:'Preparing guidance',verifying:'Checking the result'}}
 };
 const copy=()=>UI[active?.locale]||UI['zh-CN'];
+const card=disclosure($('cardBody'),$('collapse'),{onSize:size});
 function phaseLabel(){
  const c=copy(),s=active;if(!s)return '';
  if(s.demo&&s.status!=='paused'&&s.phase!=='blocked')return s.locale==='en-US'?'Local trial':'本地试用';
@@ -13,6 +15,7 @@ function phaseLabel(){
  if(s.status==='paused')return c.paused;
  if(s.phase==='blocked')return ['consent_required','permission_denied'].includes(s.targetTracking?.reason)?c.permission:c.lost;
  if(s.phase==='reconnecting')return c.reconnecting;
+ if(s.execution==='parked')return s.phase==='verifying'?(s.locale==='en-US'?'Submitted · return to the chat to check':'操作已记录，回到原会话核实'):(s.locale==='en-US'?'Local guidance · chat can rest':'本地引导中 · 会话可挂起');
  const reported=s.agentState,age=Date.now()-(reported?.at||0);
  if(age<30000&&c.phase[reported?.phase])return c.phase[reported.phase];
  if(s.phase==='verifying')return c.submitted;
@@ -34,7 +37,7 @@ function render(session){
  active=session;const c=copy(),waiting=session.status==='awaiting_user',paused=session.status==='paused';
  if(!manualCollapse)collapsed=!waiting;
  document.documentElement.lang=session.locale||'zh-CN';document.documentElement.dataset.theme=session.theme||'system';
- $('panel').dataset.density=session.density||'normal';$('panel').dataset.compact=String(collapsed);
+ $('panel').dataset.density=session.density||'normal';$('panel').dataset.compact=String(collapsed);card.set(!collapsed);
  $('step').textContent=collapsed?`${c.step(session.step||1)} · ${session.title}`:session.totalSteps?c.total(session.step||1,session.totalSteps):c.step(session.step||1);
  $('title').textContent=session.title;$('message').textContent=session.message;
  $('done').hidden=!waiting;$('decline').hidden=!waiting||session.mode==='guide';$('doneLabel').textContent=c.done;
@@ -42,8 +45,9 @@ function render(session){
  $('cancel').textContent=c.cancel;$('decline').textContent=c.decline;$('retry').textContent=c.retry;$('fallback').textContent=c.fallback;
  const lost=session.phase==='blocked',offline=session.desktopConnection==='reconnecting';
  $('note').hidden=!lost&&!paused&&!offline;$('note').textContent=offline?c.offlineNote:paused?c.pausedNote:c.lostNote;
- $('recoveryActions').hidden=!lost;$('detailsLabel').textContent=c.details;$('detailText').textContent=c.detail;
- for(const id of ['done','decline','cancel','pause','retry','fallback'])$(id).disabled=busy||offline;
+ $('recoveryActions').hidden=!lost;$('detailsLabel').textContent=c.details;$('detailText').textContent=session.execution==='parked'?(session.locale==='en-US'?'The guide stays here. Return to the original chat to check the result.':'引导保留在桌面，操作后回到原会话核实。'):c.detail;
+ $('execution').textContent=session.execution==='parked'?(session.locale==='en-US'?'Resume chat continuation':'恢复会话接续'):(session.locale==='en-US'?'Leave guide on desktop':'挂起会话');
+ for(const id of ['done','decline','cancel','pause','retry','fallback','execution'])$(id).disabled=busy||offline;
  if(!busy)$('status').textContent='';updateClock();
 }
 window.handoffglass.onRender(render);
@@ -54,10 +58,11 @@ async function send(action,decision=false){
  busy=false;render(active);if(!reply?.ok)$('status').textContent=copy().failed;size();
 }
 for(const [id,decision] of Object.entries({done:'completed',decline:'declined',cancel:'cancelled'}))$(id).addEventListener('click',()=>void send(decision,true));
+$('execution').addEventListener('click',()=>void send(active?.execution==='parked'?'attach':'park'));
 $('pause').addEventListener('click',()=>void send(active?.status==='paused'?'resume':'pause'));
 $('retry').addEventListener('click',()=>void send('retry_target'));
 $('fallback').addEventListener('click',()=>void send('text_fallback'));
 $('collapse').addEventListener('click',()=>{manualCollapse=true;collapsed=!collapsed;render(active);});
-$('stepDetails').addEventListener('toggle',size);
+
 new ResizeObserver(size).observe($('panel'));
 setInterval(updateClock,1000);

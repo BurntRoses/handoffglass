@@ -1,3 +1,11 @@
+## 0.19.0 · 2026-11-12
+
+- `screen_mark` handles explicit simple drawings in one call, without inspecting the screen or waiting on a workflow.
+- Cache live Broker discovery; recover refused stale connections without replaying uncertain mutations. Coalesce desktop snapshots within a microtask and send SSE immediately.
+- Attached and parked execution: desktop guidance continues while the chat returns; user actions await independent verification. App and MCP share park/attach actions; Codex hooks leave parked workflows alone.
+- Native reversible disclosures adapted from the prescription's shadcn Accordion; shared keyboard/focus/inert/reduced-motion behavior and measured panel resizing.
+- Source and packaged desktops share one instance identity; installed app joins a live Broker, and the Broker prefers the recorded final desktop.
+
 ## 0.18.0 · 2026-11-04
 
 - Continuous workflows now have separate step/task/confirmation deadlines, explicit pause and recovery, and scoped rotating reconnect tokens with minimal private restart checkpoints.

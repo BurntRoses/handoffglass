@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('handoffglass', {
     return Promise.resolve({ ok:false,error:'Invalid decision' });
   },
   control(id,action,step) {
-    if(typeof id==='string'&&['pause','resume','retry_target','text_fallback'].includes(action))return ipcRenderer.invoke('hg:control',{id,action,step});
+    if(typeof id==='string'&&['pause','resume','retry_target','text_fallback','park','attach'].includes(action))return ipcRenderer.invoke('hg:control',{id,action,step});
     return Promise.resolve({ok:false,error:'Invalid action'});
   },
   resize({height,compact}={}) { if(Number.isFinite(height)&&typeof compact==='boolean')ipcRenderer.send('hg:panel-size',{height,compact}); }

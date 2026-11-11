@@ -6,7 +6,7 @@
 
 **Installed desktop track:** `src/desktop/app.mjs` is the Electron application main. It starts the loopback broker **in the desktop process** and writes the same owner-only `~/.handoffglass/broker.json` manifest as the Node broker. Other MCP/CLI clients can attach to it. End users launching the desktop do not need a separate Node.js binary for the desktop. When the installed app is packaged with the MCP entry, compatible hosts can use its Electron binary with `ELECTRON_RUN_AS_NODE=1` and `.../resources/app.asar/src/mcp.mjs` as the stdio entry (menu: Copy MCP configuration). A system Node.js checkout is an alternative. This relies on the Electron run-as-Node fuse and must be tested against each installed artifact.
 
-Only one broker may be active per OS user. If a source broker is active when the desktop GUI is started, the GUI explains the conflict and exits rather than serving competing sessions. One startup lock coordinates creation; stale manifests are probed and replaced only when not live.
+Only one broker may be active per OS user. Source and packaged desktops share one identity and single-instance lock. Relaunch opens the existing control center. An installed desktop joins an already active source Broker through its private desktop discovery record. The Broker reuses an attached desktop and prefers the recorded installed application on its next GUI launch. One startup lock coordinates creation; stale manifests are probed and replaced only when not live.
 
 ## Native Accessibility adapters
 

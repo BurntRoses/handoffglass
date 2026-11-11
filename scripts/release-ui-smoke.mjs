@@ -82,6 +82,8 @@ void app.whenReady().then(async()=>{
   await js('document.querySelector("#enabled").click()');
   await until(async()=>(await loadPreferences(dir)).enabled,'Global switch did not resume');
   await js('window.scrollTo(0,0)');
+  app.focus({steal:true});center.show();center.focus();
+  await until(()=>center.isFocused(),'Settings did not receive keyboard focus');
   // Keyboard focus belongs to the control; pointer selection adds no ring to ancestors.
   await js('document.querySelector(".host-choices>.choice").focus()');
   center.webContents.sendInputEvent({type:'keyDown',keyCode:'Tab'});center.webContents.sendInputEvent({type:'keyUp',keyCode:'Tab'});

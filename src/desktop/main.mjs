@@ -1,3 +1,4 @@
+import {desktopOwner} from './identity.mjs';
 import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage } from 'electron';
 import { registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
 import { showControlCenter, registerCenterIPC } from './center.mjs';
@@ -39,7 +40,7 @@ function lockDown(win) {
 function info() {
   return screen.getAllDisplays().map(d => ({
     id: String(d.id), x: d.bounds.x, y: d.bounds.y,
-    width: d.bounds.width, height: d.bounds.height, scaleFactor: d.scaleFactor,
+    width: d.bounds.width, height: d.bounds.height, scaleFactor: d.scaleFactor, primary:d.id===screen.getPrimaryDisplay().id,
     ...(process.platform === 'win32' ? { physicalBounds: screen.dipToScreenRect(null, d.bounds) } : {})
   }));
 }
@@ -54,7 +55,7 @@ function createOverlay(display) {
     // shifting global-DIP annotations below the menu bar (and sometimes right).
     enableLargerThanScreen: true,
     webPreferences: {
-      preload: join(here, 'preload.cjs'), contextIsolation: true,
+      preload: join(here, 'preload.cjs'), contextIsolation: true, backgroundThrottling:false,
       sandbox: true, nodeIntegration: false, webSecurity: true
     }
   });
@@ -74,7 +75,7 @@ function createPanel() {
     show: false, skipTaskbar: true, frame: false, transparent: false,
     alwaysOnTop: true, resizable: false, backgroundColor: '#20211f',
     webPreferences: {
-      preload: join(here, 'preload.cjs'), contextIsolation: true,
+      preload: join(here, 'preload.cjs'), contextIsolation: true, backgroundThrottling:false,
       sandbox: true, nodeIntegration: false, webSecurity: true
     }
   });
@@ -120,11 +121,11 @@ function applySnapshot(state) {
   revision = state.revision;
   updateUI(state.active?{...state.active,agentWaiting:state.agentWaiting,agentWaitUntil:state.agentWaitUntil,desktopConnection:'connected'}:null);
 }
-function layoutPanel(){
-  if(!panel||!current)return;
+function layoutPanel(resizeOnly=false){
+  if(!panel||panel.isDestroyed()||!current)return;
   const area=findTargetDisplay(current).workArea;
   const width=Math.min(panelSize.width,area.width-24),height=Math.min(panelSize.height,area.height-24);
-  const position=placePanel(area,current.annotations?.[0],{width,height,targets:current.annotations,previous:panelPosition,compact:panelSize.compact});
+  const position=resizeOnly&&panelPosition?{x:Math.max(area.x+12,Math.min(panelPosition.x,area.x+area.width-width-12)),y:Math.max(area.y+12,Math.min(panelPosition.y,area.y+area.height-height-12))}:placePanel(area,current.annotations?.[0],{width,height,targets:current.annotations,previous:panelPosition,compact:panelSize.compact});
   panel.setBounds({...position,width:Math.max(300,width),height:Math.max(76,height)});
   panelPosition=position;
 }
@@ -134,7 +135,7 @@ function updateUI(next) {
   current=next&&['awaiting_user','user_action_reported','observing','paused'].includes(next.status)?next:null;
   if(oldKey!==(current?`${current.id}:${current.step}`:null))panelPosition=null;
   for(const {win,display} of overlays)draw(win,display,animateExit);
-  if(!panel)return;
+  if(!panel||panel.isDestroyed())return;
   // Legacy visual_show remains nonblocking; continuous guide sessions have controls.
   if(!current||(current.mode==='guide'&&!current.continuous)){panel.hide();return;}
   layoutPanel();
@@ -142,8 +143,14 @@ function updateUI(next) {
   panel.showInactive();
 }
 function syncDisplays() {
-  for (const { win } of overlays) if (!win.isDestroyed()) win.destroy();
-  overlays = screen.getAllDisplays().map(display => createOverlay(display));
+  const previous=overlays;
+  overlays=screen.getAllDisplays().map(display=>{
+    const existing=previous.find(o=>o.display.id===display.id && !o.win.isDestroyed() &&
+      JSON.stringify(o.display.bounds)===JSON.stringify(display.bounds) && o.display.scaleFactor===display.scaleFactor);
+    if(existing){existing.display=display;return existing;}
+    return createOverlay(display);
+  });
+  for(const old of previous)if(!overlays.includes(old)&&!old.win.isDestroyed())old.win.destroy();
   updateUI(current);
   void call('POST', '/hello', { displays: info() }).then(s => {
     applySnapshot(s);
@@ -284,16 +291,16 @@ async function startDesktop() {
     if(!panel||event.sender!==panel.webContents||!Number.isFinite(data?.height)||typeof data.compact!=='boolean')return;
     const height=Math.max(76,Math.min(460,Math.ceil(data.height)));
     if(height===panelSize.height&&data.compact===panelSize.compact)return;
-    panelSize={width:420,height,compact:data.compact};layoutPanel();
+    panelSize={width:420,height,compact:data.compact};layoutPanel(true);
   });
   ipcMain.handle('hg:control',async(event,data)=>{
-    if(!panel||event.sender!==panel.webContents||!current||data?.id!==current.id||data.step!==current.step||!['pause','resume','retry_target','text_fallback'].includes(data.action))return {ok:false,error:'Stale or invalid action'};
+    if(!panel||event.sender!==panel.webContents||!current||data?.id!==current.id||data.step!==current.step||!['pause','resume','retry_target','text_fallback','park','attach'].includes(data.action))return {ok:false,error:'Stale or invalid action'};
     try{const result=await call('POST','/desktop/control',{id:current.id,step:current.step,action:data.action});applySnapshot(result);return {ok:true};}
     catch{return {ok:false,error:'Could not update guidance'};}
   });
   void runLoop();
 }
-void startDesktop().catch(error => {
+if(desktopOwner)void startDesktop().catch(error => {
   console.error('[handoffglass] Desktop startup failed:', error);
   app.exit(1);
 });

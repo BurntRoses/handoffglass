@@ -10,6 +10,8 @@ const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, m
 export function normalizeRequest(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Request must be an object');
   const mode = input.mode ?? 'handoff';
+  const execution=input.execution??'attached';
+  if(!['attached','parked'].includes(execution))throw new TypeError('Invalid execution mode');
   if(input.continuous!==undefined && typeof input.continuous!=='boolean')throw new TypeError('Invalid continuous flag');
   const locale = input.locale ?? 'zh-CN';
   const density = input.density ?? 'normal';
@@ -71,7 +73,7 @@ export function normalizeRequest(input) {
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true, intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
+  return { execution, taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true, intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
 }
 function copySession(session) {
   if (!session) return null;
@@ -120,7 +122,7 @@ export class HandoffManager extends EventEmitter {
       message: normalized.message, annotations: normalized.annotations,
       visualStyle: normalized.visualStyle, motion: normalized.motion, locale:normalized.locale, density:normalized.density, theme:normalized.theme,
       ...(normalized.scene ? {scene:normalized.scene, sceneRevision:1} : {}),
-      continuous: input.continuous === true, demo:owner==='desktop-trial', step: 1,
+      execution:normalized.execution, continuous: input.continuous === true, demo:owner==='desktop-trial', step: 1,
       completion:normalized.completion, sensitive:normalized.sensitive, intent:normalized.intent, scrim:normalized.scrim, totalSteps:normalized.totalSteps,
       taskTimeoutAt:now + (input.continuous ? normalized.taskTimeoutSeconds : normalized.timeoutSeconds) * 1000,
       stepTimeoutAt:now + normalized.timeoutSeconds * 1000,
@@ -209,6 +211,7 @@ export class HandoffManager extends EventEmitter {
     if(current.phase==='verifying')return {error:'verification_due'};
     if(current.status!=='observing')return {error:'step_not_verified'};
     for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','intent','scrim']) session[field]=normalized[field];
+    if(input.execution!==undefined)session.execution=normalized.execution;
     if(normalized.totalSteps!==undefined)session.totalSteps=normalized.totalSteps;
     session.sceneRevision=(session.sceneRevision||0)+1;
     if(normalized.scene)session.scene=normalized.scene;
@@ -261,8 +264,13 @@ export class HandoffManager extends EventEmitter {
       if(s.status==='paused')return {error:'paused'};
       s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='retry_target'?'reobserve_target':'present_text_step';
       delete s.targetTracking;
+    } else if(action==='park' || action==='attach') {
+      if(!s.continuous)return {error:'not_continuous'};
+      s.execution=action==='park'?'parked':'attached';
+      s.agentState={phase:'idle',at:this.clock()};
     } else if(action==='progress') {
       if(!['observing','locating','presenting','verifying','thinking','idle'].includes(phase))throw new TypeError('Invalid agent phase');
+      if(s.execution==='parked')return {session:copySession(s)};
       s.agentState={phase,at:this.clock()};
     } else throw new TypeError('Invalid control action');
     s.updatedAt=this.clock();this.#arm(s);this.emit('change',copySession(s));return {session:copySession(s)};
@@ -276,11 +284,11 @@ export class HandoffManager extends EventEmitter {
   exportCheckpoint() {
     const s=this.activeId && this.sessions.get(this.activeId);
     if(!s || !s.continuous || s.demo || TERMINAL.has(s.status))return null;
-    return {version:1,id:s.id,owner:this.owners.get(s.id),resumeHash:this.resumeKeys.get(s.id),step:s.step,epoch:s.epoch,taskTimeoutAt:s.taskTimeoutAt,sensitive:s.sensitive,confirmationTimeoutAt:s.confirmationTimeoutAt};
+    return {version:1,execution:s.execution,id:s.id,owner:this.owners.get(s.id),resumeHash:this.resumeKeys.get(s.id),step:s.step,epoch:s.epoch,taskTimeoutAt:s.taskTimeoutAt,sensitive:s.sensitive,confirmationTimeoutAt:s.confirmationTimeoutAt};
   }
   restoreCheckpoint(c) {
     if(!c || c.version!==1 || !/^[0-9a-f-]{36}$/.test(c.id||'') || !/^[0-9a-f]{64}$/.test(c.resumeHash||'') || typeof c.owner!=='string' || !c.owner || c.owner.length>128 || !Number.isFinite(c.taskTimeoutAt) || c.taskTimeoutAt>this.clock()+86400000 || c.taskTimeoutAt<=this.clock() || (c.sensitive && c.confirmationTimeoutAt && c.confirmationTimeoutAt<=this.clock()))return false;
-    const now=this.clock(),s={id:c.id,continuous:true,mode:'handoff',title:'恢复引导',message:'回到原会话继续。',annotations:[],completion:{kind:'user_report'},status:'observing',phase:'reconnecting',nextAction:'observe_app',createdAt:now,updatedAt:now,step:c.step||1,epoch:c.epoch||1,taskTimeoutAt:c.taskTimeoutAt,stepTimeoutAt:now+1800000,confirmationTimeoutAt:c.confirmationTimeoutAt,sensitive:c.sensitive,recoveryRequired:true,verified:false,agentState:{phase:'idle',at:now}};
+    const now=this.clock(),s={id:c.id,execution:c.execution==='parked'?'parked':'attached',continuous:true,mode:'handoff',title:'恢复引导',message:'回到原会话继续。',annotations:[],completion:{kind:'user_report'},status:'observing',phase:'reconnecting',nextAction:'observe_app',createdAt:now,updatedAt:now,step:c.step||1,epoch:c.epoch||1,taskTimeoutAt:c.taskTimeoutAt,stepTimeoutAt:now+1800000,confirmationTimeoutAt:c.confirmationTimeoutAt,sensitive:c.sensitive,recoveryRequired:true,verified:false,agentState:{phase:'idle',at:now}};
     this.sessions.set(s.id,s);this.owners.set(s.id,c.owner);this.resumeKeys.set(s.id,c.resumeHash);this.activeId=s.id;this.#arm(s);return true;
   }
   stopActive() {const session=this.activeId&&this.sessions.get(this.activeId);if(session)this.#finish(session,'cancelled');}
