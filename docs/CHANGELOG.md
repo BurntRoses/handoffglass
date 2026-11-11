@@ -1,3 +1,10 @@
+## 0.19.1 · 2026-11-12
+
+- Simplify guidance headers with named icon controls, compact state copy and distinct waiting/recorded/processing feedback.
+- Keep long guidance scrollable inside a bounded card; reset scroll and disclosure on each new step, with persistent error feedback outside the scrolling region.
+- Stop hidden panel timers and activity animation; deduplicate size messages and schedule only upcoming countdown/activity changes.
+- Remove duplicate disclosure chevrons and render floating card corners over a transparent native surface.
+
 ## 0.19.0 · 2026-11-12
 
 - `screen_mark` handles explicit simple drawings in one call, without inspecting the screen or waiting on a workflow.

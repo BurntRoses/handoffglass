@@ -164,6 +164,8 @@ void app.whenReady().then(async()=>{
   assert.equal(await js('document.querySelector("#markChoices [aria-checked=true] span").textContent'),'Double ring');
   assert.equal(await js('document.querySelector("#motion").selectedOptions[0].textContent'),'Gentle');
   await page('diagnostics');assert.equal(await js('document.querySelector(".diagnostics-details").open'),false);
+  assert.equal(await js('getComputedStyle(document.querySelector(".diagnostics-details>summary"),"::before").content'),'none','Disclosure retained a second chevron');
+  assert.equal(await js('getComputedStyle(document.querySelector(".diagnostics-details>summary"),"::after").width'),'16px');
   await until(async()=>await js('document.querySelectorAll("#displayMap .monitor-rect").length>0'),'Display map did not load');
   assert.equal(await js('document.querySelector(".display-card").closest("details")'),null,'Display setup is hidden inside technical details');
   assert.match(await js('document.querySelector("#displayCount").textContent'),/\d+ displays? detected/);

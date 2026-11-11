@@ -72,8 +72,8 @@ function createOverlay(display) {
 function createPanel() {
   const win = new BrowserWindow({
     width:420,height:240,minWidth:300,minHeight:76,
-    show: false, skipTaskbar: true, frame: false, transparent: false,
-    alwaysOnTop: true, resizable: false, backgroundColor: '#20211f',
+    show: false, skipTaskbar: true, frame: false, transparent: true,
+    alwaysOnTop: true, resizable: false, hasShadow:true, backgroundColor: '#00000000',
     webPreferences: {
       preload: join(here, 'preload.cjs'), contextIsolation: true, backgroundThrottling:false,
       sandbox: true, nodeIntegration: false, webSecurity: true
@@ -137,7 +137,7 @@ function updateUI(next) {
   for(const {win,display} of overlays)draw(win,display,animateExit);
   if(!panel||panel.isDestroyed())return;
   // Legacy visual_show remains nonblocking; continuous guide sessions have controls.
-  if(!current||(current.mode==='guide'&&!current.continuous)){panel.hide();return;}
+  if(!current||(current.mode==='guide'&&!current.continuous)){if(!panel.webContents.isLoading())panel.webContents.send('hg:render',null);panel.hide();return;}
   layoutPanel();
   if(!panel.webContents.isLoading())panel.webContents.send('hg:render',current);
   panel.showInactive();

@@ -1,6 +1,6 @@
 /** Real paint + reversible disclosure + parked local execution; no model calls. */
 import assert from 'node:assert/strict';
-import {app,BrowserWindow} from 'electron';
+import {app,BrowserWindow,ipcMain} from 'electron';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {mkdtempSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -41,7 +41,9 @@ void app.whenReady().then(async()=>{
     const s=m.show({continuous:true,execution:'parked',title:'打开设置',message:'在原窗口点击设置，完成后返回会话。'},owner);
     const js=code=>panel.webContents.executeJavaScript(code);
     await until(()=>js(`document.querySelector('#title').textContent==='打开设置'`),'Parked panel absent');
-    assert.match(await js("document.querySelector('#phase').textContent"),/本地引导/);
+    assert.equal(await js("document.querySelector('#phase').textContent"),'等待你操作');
+    assert.equal(await js("document.querySelector('#panel').dataset.working"),'false');
+    assert.equal(await js("document.querySelector('#pause').getAttribute('aria-label')"),'暂停');
     panel.webContents.debugger.attach('1.3');
     await panel.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
     const before=await js("document.querySelector('#cardBody').getBoundingClientRect().height");
@@ -70,9 +72,33 @@ void app.whenReady().then(async()=>{
     assert.equal(await js("document.querySelector('#cardBody').hidden"),true);panel.webContents.debugger.detach();
     m.resolve(s.id,'completed');assert.equal(m.get(s.id).verified,false);
     assert.equal(m.get(s.id).phase,'verifying');m.control(s.id,owner,'attach');m.verify(s.id,owner,true,true);
+    await until(async()=>!panel.isVisible() && await js("document.querySelector('#phase').textContent===''") ,'Hidden panel retained a session');
+    let hiddenResizes=0;const onResize=event=>{if(event.sender===panel.webContents)hiddenResizes++;};
+    ipcMain.on('hg:panel-size',onResize);await pause(1100);ipcMain.off('hg:panel-size',onResize);
+    assert.equal(hiddenResizes,0,'Hidden panel kept refreshing');
+    const long=m.show({continuous:true,execution:'parked',locale:'en-US',theme:'light',title:'Choose the application settings for this workspace',message:'Review the controls in the original window. '.repeat(22)},owner);
+    await until(()=>js("document.querySelector('#title').textContent.startsWith('Choose')"),'Long panel absent');
+    assert.equal(await js("document.querySelector('#phase').scrollWidth<=document.querySelector('#phase').clientWidth"),true,'State label was clipped');
+    await js("document.querySelector('#detailsLabel').click()");await pause(250);
+    await js("document.querySelector('#execution').scrollIntoView({block:'end'})");
+    assert.equal(await js("document.documentElement.scrollWidth<=innerWidth"),true);
+    assert.equal(await js("document.querySelector('#cardBody').scrollHeight>document.querySelector('#cardBody').clientHeight"),true,'Long content has no scroll path');
+    assert.equal(await js("document.querySelector('#execution').getBoundingClientRect().bottom<=innerHeight"),true,'Management action is clipped');
+    const actualResolve=m.resolve.bind(m);m.resolve=()=>({error:'simulated_failure'});
+    await js("document.querySelector('#done').click()");
+    await until(()=>js("document.querySelector('#status').dataset.error==='true'"),'Failed action has no feedback');
+    m.resolve=actualResolve;m.control(long.id,owner,'progress','idle');await pause(80);
+    assert.match(await js("document.querySelector('#status').textContent"),/Could not send/);
+    await writeFile(join(output,'long-panel-light.png'),(await panel.webContents.capturePage()).toPNG());
+    m.resolve(long.id,'cancelled');
+    const fresh=m.show({continuous:true,title:'新的步骤',message:'本步骤从顶部开始。'},owner);
+    await until(()=>js("document.querySelector('#title').textContent==='新的步骤'"),'New step absent');
+    assert.equal(await js("document.querySelector('#cardBody').scrollTop"),0);
+    await until(async()=>!await js("document.querySelector('#stepDetails').open"),'New step retained an open disclosure');
+    m.resolve(fresh.id,'cancelled');
     assert.deepEqual(errors,[]);
     const stats=key=>{const sorted=samples.slice(2).map(s=>s[key]).sort((a,b)=>a-b);return {p50Ms:+sorted[5].toFixed(1),p95Ms:+sorted[9].toFixed(1)};};
-    const report={samples:10,warmup:2,broker:stats('brokerMs'),response:stats('responseMs'),dom:stats('domMs'),paint:stats('paintMs'),window:{visible:overlay.isVisible(),visibility:await overlay.webContents.executeJavaScript('document.visibilityState'),throttling:overlay.webContents.getBackgroundThrottling()},scope:'Warm loopback HTTP to Electron SVG DOM/capturePage; excludes host/model. One physical display. Capture includes OS scheduling.',checks:['reversible collapse','focus return','inert','disclosure','reduced motion','parked local action and verification'],errors};
+    const report={samples:10,warmup:2,broker:stats('brokerMs'),response:stats('responseMs'),dom:stats('domMs'),paint:stats('paintMs'),window:{visible:overlay.isVisible(),visibility:await overlay.webContents.executeJavaScript('document.visibilityState'),throttling:overlay.webContents.getBackgroundThrottling()},scope:'Warm loopback HTTP to Electron SVG DOM/capturePage; excludes host/model. One physical display. Capture includes OS scheduling.',checks:['reversible collapse','focus return','inert','disclosure','reduced motion','parked local action and verification','no hidden refresh','readable icon controls','long-content scroll','persistent action error'],errors};
     await writeFile(join(output,'report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
   }finally{m.close();await b.stop();for(const w of BrowserWindow.getAllWindows())w.destroy();await rm(dir,{recursive:true,force:true});await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:100});}
 }).then(()=>app.exit(0)).catch(e=>{console.error(e);app.exit(1);});
