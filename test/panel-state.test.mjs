@@ -19,4 +19,6 @@ test('reported action, pause, lost target and disconnection have distinct feedba
   assert.equal(panelState({...base,phase:'blocked'},now).key,'lost');
   assert.equal(panelState({...base,phase:'blocked',targetTracking:{reason:'permission_denied'}},now).key,'permission');
   assert.equal(panelState({...base,desktopConnection:'reconnecting'},now).working,false);
+  assert.equal(panelState({...base,status:'observing',phase:'reconnecting',execution:'parked'},now).key,'review');
+  assert.equal(panelState({...base,status:'observing',phase:'reconnecting',agentState:{phase:'observing',at:now}},now).key,'observing');
 });

@@ -9,6 +9,7 @@ export function summarizeDiagnostics(input, now = Date.now()) {
     ? now - input.lastAgentActivityAt < 120000 : false;
   const session = ['awaiting_user','user_action_reported','observing','paused'].includes(input.handoff?.status) ? {
     state: input.handoff.status, mode: input.handoff.mode === 'guide' ? 'guide' : 'handoff',
+    execution:input.handoff.execution==='parked'?'parked':'attached',
     ...(['waiting_user','presenting','blocked','verifying','next_step','paused','reconnecting'].includes(input.handoff.phase) ? { phase: input.handoff.phase } : {}),
     ...(['wait_for_user','observe_app','verify_in_app','present_next_step','reobserve_target','check_accessibility_permission'].includes(input.handoff.nextAction) ? { nextAction: input.handoff.nextAction } : {}),
     ...(Number.isInteger(input.handoff.step)?{step:input.handoff.step}:{}),

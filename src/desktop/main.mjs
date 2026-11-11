@@ -10,6 +10,7 @@ import { localAnnotations, contains } from '../geometry.mjs';
 import { readDesktopManifest, runtimeDir } from '../runtime.mjs';
 
 const overlayHides=new WeakMap();
+const overlayFrames=new WeakMap();
 let overlayRenderToken=0;
 const here = dirname(fileURLToPath(import.meta.url));
 let port = Number(process.env.HANDOFFGLASS_PORT);
@@ -97,6 +98,10 @@ function draw(win, display, animateExit=false) {
     const focus = annotations[0];
     annotations.unshift({ ...focus, id: '__session_spotlight', shape: 'spotlight', opacity: .45, effect: 'still', label: '' });
   }
+  // Agent phase/wait changes do not redraw SVG, rebuild masks or interrupt an exit.
+  const frame=JSON.stringify([current?.id,annotations,current?.visualStyle,current?.motion]);
+  if(overlayFrames.get(win)===frame)return;
+  overlayFrames.set(win,frame);
   const previous=overlayHides.get(win);clearTimeout(previous?.timer);overlayHides.delete(win);
   const renderToken=++overlayRenderToken;
   win.webContents.send('hg:render', { sessionId: current?.id, annotations, visualStyle: current?.visualStyle, motion: current?.motion, animateExit, renderToken });
@@ -126,7 +131,8 @@ function layoutPanel(resizeOnly=false){
   const area=findTargetDisplay(current).workArea;
   const width=Math.min(panelSize.width,area.width-24),height=Math.min(panelSize.height,area.height-24);
   const position=resizeOnly&&panelPosition?{x:Math.max(area.x+12,Math.min(panelPosition.x,area.x+area.width-width-12)),y:Math.max(area.y+12,Math.min(panelPosition.y,area.y+area.height-height-12))}:placePanel(area,current.annotations?.[0],{width,height,targets:current.annotations,previous:panelPosition,compact:panelSize.compact});
-  panel.setBounds({...position,width:Math.max(300,width),height:Math.max(76,height)});
+  const next={...position,width:Math.max(300,width),height:Math.max(76,height)},bounds=panel.getBounds();
+  if(Object.keys(next).some(key=>next[key]!==bounds[key]))panel.setBounds(next);
   panelPosition=position;
 }
 function updateUI(next) {

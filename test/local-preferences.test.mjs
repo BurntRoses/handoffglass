@@ -34,3 +34,14 @@ test('locale and density preferences are validated for bilingual desktop UI',()=
  assert.deepEqual(validatePreferences({locale:'en-US',density:'compact'}).locale,'en-US');
  assert.throws(()=>validatePreferences({density:'ultra'}));
 });
+
+test('independent concurrent preference patches preserve disable and last requested values',async()=>withDir(async dir=>{
+ await Promise.all([savePreferences({enabled:false},dir),savePreferences({theme:'dark'},dir),savePreferences({continuous:false},dir)]);
+ assert.equal((await loadPreferences(dir)).enabled,false);
+ assert.equal((await loadPreferences(dir)).theme,'dark');
+ assert.equal((await loadPreferences(dir)).continuous,false);
+ await Promise.all([savePreferences({displayPolicy:'fixed',displayId:'first'},dir),savePreferences({displayPolicy:'target'},dir)]);
+ assert.equal((await loadPreferences(dir)).displayPolicy,'target');
+ const reset=resetPreferences(dir),after=savePreferences({motion:'off'},dir);await Promise.all([reset,after]);
+ assert.deepEqual(await loadPreferences(dir),{...DEFAULT_PREFERENCES,motion:'off'});
+}));

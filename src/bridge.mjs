@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validDisplay, canLocateAll } from './geometry.mjs';
-import { loadPreferences, hasUserPreferences } from './local/preferences.mjs';
+import { loadPreferences, hasUserPreferences, savePreferences, validatePreferences } from './local/preferences.mjs';
 import { compileBlueprint, BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { locateNative, inspectNative, validateTarget, nativePermissionStatus, closeNativeWorkers } from './native/locator.mjs';
 import { GroundingError } from './visual/grounding.mjs';
@@ -9,10 +9,12 @@ import { HostActivity } from './local/host-activity.mjs';
 import { layoutSignature, compareObservation } from './native/calibration.mjs';
 import { NativeAnchorTracker } from './native/anchor-tracker.mjs';
 import { InteractionJournal, recoveryFor } from './local/interaction-journal.mjs';
-import { getAccessibilityConsent } from './native/preferences.mjs';
+import { getAccessibilityConsent, setAccessibilityConsent } from './native/preferences.mjs';
 import { TargetRegistry } from './visual/target-registry.mjs';
 import { CAPABILITY_MANIFEST } from './capabilities.mjs';
 import { quickMarkRequest } from './visual/quick-mark.mjs';
+import { continuationFor } from './output.mjs';
+import { TERMINAL_STATES } from './core.mjs';
 import { startDesktopTrial } from './local/desktop-trial.mjs';
 import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled, uninstallApplication } from './integration-lifecycle.mjs';
 import { dirname, resolve } from 'node:path';
@@ -184,7 +186,7 @@ export class LocalBridge {
         schemaVersion: 1, broker: 'running', desktopConnected: this.connected,
         lastAgentActivityAt: this.lastAgentRequestAt,
         displays: this.displays.length, pendingPolls: this.waiters.size,
-        handoff: active ? { step:active.step, totalSteps:active.totalSteps, status: active.status, mode: active.mode, phase: active.phase, nextAction: active.nextAction, timeoutAt: active.timeoutAt } : null,
+        handoff: active ? { step:active.step, totalSteps:active.totalSteps, status: active.status, mode: active.mode, execution:active.execution, phase: active.phase, nextAction: active.nextAction, timeoutAt: active.timeoutAt } : null,
         hostActivity: this.hostActivity.snapshot(),connectionEvidence:[...this.connectionEvidence.values()],
         timeline: this.journal.recent(12).map(({type,at,reason})=>({type,at,...(reason?{reason}:{})}))
       });
@@ -197,6 +199,7 @@ export class LocalBridge {
       if(!['pause','resume','retry_target','text_fallback','park','attach'].includes(body.action))return sendJson(res,400,{error:'invalid_action'});
       const result=this.manager.control(body.id,null,body.action);
       if(!['progress','park','attach'].includes(body.action))this.anchors.clearFor(body.id);
+      if(!result.error)await this.manager.flushCheckpoint?.();
       return sendJson(res,result.error?409:200,{...result,...this.snapshot()});
     }
     if(req.method==='POST' && pathname==='/desktop/trial'){
@@ -208,11 +211,19 @@ export class LocalBridge {
       return sendJson(res,200,{session:this.trial.session});
     }
     if(req.method==='POST' && pathname==='/desktop/preferences'){
-      await readJson(req);
+      const {accessibility,...patch}=await readJson(req);
+      validatePreferences(patch);
+      if(accessibility!==undefined&&typeof accessibility!=='boolean')return sendJson(res,400,{error:'Invalid accessibility choice'});
+      // Desktop windows submit patches to the Broker, which also owns Agent enable/disable writes.
+      const preferences=Object.keys(patch).length?await savePreferences(patch):await loadPreferences();
+      if(accessibility!==undefined)await setAccessibilityConsent(accessibility);
       this.permissionCache=null;
-      const preferences=await loadPreferences();
       if(!preferences.enabled || !preferences.continuous){this.anchors.clear();this.manager.stopActive();}
-      return sendJson(res,200,{ok:true});
+      else if(accessibility===false){
+        const active=this.manager.active();this.anchors.clear();
+        if(active?.targetTracking)this.manager.setAnchorState(active.id,{status:'lost',annotations:[],reason:'consent_required'});
+      }
+      return sendJson(res,200,{ok:true,preferences,accessibility:await getAccessibilityConsent()});
     }
     if(req.method==='GET' && pathname==='/desktop/stream'){
       if(this.streams.size>=4)return sendJson(res,503,{error:'Too many desktop streams'});
@@ -476,6 +487,7 @@ export class LocalBridge {
           const cursor=Number(parsed.searchParams.get('cursor')??0);
           if(!Number.isSafeInteger(cursor)||cursor<0)return sendJson(res,400,{error:'Invalid cursor',code:'invalid_cursor'});
           const parked=this.manager.getOwned(id,owner);
+          if(TERMINAL_STATES.includes(parked.status))return sendJson(res,200,{...this.journal.read(id,{after:cursor}),session:parked,pending:false,nextAction:continuationFor(parked)});
           if(parked.execution==='parked')return sendJson(res,200,{...this.journal.read(id,{after:cursor}),session:parked,pending:true,nextAction:'yield_to_user',delivery:{mode:'parked',resume:'session_control attach; inspect before verification'}});
           const abort=new AbortController(),onClose=()=>abort.abort();res.on('close',onClose);
           const priorWait=this.agentWaits.get(id);this.agentWaits.set(id,{count:(priorWait?.count||0)+1,until:Math.max(priorWait?.until||0,Date.now()+ms)});this.#publish();
@@ -483,7 +495,7 @@ export class LocalBridge {
             const events=await this.journal.wait(id,{after:cursor,timeoutMs:ms,signal:abort.signal});
             const session=this.manager.getOwned(id,owner);
             if(!session)return sendJson(res,404,{error:'not_found',code:'not_found'});
-            return sendJson(res,200,{...events,session,pending:!events.events?.length,nextAction:session?.nextAction||recoveryFor(session)});
+            return sendJson(res,200,{...events,session,pending:!events.events?.length,nextAction:continuationFor(session)});
           }finally{res.off('close',onClose);const wait=this.agentWaits.get(id);if(wait?.count>1)wait.count--;else this.agentWaits.delete(id);this.#publish();}
         }
         return sendJson(res, 200, await this.manager.waitOwned(id, owner, ms));
@@ -573,6 +585,7 @@ export class LocalBridge {
       }
       if(body.step!==undefined && body.step!==this.manager.get(body.id)?.step)return sendJson(res,409,{error:'stale_step'});
       const result = this.manager.resolve(body.id, body.status);
+      if(!result.error)await this.manager.flushCheckpoint?.();
       return sendJson(res, result.error ? 409 : 200, {...result,...this.snapshot()});
     }
     return sendJson(res, 404, { error: 'Unknown endpoint' });

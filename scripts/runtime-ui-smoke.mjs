@@ -38,7 +38,7 @@ void app.whenReady().then(async()=>{
       samples.push({responseMs:response,domMs,paintMs:performance.now()-started,brokerMs:mark.localMs});
     }
     await mkdir(output,{recursive:true});await writeFile(join(output,'quick-circle.png'),(await overlay.webContents.capturePage()).toPNG());
-    const s=m.show({continuous:true,execution:'parked',title:'打开设置',message:'在原窗口点击设置，完成后返回会话。'},owner);
+    const s=m.show({continuous:true,execution:'parked',title:'打开设置',message:'在原窗口点击设置，完成后返回会话。',x:100,y:100},owner);
     const js=code=>panel.webContents.executeJavaScript(code);
     await until(()=>js(`document.querySelector('#title').textContent==='打开设置'`),'Parked panel absent');
     assert.equal(await js("document.querySelector('#phase').textContent"),'等待你操作');
@@ -62,7 +62,11 @@ void app.whenReady().then(async()=>{
     const bounds=panel.getBounds(),height=await js("document.querySelector('#panel').getBoundingClientRect().height");assert.ok(Math.abs(bounds.height-height)<3);
     await js("document.querySelector('#detailsLabel').click()");await pause(230);
     assert.equal(await js("document.querySelector('#detailsLabel').getAttribute('aria-expanded')"),'true');
-    await js("document.querySelector('#execution').click()");await until(()=>m.get(s.id).execution==='attached','Desktop attach failed');
+    assert.equal(await js("document.querySelector('#execution').hidden"),true,'Parked UI promises to wake an idle agent');
+    m.control(s.id,owner,'attach');await until(()=>js("!document.querySelector('#execution').hidden"),'Agent attach not rendered');
+    await overlay.webContents.executeJavaScript('window.phaseRedraws=0;window.handoffglass.onRender(()=>window.phaseRedraws++)');
+    m.control(s.id,owner,'progress','thinking');await until(()=>js("document.querySelector('#panel').dataset.working==='true'"),'Actual agent phase absent');
+    assert.equal(await overlay.webContents.executeJavaScript('window.phaseRedraws'),0,'Agent status repainted unchanged marks');
     await js("document.querySelector('#execution').click()");await until(()=>m.get(s.id).execution==='parked','Desktop park failed');
     await js("document.querySelector('#detailsLabel').click()");await pause(230);
     await until(async()=>!await js("document.querySelector('#stepDetails').open"),'Details did not finish closing');
@@ -70,7 +74,14 @@ void app.whenReady().then(async()=>{
     await panel.webContents.debugger.sendCommand('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
     await js("document.querySelector('#collapse').click()");
     assert.equal(await js("document.querySelector('#cardBody').hidden"),true);panel.webContents.debugger.detach();
+    await js("document.querySelector('#collapse').click()");await pause(230);
     m.resolve(s.id,'completed');assert.equal(m.get(s.id).verified,false);
+    await until(()=>js("document.querySelector('#note').textContent.includes('继续')"),'Parked result has no return instruction');
+    assert.equal(await js("document.querySelector('#cardBody').hidden"),false,'Result instruction was auto-collapsed');
+    await writeFile(join(output,'reported-panel.png'),(await panel.webContents.capturePage()).toPNG());
+    await js("document.querySelector('#pause').click()");await until(()=>m.get(s.id).status==='paused','Result pause failed');
+    await until(()=>js("document.querySelector('#pause').dataset.paused==='true' && !document.querySelector('#pause').disabled"),'Pause control not ready');
+    await js("document.querySelector('#pause').click()");await until(()=>m.get(s.id).status==='user_action_reported','Result lost on resume');
     assert.equal(m.get(s.id).phase,'verifying');m.control(s.id,owner,'attach');m.verify(s.id,owner,true,true);
     await until(async()=>!panel.isVisible() && await js("document.querySelector('#phase').textContent===''") ,'Hidden panel retained a session');
     let hiddenResizes=0;const onResize=event=>{if(event.sender===panel.webContents)hiddenResizes++;};
@@ -80,10 +91,10 @@ void app.whenReady().then(async()=>{
     await until(()=>js("document.querySelector('#title').textContent.startsWith('Choose')"),'Long panel absent');
     assert.equal(await js("document.querySelector('#phase').scrollWidth<=document.querySelector('#phase').clientWidth"),true,'State label was clipped');
     await js("document.querySelector('#detailsLabel').click()");await pause(250);
-    await js("document.querySelector('#execution').scrollIntoView({block:'end'})");
+    await js("document.querySelector('#detailText').scrollIntoView({block:'end'})");
     assert.equal(await js("document.documentElement.scrollWidth<=innerWidth"),true);
     assert.equal(await js("document.querySelector('#cardBody').scrollHeight>document.querySelector('#cardBody').clientHeight"),true,'Long content has no scroll path');
-    assert.equal(await js("document.querySelector('#execution').getBoundingClientRect().bottom<=innerHeight"),true,'Management action is clipped');
+    assert.equal(await js("document.querySelector('#detailText').getBoundingClientRect().bottom<=innerHeight"),true,'Continuation instructions are clipped');
     const actualResolve=m.resolve.bind(m);m.resolve=()=>({error:'simulated_failure'});
     await js("document.querySelector('#done').click()");
     await until(()=>js("document.querySelector('#status').dataset.error==='true'"),'Failed action has no feedback');
@@ -98,7 +109,7 @@ void app.whenReady().then(async()=>{
     m.resolve(fresh.id,'cancelled');
     assert.deepEqual(errors,[]);
     const stats=key=>{const sorted=samples.slice(2).map(s=>s[key]).sort((a,b)=>a-b);return {p50Ms:+sorted[5].toFixed(1),p95Ms:+sorted[9].toFixed(1)};};
-    const report={samples:10,warmup:2,broker:stats('brokerMs'),response:stats('responseMs'),dom:stats('domMs'),paint:stats('paintMs'),window:{visible:overlay.isVisible(),visibility:await overlay.webContents.executeJavaScript('document.visibilityState'),throttling:overlay.webContents.getBackgroundThrottling()},scope:'Warm loopback HTTP to Electron SVG DOM/capturePage; excludes host/model. One physical display. Capture includes OS scheduling.',checks:['reversible collapse','focus return','inert','disclosure','reduced motion','parked local action and verification','no hidden refresh','readable icon controls','long-content scroll','persistent action error'],errors};
+    const report={samples:10,warmup:2,broker:stats('brokerMs'),response:stats('responseMs'),dom:stats('domMs'),paint:stats('paintMs'),window:{visible:overlay.isVisible(),visibility:await overlay.webContents.executeJavaScript('document.visibilityState'),throttling:overlay.webContents.getBackgroundThrottling()},scope:'Warm loopback HTTP to Electron SVG DOM/capturePage; excludes host/model. One physical display. Capture includes OS scheduling.',checks:['reversible collapse','focus return','inert','disclosure','reduced motion','parked local action and verification','no hidden refresh','readable icon controls','long-content scroll','persistent action error','visible parked receipt','pause preserves verification','no false desktop wake button','no mark repaint on agent phase'],errors};
     await writeFile(join(output,'report.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
   }finally{m.close();await b.stop();for(const w of BrowserWindow.getAllWindows())w.destroy();await rm(dir,{recursive:true,force:true});await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:100});}
 }).then(()=>app.exit(0)).catch(e=>{console.error(e);app.exit(1);});

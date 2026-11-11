@@ -85,3 +85,35 @@ test('target references reject another owner, expired evidence and display layou
   assert.throws(()=>refs.get(ref,'a','layout-2'),/fresh targetRef/);
   now=101;assert.throws(()=>refs.get(ref,'a','layout-1'),/fresh targetRef/);
 });
+
+test('recovery preserves a reported action and an explicit pause, without preserving task contents',async()=>{
+ for(const paused of [false,true]){
+  const dir=await mkdtemp(join(tmpdir(),'hg-reported-checkpoint-')),m=new HandoffManager();let next,restored;
+  try{
+   const checkpoint=await attachSessionCheckpoint(m,dir);
+   const s=m.show({...step,title:'PRIVATE_REPORT',x:12345,y:54321,execution:'parked',sensitive:true},'original'),token=m.issueResume(s.id,'original');
+   m.resolve(s.id,'completed');if(paused)m.control(s.id,'original','pause');
+   await checkpoint.flush();const raw=await readFile(join(dir,'session-checkpoint.json'),'utf8');
+   for(const privateValue of ['PRIVATE_REPORT','12345','54321',token])assert.equal(raw.includes(privateValue),false);
+   await checkpoint.close();m.close();next=new HandoffManager();restored=await attachSessionCheckpoint(next,dir);
+   const recovered=next.resume(s.id,token,'reconnected');
+   assert.notEqual(recovered.resumeToken,token);assert.equal(next.getOwned(s.id,'original'),null);
+   assert.equal(recovered.session.verified,false);assert.deepEqual(recovered.session.annotations,[]);
+   assert.equal(recovered.session.completionSource,'user_report');
+   if(paused){assert.equal(recovered.session.status,'paused');assert.equal(next.verify(s.id,'reconnected',true,true).error,'verification_not_due');next.control(s.id,'reconnected','resume');}
+   assert.equal(next.get(s.id).phase,'verifying');
+   assert.equal(next.present(s.id,step,'reconnected').error,'verification_due');
+   assert.equal(next.verify(s.id,'reconnected',true,true).session.status,'completed');
+  }finally{await restored?.close();m.close();next?.close();await rm(dir,{recursive:true,force:true});}
+ }
+});
+
+test('same-process token recovery keeps reports and does not silently resume a user pause',()=>{
+ const m=new HandoffManager();try{
+  const s=m.show(step,'a'),token=m.issueResume(s.id,'a');m.resolve(s.id,'completed');
+  const resumed=m.resume(s.id,token,'b');assert.equal(resumed.session.nextAction,'verify_in_app');assert.equal(resumed.session.verified,false);
+  m.control(s.id,'b','pause');const paused=m.resume(s.id,resumed.resumeToken,'c');
+  assert.equal(paused.session.status,'paused');m.control(s.id,'c','resume');
+  assert.equal(m.verify(s.id,'c',true,true).session.verified,true);
+ }finally{m.close();}
+});

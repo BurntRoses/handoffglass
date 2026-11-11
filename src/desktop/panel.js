@@ -4,8 +4,8 @@ import {disclosure} from './disclosure.mjs';
 let active=null,busy=false,collapsed=false,manualCollapse=false,stepKey='',clockTimer=null,lastSize='',feedback='';
 const $=id=>document.getElementById(id);
 const UI={
- 'zh-CN':{done:'我已完成',decline:'拒绝',cancel:'结束',pause:'暂停',resume:'继续',collapse:'收起',expand:'展开',retry:'重新定位',fallback:'改用文字提示',sending:'正在发送…',failed:'未能发送，请重试',step:n=>`第 ${n} 步`,total:(n,t)=>`第 ${n} / ${t} 步`,remaining:n=>`${n} 秒后结束`,waiting:'等待你操作',trial:'本地试用',parkedSubmitted:'操作已记录',submitted:'等待会话核实',next:'等待下一步提示',paused:'引导已暂停',reconnecting:'正在恢复连接',lost:'目标位置暂不可用',permission:'控件定位权限需要检查',lostNote:'在原窗口核对目标，或选择一种恢复方式。',pausedNote:'继续后会重新检查目标位置。',offlineNote:'正在重新连接本地服务，标记已收起。',details:'当前状态',detail:'完成后会检查原应用，再给出下一步。',phase:{thinking:'Agent 正在处理',observing:'正在读取界面',locating:'正在定位目标',presenting:'正在准备引导',verifying:'正在核实结果'}},
- 'en-US':{done:'I completed this',decline:'Decline',cancel:'End',pause:'Pause',resume:'Resume',collapse:'Collapse',expand:'Expand',retry:'Locate again',fallback:'Use text guidance',sending:'Sending…',failed:'Could not send. Try again.',step:n=>`Step ${n}`,total:(n,t)=>`Step ${n} of ${t}`,remaining:n=>`Ends in ${n}s`,waiting:'Waiting for you',trial:'Local trial',parkedSubmitted:'Action recorded',submitted:'Awaiting verification',next:'Waiting for the next step',paused:'Guidance paused',reconnecting:'Reconnecting',lost:'Target position unavailable',permission:'Check control lookup permission',lostNote:'Check the target in its original window, or choose a recovery action.',pausedNote:'Resuming will check the target again.',offlineNote:'Reconnecting to the local service. Marks are hidden.',details:'Current status',detail:'Your agent will check the original app before presenting the next step.',phase:{thinking:'Agent is working',observing:'Reading the interface',locating:'Locating the target',presenting:'Preparing guidance',verifying:'Checking the result'}}
+ 'zh-CN':{done:'我已完成',decline:'拒绝',cancel:'结束',pause:'暂停',resume:'继续',collapse:'收起',expand:'展开',retry:'重新定位',fallback:'改用文字提示',sending:'正在发送…',failed:'未能发送，请重试',step:n=>`第 ${n} 步`,total:(n,t)=>`第 ${n} / ${t} 步`,remaining:n=>`${n} 秒后结束`,waiting:'等待你操作',trial:'本地试用',parkedSubmitted:'操作已记录',submitted:'等待会话核实',next:'等待下一步提示',paused:'引导已暂停',reconnecting:'正在恢复连接',lost:'目标位置暂不可用',permission:'控件定位权限需要检查',lostNote:'在原窗口核对目标，或选择一种恢复方式。',pausedNote:'继续后需要回到原会话检查目标。',review:'等待会话接续',reviewNote:'回到原会话说“继续”，Agent 会重新检查目标。',returnToChat:'回到原会话说“继续”，让 Agent 核实结果。',offlineNote:'正在重新连接本地服务，标记已收起。',details:'当前状态',detail:'完成后会检查原应用，再给出下一步。',phase:{thinking:'Agent 正在处理',observing:'正在读取界面',locating:'正在定位目标',presenting:'正在准备引导',verifying:'正在核实结果'}},
+ 'en-US':{done:'I completed this',decline:'Decline',cancel:'End',pause:'Pause',resume:'Resume',collapse:'Collapse',expand:'Expand',retry:'Locate again',fallback:'Use text guidance',sending:'Sending…',failed:'Could not send. Try again.',step:n=>`Step ${n}`,total:(n,t)=>`Step ${n} of ${t}`,remaining:n=>`Ends in ${n}s`,waiting:'Waiting for you',trial:'Local trial',parkedSubmitted:'Action recorded',submitted:'Awaiting verification',next:'Waiting for the next step',paused:'Guidance paused',reconnecting:'Reconnecting',lost:'Target position unavailable',permission:'Check control lookup permission',lostNote:'Check the target in its original window, or choose a recovery action.',pausedNote:'Resume, then return to your chat to check the target.',review:'Return to your chat',reviewNote:'Say “continue” in your original chat to check the target again.',returnToChat:'Say “continue” in your original chat to verify the result.',offlineNote:'Reconnecting to the local service. Marks are hidden.',details:'Current status',detail:'Your agent will check the original app before presenting the next step.',phase:{thinking:'Agent is working',observing:'Reading the interface',locating:'Locating the target',presenting:'Preparing guidance',verifying:'Checking the result'}}
 };
 const copy=()=>UI[active?.locale]||UI['zh-CN'];
 const card=disclosure($('cardBody'),$('collapse'),{onSize:size});
@@ -34,20 +34,23 @@ function render(session){
  const nextKey=`${session.id}:${session.step}`;
  if(nextKey!==stepKey){stepKey=nextKey;manualCollapse=false;collapsed=false;busy=false;feedback='';$('cardBody').scrollTop=0;$('stepDetails').open=false;}
  active=session;const c=copy(),waiting=session.status==='awaiting_user',paused=session.status==='paused';
- if(!manualCollapse)collapsed=!waiting;
+ if(!manualCollapse)collapsed=paused;
  document.documentElement.lang=session.locale||'zh-CN';document.documentElement.dataset.theme=session.theme||'system';
  $('panel').dataset.density=session.density||'normal';$('panel').dataset.compact=String(collapsed);card.set(!collapsed);
  $('step').textContent=collapsed?`${c.step(session.step||1)} · ${session.title}`:session.totalSteps?c.total(session.step||1,session.totalSteps):c.step(session.step||1);
  $('title').textContent=session.title;$('message').textContent=session.message;
+ $('message').hidden=['verifying','reconnecting'].includes(session.phase);
+ $('stepDetails').hidden=session.phase==='verifying'&&session.execution==='parked';
  $('done').hidden=!waiting;$('decline').hidden=!waiting||session.mode==='guide';$('doneLabel').textContent=c.done;
  iconLabel('pause',paused?c.resume:c.pause);$('pause').dataset.paused=String(paused);iconLabel('collapse',collapsed?c.expand:c.collapse);$('collapse').setAttribute('aria-expanded',String(!collapsed));
  iconLabel('cancel',c.cancel);$('decline').textContent=c.decline;$('retry').textContent=c.retry;$('fallback').textContent=c.fallback;
  const lost=session.phase==='blocked',offline=session.desktopConnection==='reconnecting';
- const reported=session.phase==='verifying'&&session.execution==='parked';
- $('note').hidden=!lost&&!paused&&!offline&&!reported;$('note').dataset.tone=lost||offline?'warning':'info';
- $('note').textContent=offline?c.offlineNote:paused?c.pausedNote:reported?(session.locale==='en-US'?'Return to your original chat to check the result.':'回到原会话，让 Agent 核实结果。'):c.lostNote;
+ const reported=session.phase==='verifying'&&session.execution==='parked',review=session.phase==='reconnecting';
+ $('note').hidden=!lost&&!paused&&!offline&&!reported&&!review;$('note').dataset.tone=lost||offline?'warning':'info';
+ $('note').textContent=offline?c.offlineNote:paused?c.pausedNote:reported?c.returnToChat:review?c.reviewNote:c.lostNote;
  $('recoveryActions').hidden=!lost;$('detailsLabel').textContent=c.details;$('detailText').textContent=session.execution==='parked'?(session.locale==='en-US'?'The guide stays here. Return to the original chat to check the result.':'引导保留在桌面，操作后回到原会话核实。'):c.detail;
- $('execution').textContent=session.execution==='parked'?(session.locale==='en-US'?'Resume chat continuation':'恢复会话接续'):(session.locale==='en-US'?'Leave guide on desktop':'挂起会话');
+ $('execution').hidden=session.execution==='parked'||!session.continuous;
+ $('execution').textContent=session.locale==='en-US'?'Leave guide on desktop':'挂起会话';
  for(const id of ['done','decline','cancel','pause','retry','fallback','execution'])$(id).disabled=busy||offline;
  $('status').textContent=busy?c.sending:feedback;$('status').dataset.error=String(Boolean(feedback));
  updateClock();
@@ -60,7 +63,7 @@ async function send(action,decision=false){
  busy=false;feedback=reply?.ok?'':copy().failed;render(active);size();
 }
 for(const [id,decision] of Object.entries({done:'completed',decline:'declined',cancel:'cancelled'}))$(id).addEventListener('click',()=>void send(decision,true));
-$('execution').addEventListener('click',()=>void send(active?.execution==='parked'?'attach':'park'));
+$('execution').addEventListener('click',()=>void send('park'));
 $('pause').addEventListener('click',()=>void send(active?.status==='paused'?'resume':'pause'));
 $('retry').addEventListener('click',()=>void send('retry_target'));
 $('fallback').addEventListener('click',()=>void send('text_fallback'));

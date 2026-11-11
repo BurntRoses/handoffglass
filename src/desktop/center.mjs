@@ -4,14 +4,15 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { connection, connectHost, revealWorkbuddyConnector } from './setup.mjs';
 import { HOSTS } from '../config.mjs';
-import { loadPreferences, savePreferences } from '../local/preferences.mjs';
-import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
+import { loadPreferences } from '../local/preferences.mjs';
+import { getAccessibilityConsent } from '../native/preferences.mjs';
+import { updateDesktopSettings } from './settings-client.mjs';
 import { summarizeDiagnostics } from './center-model.mjs';
 import { checkLocalMcp } from '../local/mcp-probe.mjs';
 import { makeSupportReport } from '../local/support-report.mjs';
 import { inspectLayout } from '../native/calibration.mjs';
 import metadata from '../../package.json' with { type: 'json' };
-import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled, uninstallApplication } from '../integration-lifecycle.mjs';
+import { integrationStatus, cleanupIntegration, lifecycleGuide, uninstallApplication } from '../integration-lifecycle.mjs';
 import { connectionState } from '../connection-state.mjs';
 import { nativePermissionStatus } from '../native/locator.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
@@ -75,22 +76,16 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo,identifyDisplay
   });
   ipcMain.handle('hg:center:save',async(event,settings)=>{
     if(!authorized(event)||!settings||typeof settings!=='object'||Array.isArray(settings)) return {ok:false,error:'Invalid request'};
-    const {visualStyle,motion,locale,density,theme,accessibility,enabled,continuous,displayPolicy,displayId,...extra}=settings;
-    if(Object.keys(extra).length || typeof accessibility!=='boolean' || typeof enabled!=='boolean' || typeof continuous!=='boolean')return {ok:false,error:'Invalid setting'};
     try {
-      const preferences=await savePreferences({visualStyle,motion,locale,density,theme,enabled,continuous,...(displayPolicy!==undefined?{displayPolicy}:{}),...(displayId!==undefined?{displayId}:{})});
-      await setAccessibilityConsent(accessibility);
-      await fetch(`http://127.0.0.1:${process.env.HANDOFFGLASS_PORT}/desktop/preferences`,{method:'POST',headers:{authorization:`Bearer ${process.env.HANDOFFGLASS_SECRET}`,'content-type':'application/json'},body:'{}'}).then(r=>{if(!r.ok)throw Error('Could not update active guidance');});
+      const result=await updateDesktopSettings(settings);
       app.emit('hg:preferences-changed');
-      return {ok:true,preferences,accessibility};
+      return result;
     } catch(error) {return {ok:false,error:error.message};}
   });
   ipcMain.handle('hg:center:enabled',async(event,enabled)=>{
     if(!authorized(event)||typeof enabled!=='boolean')return {ok:false,code:'invalid_request'};
     try{
-      await setIntegrationEnabled(enabled);
-      const r=await fetch(`http://127.0.0.1:${process.env.HANDOFFGLASS_PORT}/desktop/preferences`,{method:'POST',headers:{authorization:`Bearer ${process.env.HANDOFFGLASS_SECRET}`,'content-type':'application/json'},body:'{}'});
-      if(!r.ok)throw Error();
+      await updateDesktopSettings({enabled});
       app.emit('hg:preferences-changed');return {ok:true,enabled};
     }catch{return {ok:false,code:'update_failed'};}
   });

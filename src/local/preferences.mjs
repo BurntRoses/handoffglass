@@ -1,5 +1,5 @@
 /** Local user-owned visual preferences. No task history, credentials, window names or screenshots. */
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { lstat, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { runtimeDir, secureRuntimeDir } from '../runtime.mjs';
@@ -50,7 +50,19 @@ export async function loadPreferences(dir = runtimeDir()) {
     throw error;
   }
 }
-export async function savePreferences(delta, dir = runtimeDir()) {
+const writes=new Map();
+function serializeWrite(dir,work) {
+  const key=resolve(dir),pending=(writes.get(key)||Promise.resolve()).then(work);
+  const settled=pending.catch(()=>{});writes.set(key,settled);
+  void settled.then(()=>{if(writes.get(key)===settled)writes.delete(key);});
+  return pending;
+}
+export function savePreferences(delta, dir = runtimeDir()) {
+  // Snapshot the patch before queueing; independent updates must never read the same old file.
+  validatePreferences(delta);const patch={...delta};
+  return serializeWrite(dir,()=>writePreferences(patch,dir));
+}
+async function writePreferences(delta,dir) {
   await secureRuntimeDir(dir);
   const next = validatePreferences({ ...await loadPreferences(dir), ...delta });
   const temporary = join(dir, `.preferences-${randomUUID()}.tmp`);
@@ -59,8 +71,10 @@ export async function savePreferences(delta, dir = runtimeDir()) {
   finally { await rm(temporary, { force: true }); }
   return next;
 }
-export async function resetPreferences(dir = runtimeDir()) {
-  await secureRuntimeDir(dir);
-  await rm(join(dir, 'preferences.json'), { force: true });
-  return { ...DEFAULT_PREFERENCES };
+export function resetPreferences(dir = runtimeDir()) {
+  return serializeWrite(dir,async()=>{
+    await secureRuntimeDir(dir);
+    await rm(join(dir, 'preferences.json'), { force: true });
+    return { ...DEFAULT_PREFERENCES };
+  });
 }

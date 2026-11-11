@@ -156,6 +156,19 @@ void app.whenReady().then(async()=>{
   await js(`document.querySelector('.style-choices [data-value="handdrawn"]').click()`);
   assert.equal(await js('document.querySelector("#stylePreview").dataset.style'),'handdrawn');
   assert.equal((await loadPreferences(dir)).visualStyle,'minimal','Unsaved preview changed preferences');
+  assert.equal(await js('document.querySelector("#appearanceFeedback").textContent'),'尚未保存');
+  // Draft appearance must survive an independent global switch update and a refresh.
+  const patches=await js('Promise.all([window.hgCenter.save({enabled:false}),window.hgCenter.save({displayPolicy:"active"}),window.hgCenter.save({continuous:false})])');
+  assert.ok(patches.every(r=>r.ok));
+  const changed=await loadPreferences(dir);assert.equal(changed.enabled,false);assert.equal(changed.continuous,false);assert.equal(changed.displayPolicy,'active');assert.equal(changed.visualStyle,'minimal');
+  await js('document.querySelector("#refresh").click()');
+  await until(()=>js('!document.querySelector("#enabled").checked'),'Dirty appearance concealed global disable');
+  assert.equal(await js('document.querySelector("#visualStyle").value'),'handdrawn','Refresh discarded appearance draft');
+  assert.equal((await js('window.hgCenter.save({accessibility:"invalid"})')).ok,false);
+  assert.equal((await js('window.hgCenter.save({unexpected:true})')).ok,false);
+  await js('window.hgCenter.save({enabled:true,continuous:true,displayPolicy:"target"})');
+  await js('document.querySelector("#refresh").click()');
+  await until(()=>js('document.querySelector("#enabled").checked'),'Global settings did not refresh');
   await js('document.querySelector("#replay").click()');await capture('appearance-light');
   await js(`document.querySelector('.segments [data-value="dark"]').click()`);await capture('appearance-dark');
   await js(`document.querySelector('.segments [data-value="en-US"]').click()`);await js('document.querySelector("#save").click()');
@@ -267,7 +280,11 @@ void app.whenReady().then(async()=>{
   assert.equal(await overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark").length'),0);
   assert.equal(panel.isVisible(),true,'Panel disappeared during verification');
   await until(async()=>await panel.webContents.executeJavaScript('document.querySelector("#done").hidden'),'Verification still allows duplicate completion');
-  await until(()=>panel.getBounds().height<130,'Verification did not collapse to a strip');
+  assert.equal(await panel.webContents.executeJavaScript('document.querySelector("#cardBody").hidden'),false,'Verification receipt was hidden');
+  await panel.webContents.executeJavaScript('document.querySelector("#collapse").click()');
+  await until(()=>panel.getBounds().height<130,'Manual collapse did not create a strip');
+  await panel.webContents.executeJavaScript('document.querySelector("#collapse").click()');
+  await pause(230);
   await writeFile(join(output,'verifying.png'),(await panel.webContents.capturePage()).toPNG());
   manager.verify(continuous.id,'local',true);
   manager.present(continuous.id,{title:'第二步',message:'同一会话中的后续步骤。',mode:'handoff',continuous:true,annotations:marks},'local');
