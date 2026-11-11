@@ -8,6 +8,20 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
 const body={title:'Step',message:'Check window',mode:'handoff',continuous:true,requestId:'continuous-test-1'};
+test('pause and resume preserve pending verification without duplicating the user action',()=>{
+ const m=new HandoffManager(),j=new InteractionJournal(m);try{
+  const first=m.show({...body,execution:'parked',sensitive:true},owner);
+  m.resolve(first.id,'completed');m.control(first.id,owner,'pause');
+  assert.equal(m.verify(first.id,owner,true,true).error,'verification_not_due');
+  const resumed=m.control(first.id,owner,'resume').session;
+  assert.equal(resumed.status,'user_action_reported');assert.equal(resumed.nextAction,'verify_in_app');
+  assert.equal(resumed.verified,false);assert.equal(resumed.completionSource,'user_report');
+  assert.equal(m.present(first.id,{...body,requestId:'must-not-skip-verify'},owner).error,'verification_due');
+  assert.equal(j.read(first.id).events.filter(e=>e.type==='user_action').length,1);
+  assert.ok(j.read(first.id).events.some(e=>e.type==='session_resumed'));
+  assert.equal(m.verify(first.id,owner,true,true).session.status,'completed');
+ }finally{j.close();m.close();}
+});
 test('native completion candidates keep their source and remain unverified',()=>{
  const m=new HandoffManager(),j=new InteractionJournal(m);try{
   const s=m.show({...body,completion:{kind:'observed_condition',condition:'target_absent'}},owner);

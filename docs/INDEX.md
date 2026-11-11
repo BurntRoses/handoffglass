@@ -29,3 +29,5 @@
 [2026-10-21 社区发布检查](qa/2026-10-21-community-release.md)
 
 - [界面处方](../DESIGN.md) · [逐项核对与整改](FRONTEND_REDESIGN.md)
+
+- [0.19.2 交互与状态修正](qa/2026-11-12-interaction.md)

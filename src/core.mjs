@@ -259,7 +259,11 @@ export class HandoffManager extends EventEmitter {
       s.pausedFrom=s.status;s.remainingMs=Math.max(0,s.stepTimeoutAt-this.clock());s.status='paused';s.phase='paused';s.nextAction='wait_for_resume';s.annotations=[];
     } else if(action==='resume') {
       if(s.status!=='paused')return {error:'not_paused'};
-      s.status='observing';s.phase='reconnecting';s.nextAction='observe_app';s.recoveryRequired=true;s.stepTimeoutAt=this.clock()+Math.max(10000,s.remainingMs||1800000);delete s.targetTracking;delete s.scene;
+      const reported=s.pausedFrom==='user_action_reported';
+      s.status=reported?'user_action_reported':'observing';s.phase=reported?'verifying':'reconnecting';s.nextAction=reported?'verify_in_app':'observe_app';
+      if(!reported)s.recoveryRequired=true;
+      s.agentState={phase:'idle',at:this.clock()};
+      s.stepTimeoutAt=this.clock()+Math.max(10000,s.remainingMs||1800000);delete s.targetTracking;delete s.scene;delete s.pausedFrom;delete s.remainingMs;
     } else if(action==='retry_target' || action==='text_fallback') {
       if(s.status==='paused')return {error:'paused'};
       s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='retry_target'?'reobserve_target':'present_text_step';

@@ -24,7 +24,7 @@ test('center readout bounds counters, hides task text and never reports user com
   const result=summarizeDiagnostics(state({displays:10000,secret:'sensitive',handoff:{status:'awaiting_user',
     mode:'handoff',timeoutAt:now+14500,title:'DO NOT LEAK',message:'private'}}),now);
   assert.equal(result.displays,16);
-  assert.deepEqual(result.session,{state:'awaiting_user',mode:'handoff',expiresIn:15});
+  assert.deepEqual(result.session,{state:'awaiting_user',mode:'handoff',execution:'attached',expiresIn:15});
   assert.ok(!JSON.stringify(result).includes('DO NOT LEAK'));
   assert.ok(!JSON.stringify(result).includes('sensitive'));
   assert.throws(()=>summarizeDiagnostics({broker:'offline'},now),/Unavailable/);
@@ -69,7 +69,7 @@ test('desktop control center is a separate sandboxed surface with narrow IPC',as
   ]);
   assert.match(entry,/sandbox:true,contextIsolation:true,nodeIntegration:false,webSecurity:true/);
   assert.match(entry,/event\.sender === center\.webContents/);
-  assert.match(entry,/typeof accessibility!==['"]boolean['"]/);
+  assert.match(entry,/updateDesktopSettings\(settings\)/);
   assert.match(entry,/HOSTS_SET\.has\(host\)/);
   assert.doesNotMatch(preload,/hg:decision|ipcRenderer\.send\(/);
   assert.match(html,/default-src 'none'/);

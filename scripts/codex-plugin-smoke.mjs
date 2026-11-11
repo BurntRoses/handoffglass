@@ -31,7 +31,7 @@ try{
     const id=++seq,timer=setTimeout(()=>{pending.delete(id);reject(Error('Native host timed out: '+method+' '+stderr));},25000);
     pending.set(id,{resolve,reject,timer});child.stdin.write(JSON.stringify({id,method,params})+'\n');
   });
-  await request('initialize',{clientInfo:{name:'handoffglass_native_smoke',version:'0.19.1'},capabilities:{experimentalApi:true}});
+  await request('initialize',{clientInfo:{name:'handoffglass_native_smoke',version:'0.19.2'},capabilities:{experimentalApi:true}});
   child.stdin.write(JSON.stringify({method:'initialized'})+'\n');
   const started=await request('thread/start',{cwd:base});
   const threadId=started.thread.id;

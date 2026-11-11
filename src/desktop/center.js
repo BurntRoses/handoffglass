@@ -310,15 +310,21 @@ const lex = {
  }
 };
 
-Object.assign(lex['zh-CN'],{
- overview:'工作台',welcome:'桌面引导',welcomeDesc:'在已连接的应用中开始任务。需要你操作时，提示会出现在目标旁。',workspaceLabel:'桌面工作台',trialTitle:'试用步骤卡片',trialDesc:'查看目标标记，体验完成、暂停与下一步。',tryGuidance:'试一次引导',showCurrent:'显示当前引导',desktopHint:'位置标记与步骤卡片',hostHint:'显示应用实际请求',reviewPermission:'检查权限',workspaceTip:'你可以随时暂停或结束引导。',checkPermissionNow:'检查权限',identifyDisplays:'识别屏幕',displayPolicy:'控制条位置',displayFollow:'跟随目标',displayActive:'当前工作屏',displayFixed:'指定显示器',displayPolicyHint:'位置标记始终显示在目标所在屏幕。',uninstallTitle:'卸载 HandoffGlass',uninstallPreview:'查看清理内容',uninstallDesc:'清理本应用、宿主接入和运行数据。修改过的共享内容会列出并保留。',uninstallConfirm:'退出并卸载',selfTestTitle:'本地服务检查',selfTestPassed:'本地服务可用',selfTestPassedHint:'本地服务可用。请在连接页确认应用已加载工具并发起调用。',selfTestFailed:'本地服务检查失败',selfTestTimeout:'本地服务检查超时',checkLoaded:'检查是否已加载',hostReady:'已收到此次接入的真实调用。',hostPending:'等待原会话检查连接。',reloadHint:'配置已写入。重启或重新加载 Codex 后，在原会话说“检查 HandoffGlass 连接”。',enableHint:'请在宿主中启用 HandoffGlass，然后重新加载工具。',reviewConfigHint:'现有配置有改动，请先查看配置。',stepPaused:'当前引导已暂停',stepRecovering:'等待恢复引导',currentTask:'正在进行的引导',trialStarted:'本地试用已开始，请查看桌面提示。',uninstallScheduled:'已安排清理，应用即将退出。',uninstallRetained:'部分内容有修改，将予以保留。',uninstallNone:'没有可清理的已登记内容。'
+Object.assign(lex['zh-CN'],{unsaved:'尚未保存',saving:'正在保存…',saveFailed:'未能保存，改动仍保留',returnToChat:'操作已记录，回到原会话核实',targetUnavailable:'目标位置需要重新检查',
+ overview:'工作台',welcome:'桌面引导',welcomeDesc:'在已连接的应用中开始任务。需要你操作时，提示会出现在目标旁。',workspaceLabel:'桌面工作台',trialTitle:'试用步骤卡片',trialDesc:'查看目标标记，体验完成、暂停与下一步。',tryGuidance:'试一次引导',showCurrent:'显示当前引导',desktopHint:'位置标记与步骤卡片',hostHint:'显示应用实际请求',reviewPermission:'检查权限',workspaceTip:'你可以随时暂停或结束引导。',checkPermissionNow:'检查权限',identifyDisplays:'识别屏幕',displayPolicy:'控制条位置',displayFollow:'跟随目标',displayActive:'当前工作屏',displayFixed:'指定显示器',displayPolicyHint:'位置标记始终显示在目标所在屏幕。',uninstallTitle:'卸载 HandoffGlass',uninstallPreview:'查看清理内容',uninstallDesc:'清理本应用、宿主接入和运行数据。修改过的共享内容会列出并保留。',uninstallConfirm:'退出并卸载',selfTestTitle:'本地服务检查',selfTestPassed:'本地服务可用',selfTestPassedHint:'本地服务可用。请在连接页确认应用已加载工具并发起调用。',selfTestFailed:'本地服务检查失败',selfTestTimeout:'本地服务检查超时',checkLoaded:'检查是否已加载',hostReady:'已收到此次接入的真实调用。',hostPending:'等待原会话检查连接。',reloadHint:'配置已写入。重启或重新加载 Codex 后，在原会话说“检查 HandoffGlass 连接”。',enableHint:'请在宿主中启用 HandoffGlass，然后重新加载工具。',reviewConfigHint:'现有配置有改动，请先查看配置。',stepPaused:'当前引导已暂停',stepRecovering:'回到会话检查目标',currentTask:'正在进行的引导',trialStarted:'本地试用已开始，请查看桌面提示。',uninstallScheduled:'已安排清理，应用即将退出。',uninstallRetained:'部分内容有修改，将予以保留。',uninstallNone:'没有可清理的已登记内容。'
 });
-Object.assign(lex['en-US'],{
- overview:'Workbench',welcome:'Desktop guidance',welcomeDesc:'Start a task in a connected app. Guidance appears beside the target when a step needs you.',workspaceLabel:'Desktop workbench',trialTitle:'Try desktop guidance',trialDesc:'See target marks and try completion, pause and the next step.',tryGuidance:'Try guidance',showCurrent:'Show current guidance',desktopHint:'Target marks and step cards',hostHint:'Based on actual host requests',reviewPermission:'Check access',workspaceTip:'Pause or end guidance at any time.',checkPermissionNow:'Check access',identifyDisplays:'Identify displays',displayPolicy:'Control strip display',displayFollow:'Follow target',displayActive:'Current display',displayFixed:'Choose display',displayPolicyHint:'Target marks always stay on the target display.',uninstallTitle:'Uninstall HandoffGlass',uninstallPreview:'Review cleanup',uninstallDesc:'Remove the app, integrations and runtime data. Edited shared content is listed and kept.',uninstallConfirm:'Quit and uninstall',selfTestTitle:'Local service check',selfTestPassed:'Local service available',selfTestPassedHint:'This does not verify tools in your host. Connections shows real call evidence.',selfTestFailed:'Local service check failed',selfTestTimeout:'Local service check timed out',checkLoaded:'Check loaded tools',hostReady:'A real call from this installation was received.',hostPending:'Waiting for a host call.',reloadHint:'Configuration written. Restart or reload Codex, then ask “Check the HandoffGlass connection” in your chat.',enableHint:'Enable HandoffGlass in your host, then reload its tools.',reviewConfigHint:'Configuration was edited. Review it before continuing.',stepPaused:'Current guidance is paused',stepRecovering:'Waiting to recover guidance',currentTask:'Guidance in progress',trialStarted:'Local trial started. Follow the desktop prompt.',uninstallScheduled:'Cleanup scheduled. The app will quit.',uninstallRetained:'Edited content will be kept.',uninstallNone:'No registered content to remove.'
+Object.assign(lex['en-US'],{unsaved:'Unsaved changes',saving:'Saving…',saveFailed:'Could not save. Your changes are kept.',returnToChat:'Action recorded. Return to chat to verify.',targetUnavailable:'The target needs another check',
+ overview:'Workbench',welcome:'Desktop guidance',welcomeDesc:'Start a task in a connected app. Guidance appears beside the target when a step needs you.',workspaceLabel:'Desktop workbench',trialTitle:'Try desktop guidance',trialDesc:'See target marks and try completion, pause and the next step.',tryGuidance:'Try guidance',showCurrent:'Show current guidance',desktopHint:'Target marks and step cards',hostHint:'Based on actual host requests',reviewPermission:'Check access',workspaceTip:'Pause or end guidance at any time.',checkPermissionNow:'Check access',identifyDisplays:'Identify displays',displayPolicy:'Control strip display',displayFollow:'Follow target',displayActive:'Current display',displayFixed:'Choose display',displayPolicyHint:'Target marks always stay on the target display.',uninstallTitle:'Uninstall HandoffGlass',uninstallPreview:'Review cleanup',uninstallDesc:'Remove the app, integrations and runtime data. Edited shared content is listed and kept.',uninstallConfirm:'Quit and uninstall',selfTestTitle:'Local service check',selfTestPassed:'Local service available',selfTestPassedHint:'This does not verify tools in your host. Connections shows real call evidence.',selfTestFailed:'Local service check failed',selfTestTimeout:'Local service check timed out',checkLoaded:'Check loaded tools',hostReady:'A real call from this installation was received.',hostPending:'Waiting for a host call.',reloadHint:'Configuration written. Restart or reload Codex, then ask “Check the HandoffGlass connection” in your chat.',enableHint:'Enable HandoffGlass in your host, then reload its tools.',reviewConfigHint:'Configuration was edited. Review it before continuing.',stepPaused:'Current guidance is paused',stepRecovering:'Return to chat to check the target',currentTask:'Guidance in progress',trialStarted:'Local trial started. Follow the desktop prompt.',uninstallScheduled:'Cleanup scheduled. The app will quit.',uninstallRetained:'Edited content will be kept.',uninstallNone:'No registered content to remove.'
 });
 const $=id=>document.getElementById(id);
 upgradeChoices();
-let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false,testBusy=false,testLast=null;
+let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false,settingsRevision=0,settingsPending=0,testBusy=false,testLast=null;
+let settingsQueue=Promise.resolve();
+function savePatch(patch){
+ settingsPending++;serial++;
+ const operation=settingsQueue.then(async()=>{const r=await window.hgCenter.save(patch);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};return r;});
+ settingsQueue=operation.catch(()=>{});return operation.finally(()=>{settingsPending--;serial++;});
+}
 let hostPlatform=null,lastDisplays=null,displaySettingsState=null,lastPermission=null;
 const connectionStates={};
 const translateKey=key=>(lex[prefs?.locale]||lex['zh-CN'])[key]||key;
@@ -356,13 +362,13 @@ function showState(d){
  observedHosts=Array.isArray(d?.hosts)?d.hosts.slice(0,16):[];renderHosts();
  recentTimeline=Array.isArray(d?.timeline)?d.timeline.slice(-12):[];renderTimeline();
  const healthy=d?.broker==='running',desktop=d?.desktop==='present',hasHandoff=['awaiting_user','user_action_reported','observing','paused'].includes(d?.session?.state);
- const phaseKey=d?.session?.state==='paused'?'stepPaused':d?.session?.phase==='reconnecting'?'stepRecovering':['verifying','next_step'].includes(d?.session?.phase)?'phase_'+d.session.phase:'waiting';
+ const phaseKey=d?.session?.state==='paused'?'stepPaused':d?.session?.phase==='blocked'?'targetUnavailable':d?.session?.phase==='reconnecting'?'stepRecovering':d?.session?.phase==='verifying'&&d?.session?.execution==='parked'?'returnToChat':['verifying','next_step'].includes(d?.session?.phase)?'phase_'+d.session.phase:'waiting';
  value('taskTitle',translateKey(hasHandoff?'currentTask':'trialTitle'));value('taskDescription',translateKey(hasHandoff?phaseKey:'trialDesc'));value('taskBadge',hasHandoff?translateKey(phaseKey):(prefs?.locale==='zh-CN'?'暂无任务':'No active task'));
  value('taskStep',hasHandoff&&d.session.step?(prefs?.locale==='zh-CN'?`第 ${d.session.step}${d.session.totalSteps?' / '+d.session.totalSteps:''} 步`:`Step ${d.session.step}${d.session.totalSteps?' of '+d.session.totalSteps:''}`):'');
  $('tryGuidance').hidden=hasHandoff;$('tryGuidance').disabled=prefs?.enabled===false;$('showCurrent').hidden=!hasHandoff;
 
- value('overviewTitle',translateKey(prefs?.enabled===false?'pausedTitle':!desktop?'offlineTitle':hasHandoff?'activeTitle':'welcome'));
- value('overviewDescription',translateKey(prefs?.enabled===false?'pausedDesc':!desktop?'offlineDesc':hasHandoff?'activeDesc':'welcomeDesc'));
+ value('overviewTitle',translateKey(prefs?.enabled===false?'pausedTitle':!desktop?'offlineTitle':hasHandoff?'currentTask':'welcome'));
+ value('overviewDescription',translateKey(prefs?.enabled===false?'pausedDesc':!desktop?'offlineDesc':hasHandoff?phaseKey:'welcomeDesc'));
  value('desktopState',desktop?translateKey('present'):translateKey('reconnecting'));
  value('handoffState',hasHandoff?translateKey(phaseKey):translateKey('idle'));
  value('agentActivity',d?.agentActivity==='recent'?translateKey('recent'):translateKey('noActivity'));
@@ -377,13 +383,24 @@ const resultTimers=new WeakMap();
 function buttonResult(id,key,restore){const button=$(id);clearTimeout(resultTimers.get(button));button.textContent=translateKey(key);button.dataset.feedback=key==='failed'?'error':'success';resultTimers.set(button,setTimeout(()=>{button.textContent=translateKey(restore);delete button.dataset.feedback;},2200));}
 let toastTimeout;
 function toast(message){const el=$('toast');document.querySelector(`[data-view="${currentPage}"]`).append(el);el.textContent=message;el.classList.add('visible');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove('visible'),5000);}
-async function refresh(){const id=++serial;try{const r=await window.hgCenter.read();if(id!==serial)return;if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}hostPlatform=r.platform;value('appVersion',r.appVersion?`v${r.appVersion}`:'—');if(!prefs||(!settingsDirty&&!busy)){
-      prefs={...r.preferences,accessibility:r.accessibility};$('permission').hidden=r.platform!==undefined&&r.platform!=='darwin';
-      for(const name of ['visualStyle','motion','theme','locale','density','displayPolicy'])$(name).value=prefs[name]||'target';
-      $('accessibility').checked=prefs.accessibility; $('enabled').checked=prefs.enabled!==false; $('continuous').checked=prefs.continuous!==false;
-      applyLocale();
-    }
-    showState(r.diagnostics);renderPermission();}catch{if(id===serial)value('refreshed',translateKey('unavailable'));}}
+async function refresh(){
+ const id=++serial;
+ try{
+  const r=await window.hgCenter.read();if(id!==serial)return;
+  if(!r?.ok){value('refreshed',translateKey('unavailable'));return;}
+  hostPlatform=r.platform;value('appVersion',r.appVersion?`v${r.appVersion}`:'—');
+  if(!settingsPending&&!busy){
+   prefs={...r.preferences,accessibility:r.accessibility};$('permission').hidden=r.platform!==undefined&&r.platform!=='darwin';
+   $('accessibility').checked=prefs.accessibility;$('enabled').checked=prefs.enabled!==false;$('continuous').checked=prefs.continuous!==false;
+   $('displayPolicy').value=prefs.displayPolicy;
+   if(!settingsDirty){
+    for(const name of ['visualStyle','motion','theme','locale','density'])$(name).value=prefs[name];
+    applyLocale();
+   }else{syncChoices();renderLocal();renderDisplays(lastDisplays);}
+  }
+  showState(r.diagnostics);renderPermission();
+ }catch{if(id===serial)value('refreshed',translateKey('unavailable'));}
+}
 let connectBusy=false;const connectResults={};
 function connectionLabels(){
  const host=$('host').value,codex=host==='codex',workbuddy=host==='workbuddy',state=connectionStates[host];
@@ -425,10 +442,15 @@ function renderCleanup(plan){
 }
 $('cleanupIntegration').addEventListener('click',async()=>{const host=$('host').value;try{const r=await window.hgCenter.cleanup(host,false);if(host!==$('host').value)return;if(!r?.ok)throw Error();renderCleanup(r.result);value('integrationState',translateKey(r.result.cleanupAvailable?'integrationCleanupReady':integrationLabel(r.result.state)));$('confirmCleanup').hidden=!r.result.cleanupAvailable;}catch{value('integrationState',translateKey('failed'));}});
 $('confirmCleanup').addEventListener('click',async()=>{const button=$('confirmCleanup'),host=$('host').value;button.disabled=true;try{const r=await window.hgCenter.cleanup(host,true);if(host!==$('host').value)return;if(!r?.ok||!r.result.applied)throw Error();delete connectResults[host];delete connectionStates[host];$('integrationState').dataset.state=r.result.retained?.length?'modified':'not_installed';renderCleanup({...r.result,items:[]});value('integrationState',r.result.retained?.length?(prefs?.locale==='zh-CN'?'已移除未修改的内容，其余已保留。':'Unchanged content removed. Edited content was kept.'):r.result.host==='workbuddy'?(prefs?.locale==='zh-CN'?'本地连接器包已清理。':'Local connector bundle removed.'):translateKey('integrationCleanupDone'));button.hidden=true;await preview();await refreshConnection();}catch{value('integrationState',translateKey('failed'));}finally{button.disabled=false;}});
-$('enabled').addEventListener('change',async()=>{if(!prefs)return;const node=$('enabled');node.disabled=true;try{const r=await window.hgCenter.setEnabled(node.checked);if(!r?.ok)throw Error();prefs.enabled=r.enabled;renderLocal();}catch{node.checked=prefs.enabled;toast(translateKey('failed'));}finally{node.disabled=false;}});
+$('enabled').addEventListener('change',async()=>{if(!prefs)return;const node=$('enabled');node.disabled=true;try{await savePatch({enabled:node.checked});renderLocal();}catch{node.checked=prefs.enabled;toast(translateKey('failed'));}finally{node.disabled=false;}});
 $('permission').addEventListener('click',async()=>{try{const r=await window.hgCenter.permission();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
-$('preferences').addEventListener('change',event=>{if(!['visualStyle','motion','theme','locale','density','displayPolicy'].includes(event.target.id))return;settingsDirty=true;document.documentElement.dataset.theme=$('theme').value;renderPreview();});
-$('preferences').addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;$('save').disabled=true;const requested={accessibility:$('accessibility').checked,enabled:$('enabled').checked,continuous:$('continuous').checked,displayPolicy:prefs.displayPolicy||'target',displayId:prefs.displayId||''};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;try{const r=await window.hgCenter.save(requested);if(!r?.ok)throw Error('save rejected');prefs={...r.preferences,accessibility:r.accessibility};settingsDirty=false;applyLocale();buttonResult('save','saved','save');}catch{buttonResult('save','failed','save');}finally{busy=false;$('save').disabled=false;}});
+$('preferences').addEventListener('change',event=>{if(!['visualStyle','motion','theme','locale','density','displayPolicy'].includes(event.target.id))return;settingsDirty=true;settingsRevision++;value('appearanceFeedback',translateKey('unsaved'));document.documentElement.dataset.theme=$('theme').value;renderPreview();});
+$('preferences').addEventListener('submit',async event=>{
+ event.preventDefault();if(busy||!prefs)return;busy=true;$('save').disabled=true;value('appearanceFeedback',translateKey('saving'));$('appearanceFeedback').dataset.error='false';
+ const revision=settingsRevision,requested={};for(const name of ['visualStyle','motion','theme','locale','density'])requested[name]=$(name).value;
+ try{await savePatch(requested);settingsDirty=revision!==settingsRevision;if(!settingsDirty)applyLocale();buttonResult('save',settingsDirty?'save':'saved','save');}
+ catch{buttonResult('save','failed','save');value('appearanceFeedback',translateKey('saveFailed'));$('appearanceFeedback').dataset.error='true';}finally{busy=false;$('save').disabled=false;if($('appearanceFeedback').dataset.error!=='true')value('appearanceFeedback',settingsDirty?translateKey('unsaved'):'');}
+});
 window.addEventListener('focus',refreshPage);
 void refresh().then(()=>refreshPermission());setInterval(()=>{if(document.visibilityState==='visible'&&['overview','diagnostics'].includes(currentPage))void refresh();},8000);
 
@@ -524,10 +546,10 @@ for(const id of ['previewEffect','previewExit','previewMask'])$(id).addEventList
 new ResizeObserver(()=>renderPreview()).observe(document.querySelector('.style-preview'));
 for(const switchId of ['accessibility','continuous'])$(switchId).addEventListener('change',async()=>{
  if(!prefs)return;
- const requested=$('accessibility').checked;for(const id of ['accessibility','continuous'])$(id).disabled=true;
- try{const result=await window.hgCenter.save({visualStyle:prefs.visualStyle,motion:prefs.motion,theme:prefs.theme,locale:prefs.locale,density:prefs.density,enabled:$('enabled').checked,continuous:$('continuous').checked,accessibility:requested,displayPolicy:prefs.displayPolicy||'target',displayId:prefs.displayId||''});if(!result?.ok)throw Error();prefs={...result.preferences,accessibility:result.accessibility};renderLocal();void refreshPermission();}
- catch{$('accessibility').checked=prefs.accessibility;$('continuous').checked=prefs.continuous;toast(translateKey('failed'));}
- finally{for(const id of ['accessibility','continuous'])$(id).disabled=false;}
+ const node=$(switchId),requested=node.checked;node.disabled=true;
+ try{await savePatch({[switchId]:requested});renderLocal();void refreshPermission();}
+ catch{node.checked=prefs[switchId];toast(translateKey('failed'));}
+ finally{node.disabled=false;}
 });
 
 $('checkPermission').addEventListener('click',refreshPermission);
@@ -538,7 +560,12 @@ function renderDisplayChoices(displays){
  const group=$('displayChoices');group.replaceChildren();group.hidden=(prefs?.displayPolicy||'target')!=='fixed';
  for(const [i,d] of displays.entries()){const button=document.createElement('button');button.className='ui-button';button.type='button';button.setAttribute('role','radio');button.setAttribute('aria-checked',String(prefs?.displayId===d.id));button.textContent=`${translateKey('displayLabel')} ${i+1}`;button.addEventListener('click',()=>void saveDisplayPolicy('fixed',d.id));group.append(button);}
 }
-async function saveDisplayPolicy(displayPolicy,displayId){if(!prefs)return;try{const r=await window.hgCenter.save({visualStyle:prefs.visualStyle,motion:prefs.motion,theme:prefs.theme,locale:prefs.locale,density:prefs.density,enabled:prefs.enabled,continuous:prefs.continuous,accessibility:prefs.accessibility,displayPolicy,displayId});if(!r?.ok)throw Error();prefs={...r.preferences,accessibility:r.accessibility};renderDisplays(lastDisplays);toast(translateKey('saved'));}catch{toast(translateKey('failed'));}}
+let displaySave=0;
+async function saveDisplayPolicy(displayPolicy,displayId){
+ if(!prefs)return;const revision=++displaySave;
+ try{await savePatch({displayPolicy,displayId});if(revision===displaySave){$('displayPolicy').value=prefs.displayPolicy;syncChoices();renderDisplays(lastDisplays);toast(translateKey('saved'));}}
+ catch{if(revision===displaySave){$('displayPolicy').value=prefs.displayPolicy;syncChoices();renderDisplays(lastDisplays);toast(translateKey('failed'));}}
+}
 $('displayPolicy').addEventListener('change',()=>void saveDisplayPolicy($('displayPolicy').value,prefs?.displayId||lastDisplays?.displays?.[0]?.id||''));
 async function uninstall(confirm){const button=$(confirm?'uninstallConfirm':'uninstallPreview');button.disabled=true;try{
  const response=await window.hgCenter.uninstall(confirm);if(!response?.ok)throw Error();const r=response.result||response;

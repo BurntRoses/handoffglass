@@ -3,8 +3,9 @@ import { app, BrowserWindow, ipcMain, clipboard, shell } from 'electron';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hostConfig, HOSTS } from '../config.mjs';
-import { loadPreferences, savePreferences, hasUserPreferences } from '../local/preferences.mjs';
-import { getAccessibilityConsent, setAccessibilityConsent } from '../native/preferences.mjs';
+import { loadPreferences, hasUserPreferences } from '../local/preferences.mjs';
+import { getAccessibilityConsent } from '../native/preferences.mjs';
+import { updateDesktopSettings } from './settings-client.mjs';
 import { installCodex } from '../codex-install.mjs';
 import { prepareWorkbuddyBundle, readWorkbuddyRecord } from '../workbuddy-bundle.mjs';
 import { appWorkbuddyDirectory } from '../integration-lifecycle.mjs';
@@ -86,10 +87,9 @@ export function registerSetupIPC(){
     try {
       const {visualStyle,motion,locale,density,theme,accessibility}=input;
       if(typeof accessibility!=='boolean')return {ok:false,error:'Invalid accessibility choice'};
-      const preferences=await savePreferences({visualStyle,motion,locale,density,theme});
-      await setAccessibilityConsent(accessibility);
+      const result=await updateDesktopSettings({visualStyle,motion,locale,density,theme,accessibility});
       app.emit('hg:preferences-changed');
-      return {ok:true,preferences};
+      return result;
     } catch(error){return {ok:false,error:error.message};}
   });
   ipcMain.handle('hg:setup:preview',async(event,host)=>{

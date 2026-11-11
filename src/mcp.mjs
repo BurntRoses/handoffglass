@@ -86,7 +86,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.19.1' }, { instructions: SERVER_INSTRUCTIONS });
+  const server = new McpServer({ name: 'handoffglass', version: '0.19.2' }, { instructions: SERVER_INSTRUCTIONS });
   const legacy=process.env.HANDOFFGLASS_LEGACY_TOOLS==='1';
   const legacyNames=new Set(['visual_show','handoff_request','visual_scene_update','handoff_status','handoff_events','handoff_wait','handoff_cancel']);
   const replacements={visual_scene_update:'session_update',handoff_cancel:'session_stop'};

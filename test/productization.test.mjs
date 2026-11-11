@@ -28,7 +28,7 @@ test('first-run desktop setup is IPC-scoped and preserves explicit opt-in',async
  const html=await readFile(join(root,'src/desktop/setup.html'),'utf8');
  const setupJs=await readFile(join(root,'src/desktop/setup.js'),'utf8');
  assert.match(setup,/event\.sender===window\.webContents/);
- assert.match(setup,/setAccessibilityConsent\(accessibility\)/);
+ assert.match(setup,/updateDesktopSettings\(\{visualStyle,motion,locale,density,theme,accessibility\}\)/);
  assert.match(app,/registerSetupIPC\(\)/);
  assert.match(app,/maybeShowFirstRun\(\)/);
  assert.match(preload,/contextBridge\.exposeInMainWorld/);

@@ -58,6 +58,15 @@ test('one mark call is idempotent; parked waits return immediately and survive h
     assert.equal((await request('/agent/plugin-hook',{...hook,event:'bind'})).status,200);
     await request('/agent/plugin-hook',{...hook,event:'end'});
     assert.equal(m.get(s.id).execution,'parked');assert.equal(m.get(s.id).status,'awaiting_user');
+    m.control(s.id,owner,'attach');
+    const cursor=b.journal.latestCursor(s.id);
+    const pending=request(`/agent/wait?continuous=1&sessionId=${s.id}&cursor=${cursor}&maxWaitMs=30000`);
+    while(!b.agentWaits.size)await new Promise(r=>setImmediate(r));
+    m.control(s.id,owner,'park');
+    assert.equal((await pending).body.nextAction,'yield_to_user');
+    m.resolve(s.id,'completed');m.verify(s.id,owner,true,true);
+    const ended=await request(`/agent/wait?continuous=1&sessionId=${s.id}&cursor=${b.journal.latestCursor(s.id)}&maxWaitMs=30000`);
+    assert.equal(ended.body.pending,false);assert.equal(ended.body.nextAction,'stop');
     await savePreferences({enabled:false},dir);
     assert.equal((await request('/agent/mark',{})).status,423);
   }finally{await b.stop();m.close();if(prior===undefined)delete process.env.HANDOFFGLASS_RUNTIME_DIR;else process.env.HANDOFFGLASS_RUNTIME_DIR=prior;await rm(dir,{recursive:true,force:true});}

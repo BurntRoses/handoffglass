@@ -83,3 +83,11 @@ See [Codex handoff](CODEX_HANDOFF.md), [security](SECURITY.md), [compatibility](
 The desktop workbench separates local service checks from installation-scoped successful host calls. Host labels remain caller-declared; trust and binding are not inferred from file presence. The guide card can collapse into a control strip and displays only reported phases or observed wait/connection state. Pause, resume, re-locate and text fallback are explicit workflow events.
 
 Full uninstall uses the same service from App, CLI and MCP. An installation receipt records app identity and owned files. An external remover waits for HandoffGlass processes to exit, verifies file digests and removes only unchanged owned content; additions and edits are retained and reported. The development repository is never an application removal target. Desktop discovery uses a separate private `desktop.json`, keeping `broker.json` scoped to Agent credentials.
+
+## 设置写入与等待反馈（0.19.2）
+
+控制中心和首次设置向导通过桌面凭据向 `/desktop/preferences` 提交字段 patch，不直接写设置文件。Broker 与 Agent 的启停接口共享进程内的逐目录写入队列；原子替换仍负责文件完整性。独立 CLI 管理命令应在设置窗口关闭后使用；此队列不是跨进程文件锁。控件定位授权只接受桌面凭据，省略该字段不会改变授权。撤销时立即移除跟随标记。
+
+外观草稿与已保存偏好分开：刷新更新实际总开关/权限，同时保留草稿。保存期间的后续编辑仍标为未保存。切换显示器与开关只提交自己的字段。
+
+用户报告在暂停后保留待核实状态，恢复只重新通知核验，不再记录一次用户操作。挂起唤醒当前等待并返回 `yield_to_user`；终态不再进入游标长等待。桌面“挂起”只调整本地执行模式，重新 attach 由回到聊天后的 Agent 发起。状态/等待变化不重绘相同标记、不重建遮罩、不重复设置原生窗口 bounds。
