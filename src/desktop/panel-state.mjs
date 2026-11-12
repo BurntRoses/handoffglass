@@ -4,6 +4,7 @@ export function panelState(s,now=Date.now()) {
   if(s.desktopConnection==='reconnecting')return {key:'reconnecting',tone:'warning',working:false};
   if(s.status==='paused')return {key:'paused',tone:'quiet',working:false};
   if(s.phase==='blocked')return {key:['consent_required','permission_denied'].includes(s.targetTracking?.reason)?'permission':'lost',tone:'warning',working:false};
+  if(s.verification?.result==='inconclusive')return {key:'inconclusive',tone:'warning',working:false};
   const phase=s.agentState?.phase;
   const fresh=Number.isFinite(s.agentState?.at)&&now>=s.agentState.at&&now-s.agentState.at<30000;
   const working=s.execution!=='parked'&&fresh&&['thinking','observing','locating','presenting','verifying'].includes(phase);

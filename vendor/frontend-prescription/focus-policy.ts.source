@@ -1,0 +1,33 @@
+import css from '../styles/focus-policy.css?raw';
+
+/** One policy per document/shadow tree; no attribute observation or per-frame work. */
+export function installFocusPolicy(root:Document|ShadowRoot=document):()=>void {
+ if(root.querySelector('style[data-prescription-focus-policy]'))return ()=>{};
+ const doc=root.nodeType===9?root as Document:root.ownerDocument!;
+ const style=doc.createElement('style');style.dataset.prescriptionFocusPolicy='surface';style.textContent=css;
+ (root.nodeType===9?(root as Document).head:root)?.prepend(style);
+ const nested=(node:Element)=>{
+  if(node.shadowRoot)installFocusPolicy(node.shadowRoot);
+  if(node.localName==='iframe'){
+   try{const inner=(node as HTMLIFrameElement).contentDocument;if(inner?.head)installFocusPolicy(inner);}catch{/* External documents keep their own policy. */}
+  }
+ };
+ const scan=(node:Node)=>{
+  if(node.nodeType!==1)return;
+  nested(node as Element);
+  (node as Element).querySelectorAll('*').forEach(nested);
+ };
+ const onLoad=(event:Event)=>{if((event.target as Element)?.localName==='iframe')nested(event.target as Element);};
+ const onFocus=(event:Event)=>{
+  for(const node of event.composedPath())if((node as Element).shadowRoot)installFocusPolicy((node as Element).shadowRoot!);
+ };
+ root.querySelectorAll('*').forEach(nested);
+ root.addEventListener('load',onLoad,true);root.addEventListener('focusin',onFocus,true);
+ const observer=new (doc.defaultView!.MutationObserver)(records=>{
+  for(const record of records)record.addedNodes.forEach(scan);
+ });
+ observer.observe(root,{childList:true,subtree:true});
+ return ()=>{observer.disconnect();root.removeEventListener('load',onLoad,true);root.removeEventListener('focusin',onFocus,true);style.remove();};
+}
+
+if(typeof document!=='undefined'&&document.head)installFocusPolicy();

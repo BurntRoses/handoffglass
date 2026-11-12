@@ -72,7 +72,7 @@
       </section>
       <section data-view="diagnostics" class="view" hidden>
         <h1 data-i="healthTitle">帮助</h1>
-        <div class="feature-switches card"><label class="consent"><input type="checkbox" id="continuous" form="preferences"><span data-i="continuousEnabled">保持连续会话</span></label></div>
+        <div class="feature-switches card"><label class="consent"><input type="checkbox" id="guidanceEnabled"><span data-i="guidanceLayer">屏幕引导</span></label><label class="consent"><input type="checkbox" id="reviewEnabled"><span data-i="reviewLayer">改动审查</span></label><label class="consent"><input type="checkbox" id="verificationEnabled"><span data-i="verificationLayer">核验结果</span></label><label class="consent"><input type="checkbox" id="continuous" form="preferences"><span data-i="continuousEnabled">保持连续会话</span></label></div>
         <div class="permission-row"><label class="consent"><input type="checkbox" id="accessibility" form="preferences"><span data-i="inspect">启用原生控件定位</span></label><button type="button" class="ui-button quiet-button" id="permission" data-i="openPermission">系统设置</button></div>
         <p class="permission-hint" data-i="inspectDesc">可选。宿主观察后的绘制无需此权限。</p><div class="permission-check"><p id="permissionStatus" role="status"></p><button class="ui-button quiet-button" id="checkPermission" type="button" data-i="checkPermissionNow">检查权限</button></div>
         <div class="selftest"><div class="selftest-head"><strong id="selftestTitle" data-i="selfTestTitle">连接检查</strong><button type="button" class="ui-button quiet-button" id="testMcp" data-i="selfTestRun">检查</button></div><p class="selftest-result" id="testResult" role="status" aria-live="polite"></p><p class="selftest-hint" id="testHint"></p></div>
@@ -94,4 +94,4 @@
     </div>
   </main>
 </div>
-</body></html>
+<script type="module" src="../../assets/ui/focus-policy.mjs"></script></body></html>

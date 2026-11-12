@@ -1,0 +1,29 @@
+/* The first important layer owns added focus rings; base elevation stays with its component. */
+@layer prescription-focus {
+ :where(:root,:host){--fluid-focus-ring-width:0px!important;--fluid-focus-ring-offset:0px!important;--fluid-focus-ring-color:transparent!important}
+ :is(:focus,:focus-visible,[data-focus-visible]:not([data-focus-visible="false"]),[data-focused="true"],.Mui-focused),
+ :is(:focus,:focus-visible,[data-focus-visible]:not([data-focus-visible="false"]),[data-focused="true"],.Mui-focused)::before,
+ :is(:focus,:focus-visible,[data-focus-visible]:not([data-focus-visible="false"]),[data-focused="true"],.Mui-focused)::after,
+ :is([aria-selected="true"],[aria-pressed="true"],[data-state="checked"],[data-state="active"]),
+ :focus-visible+:is(span,.f-check-mark){
+  outline:none!important;outline-offset:0!important;
+  --tw-ring-shadow:0 0 #0000!important;--tw-ring-offset-shadow:0 0 #0000!important;--tw-inset-ring-shadow:0 0 #0000!important;
+ }
+ /* Tailwind composes elevation and rings; keep its elevation term. */
+ :is(:focus,:focus-visible,:focus-within)[class*="ring-"]{box-shadow:var(--tw-shadow,none)!important}
+ /* Library rings live on these controls, never on arbitrary ancestor cards. */
+ :is(.ant-input,.ant-input-affix-wrapper,.ant-select-selector,.ant-picker,.ant-input-number):is(:focus,:focus-within),
+ .ant-select-focused .ant-select-selector,
+ :is(.rt-TextFieldRoot,.rt-SelectTrigger,.rt-CheckboxButton,.rt-RadioGroupItem):is(:focus,:focus-within),
+ :is(.registry-button,.registry-input,.registry-textarea,.workspace-separator>i):focus-visible{
+  box-shadow:none!important;
+ }
+ .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline{border-width:1px!important}
+ :where([data-focus="text"]){--prescription-focus-filter:brightness(1);--prescription-focus-weight:650}
+ :is(button,a,summary,[role="tab"],[role="option"]):focus-visible{
+  text-decoration:none!important;filter:var(--prescription-focus-filter,brightness(.85));font-weight:var(--prescription-focus-weight,inherit);
+ }
+ :is(input,textarea,select,[role="checkbox"],[role="radio"],[role="switch"],[role="slider"],[contenteditable="true"]):focus-visible{
+  filter:var(--prescription-focus-filter,brightness(.92));font-weight:var(--prescription-focus-weight,inherit);
+ }
+}

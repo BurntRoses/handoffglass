@@ -1,5 +1,15 @@
 ## 0.21.0 · 2026-11-12
 
+## 0.22.0 · 插件运行时与分层呈现
+
+- Codex 插件携带运行快照、生产依赖和本平台 Electron；安装后不依赖开发目录，默认无命令 Hooks。
+- 引导、只读改动审查与核验独立开关；核验采用 verified / mismatch / inconclusive。
+- 目标必须携带观察时间、布局签名和来源；固定坐标在观察满 30 秒时清除。
+- DeepSeek / OpenCode 原生入口共用 MCP 工具目录，按聊天分配所有权并传播取消；Claude Code 原生包加入构建和按清单清理。宿主真实模型闭环仍待验证。
+- 审查窗口提供中英文、主题、哈希折叠和只读步骤记录。前端处方焦点策略使用控件表面、文字和亮度。
+- 许可保持 PolyForm Noncommercial；签名 App 和自动更新延后，不作为插件本轮交付前提。
+
+
 - Split host observation from local rendering. Accept top-left bounds and explicit image frames for deterministic pixel-to-DIP mapping; validate recency, display coverage and layout changes.
 - Use a 17-tool host profile in Codex, with smaller presentation schemas and optional native lookup in full mode. Remove native permission probes from capability discovery.
 - Default new plugins to Skills + MCP without command Hooks. Keep optional lifecycle hooks scoped to sessions, preserve existing mode choices, and remove per-model-request scripts.

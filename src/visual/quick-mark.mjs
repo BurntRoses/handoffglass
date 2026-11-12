@@ -34,7 +34,7 @@ export function quickMarkRequest(input, displays, preferences={}, context={}) {
     const [horizontal,vertical]=[placement.includes('left')?-1:placement.includes('right')?1:0,placement.includes('top')?-1:placement.includes('bottom')?1:0];
     let x=display.x+display.width*(.5+horizontal*.28),y=display.y+display.height*(.5+vertical*.28);
     if(options.bounds!==undefined){
-      const hit=observedRegion(options.bounds,options.frame,displayId===undefined?displays:[display],context);
+      const hit=observedRegion(options.bounds,options.frame,displayId===undefined?displays:[display],{...context,observation:options.observation});
       ({x,y,width,height}=hit);
     }else if(options.position!==undefined){
       if(!options.position||typeof options.position!=='object')throw new TypeError('Invalid position');

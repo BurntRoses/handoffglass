@@ -5,6 +5,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const HOSTS = Object.freeze({
   claude: { label: 'Claude Desktop', family: 'mcpServers' },
+  'claude-code': {label:'Claude Code',family:'mcpServers'},
   codex: { label: 'OpenAI Codex CLI / IDE / App', family: 'toml' },
   cursor: { label: 'Cursor', family: 'mcpServers' },
   vscode: { label: 'VS Code', family: 'servers' },

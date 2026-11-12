@@ -30,6 +30,8 @@ https://github.com/BurntRoses/handoffglass をインストールしてくださ�
 
 接続を停止または削除するときは、「HandoffGlass を無効にして」「Codex から HandoffGlass を削除して」と伝えてください。状態を確認してから、HandoffGlass が書き込んだ内容だけを削除します。アプリの「接続」画面からも操作できます。
 
+Codex では [ネイティブプラグイン](docs/CODEX_PLUGIN.md)を利用できます。MCP・Skill・必要時に起動するローカル描画プロセスを同梱し、単独アプリは不要です。Hooks は任意です。インストールとツール検出はテスト済みですが、人の判断・独立検証・作業再開を含むモデル実行は[未検証](docs/HOST_EVIDENCE.md)です。
+
 <details>
 <summary>ドキュメント</summary>
 

@@ -4,9 +4,9 @@
 
 **本地继续开发：** [Codex 接手指南](CODEX_HANDOFF.md) · [工程规则](../AGENTS.md)
 
-**实机记录：** [2026-10-19 macOS 接手与验收](qa/2026-10-19-macos.md) · [2026-10-20 视觉与 Agent 试用](qa/2026-10-20-visual.md)
+**实机记录：** [0.22 插件与分层检查](qa/2026-11-13-plugin-layers.md) · [2026-10-19 macOS 接手与验收](qa/2026-10-19-macos.md) · [2026-10-20 视觉与 Agent 试用](qa/2026-10-20-visual.md)
 
-**最新升级：** [0.20 屏幕标注](SCREEN_DRAWING.md) · [0.19.1 浮窗体验](qa/2026-11-12-panel.md) · [0.19 单应用与快速响应](qa/2026-11-12-runtime.md) · [0.18 连续任务、桌面工作台与完整卸载](qa/2026-11-04-upgrade.md)
+**最新升级：** [0.22 插件运行时、三层与核验](MUSE_IMPLEMENTATION.md) · [原生宿主包](HARNESS_PLUGINS.md) · [宿主证据](HOST_EVIDENCE.md) · [0.20 屏幕标注](SCREEN_DRAWING.md) · [0.19.1 浮窗体验](qa/2026-11-12-panel.md) · [0.19 单应用与快速响应](qa/2026-11-12-runtime.md) · [0.18 连续任务、桌面工作台与完整卸载](qa/2026-11-04-upgrade.md)
 
 **原生插件：** [跨 Harness 升级计划](NATIVE_PLUGIN_UPGRADE.md) · [Codex 本机插件试用](CODEX_PLUGIN.md)
 
@@ -20,7 +20,7 @@
 | 网站 | [前端结构与性能](WEBSITE.md) |
 | 视觉设计 | [视觉语言](VISUAL_LANGUAGE.md) · [动态系统](VISUAL_MOTION.md) · [界面规范](INTERFACE_SYSTEM.md) · [品牌](BRAND.md) |
 | 协议与本地逻辑 | [场景协议](SCENE_PROTOCOL.md) · [Agent 工作流](AGENT_AUTONOMY.md) · [偏好记忆](LOCAL_FIRST_MEMORY.md) |
-| 产品 | [产品定义](PRODUCT.md) · [更新日志](CHANGELOG.md) · [社区构建与发布](COMMUNITY_RELEASE.md) · [使用许可](LICENSING.md) |
+| 产品 | [产品定义](PRODUCT.md) · [更新日志](CHANGELOG.md) · [社区构建与发布](COMMUNITY_RELEASE.md) · [使用许可](../LICENSING.md) |
 
 [0.16 桌面界面验收与截图](qa/2026-10-20-release-interface.md)
 

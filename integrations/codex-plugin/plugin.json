@@ -1,9 +1,11 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "handoffglass",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "Local desktop guidance with continuous handoff tools and Codex lifecycle feedback.",
-  "author": {"name": "BurntRoses"},
+  "author": {
+    "name": "BurntRoses"
+  },
   "repository": "https://github.com/BurntRoses/handoffglass",
   "license": "PolyForm-Noncommercial-1.0.0",
   "extensions": {
@@ -17,7 +19,9 @@
         "developerName": "BurntRoses",
         "category": "Productivity",
         "brandColor": "#4E9669",
-        "defaultPrompt": ["用 HandoffGlass 教我打开应用的设置。"],
+        "defaultPrompt": [
+          "用 HandoffGlass 教我打开应用的设置。"
+        ],
         "composerIcon": "./assets/brandmark.svg",
         "logo": "./assets/brandmark.svg"
       }

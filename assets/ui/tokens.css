@@ -1,3 +1,4 @@
+@import url('./focus-policy.css');
 /* Local adaptation of Radix Themes scales and Open Props easing.
    Source snapshots and licenses: vendor/frontend-prescription/provenance.json. */
 :root {
@@ -77,7 +78,7 @@ button, input, select, textarea { font:inherit; }
 button, a, input, summary { -webkit-tap-highlight-color:transparent; }
 button { cursor:pointer; }
 button:disabled { cursor:default; }
-:where(button, a, input, select, textarea, summary, pre):focus-visible { outline:2px solid var(--focus); outline-offset:3px; }
+:where(button,a,input,select,textarea,summary,[role='tab'],[role='radio']):focus-visible { background-color:var(--selection); color:var(--ink); }
 ::selection { background:var(--selection); color:var(--ink); }
 [hidden] { display:none !important; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }

@@ -5,7 +5,7 @@ Use this procedure when the user asks to install this repository. The request is
 ## Install
 
 1. Identify the current agent host and the machine with the user's desktop. Desktop guidance supports local macOS and Windows sessions. A cloud-only host cannot guide a different machine's screen through this local service. Do not claim it is connected in that case.
-2. Use the default `main` branch of `https://github.com/BurntRoses/handoffglass`, unless the user supplies a specific branch or commit for testing. Honor that ref and record the installed commit. Reuse an existing installation after verifying its origin; update only with a clean working tree and a fast-forward. Preserve local changes. For a new installation, clone into a persistent per-user application directory, not a temporary checkout. The MCP configuration references this directory, so keep it after installation. Check repository access. If GitHub denies access, use existing authorized authentication or report the access requirement without requesting a token in chat. Do not claim a private repository is available to every community user.
+2. Use the default `main` branch of `https://github.com/BurntRoses/handoffglass`, unless the user supplies a specific branch or commit for testing. Honor that ref and record the installed commit. Reuse an existing installation after verifying its origin; update only with a clean working tree and a fast-forward. Preserve local changes. Source setup requires Git, Node.js 22+ and npm. For a new installation, clone into a per-user application directory. The default Codex plugin copies its runtime into a managed plugin directory and does not depend on this checkout. Standalone MCP connections continue to reference their source directory. Check repository access. If GitHub denies access, use existing authorized authentication or report the access requirement without requesting a token in chat. Do not claim a private repository is available to every community user.
 3. Check Node.js 22+ and npm. Reuse an existing suitable runtime, or install a maintained Node.js release into the user's application directory using the available package manager or official distribution. Keep the Node executable available at a stable absolute path. Do not replace an unrelated system runtime.
 4. In the repository, run:
 
@@ -20,7 +20,9 @@ Use this procedure when the user asks to install this repository. The request is
 
 ### Codex
 
-When the user specifically requests the **native plugin trial**, follow [Codex plugin](CODEX_PLUGIN.md) and run `npm run plugin:codex:install` after preparing dependencies. It bundles MCP and Skills; do not also run the standalone installer below. Keep hook review as an explicit host step.
+Use the **native plugin by default**: follow [Codex plugin](CODEX_PLUGIN.md) and run `npm run plugin:codex:install` after preparing dependencies. It bundles MCP, Skills, production dependencies and the platform renderer. No separate App or Accessibility permission is required for drawing. Open a new chat after installation. Hooks are absent in the default light mode; only optional enhanced mode needs hook review. Do not install a duplicate standalone MCP or global Skill.
+
+Only when the user explicitly chooses standalone MCP, use the alternative below.
 
 Run from the persistent installation:
 
@@ -50,6 +52,8 @@ For `cursor`, `cline`, `windsurf`, `gemini`, `copilot`, `zed`, `vscode`, or Clau
 
 For a host without an automatic merger, use `node scripts/configure.mjs <host> --compact` and merge its HandoffGlass entry into that host's documented configuration yourself. `claude` in the installer means Claude Desktop; Claude Code uses its own supported MCP configuration. See [host details](INTEGRATIONS.md) and [compatibility](COMPATIBILITY.md) when needed. Do not guess configuration locations or overwrite unrelated servers.
 
+Native Claude Code / DeepSeek / OpenCode bundles and their documented local activation steps are in [native bundles](HARNESS_PLUGINS.md). These remain unverified end to end; do not install them on a machine without the chosen host.
+
 Automatic lifecycle cleanup currently covers Codex and generated WorkBuddy bundles only. Other host entries and any manually installed skills/rules need host-specific removal; do not promise complete automatic cleanup.
 
 Also install [the bundled skill](../skills/visual-handoff/SKILL.md) into the host's documented, implicitly discoverable skill directory. If the host uses persistent rules instead of skills, store the equivalent HandoffGlass workflow in its supported user-level rule mechanism without replacing other rules. If neither is supported, rely on MCP initialization instructions and disclose that limitation. Do not make the user repeat an orchestration prompt for every task.
@@ -60,7 +64,7 @@ Keep both layers: MCP tools provide the capability; initialization instructions 
 
 - When asked to teach a desktop task, guide the user through the actions yourself.
 - During Computer Use, hand over a step when the user needs to act, log in, authorize, or handle a blocked interaction. Continue ordinary authorized automation where appropriate.
-- Observe the current app, request one action with `session_start`, wait with `session_wait`, then inspect the original app before continuing. Ground marks in fresh UI evidence; omit marks if the target is unseen. A user's completion report is not proof of the outcome.
+- Observe the current app, request one action with `session_start(execution:"parked")` and return to chat. On return, attach and inspect the original app before continuing. Ground marks in fresh UI evidence; omit marks if the target is unseen. A user's completion report is not proof of the outcome.
 - Keep each on-screen instruction brief and in the user's language. The user supplies the goal; the agent chooses the tools and steps.
 
 The installed skill contains the full workflow. Do not paste it into the user's installation prompt or completion message.

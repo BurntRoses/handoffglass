@@ -1,5 +1,6 @@
 /** Host-observed rectangles → global DIP. No capture, native lookup or permission probe. */
 import {normalizeAnnotation,composeTemplate} from './scene.mjs';
+import {layoutSignature as signatureFor} from '../native/calibration.mjs';
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const fail=(code,message)=>{throw Object.assign(new TypeError(message),{code});};
 export function regionRect(value,name='bounds'){
@@ -25,7 +26,7 @@ export function regionOnDisplays(r,displays){
   return true;
 }
 /** Without frame, bounds are global DIP. With frame, bounds are pixels in the exact supplied image. */
-export function observedRegion(bounds,frame,displays,{validateOnly=false,now=Date.now(),layoutSignature}={}){
+export function observedRegion(bounds,frame,displays,{validateOnly=false,now=Date.now(),layoutSignature=signatureFor(displays),observation}={}){
   let r=regionRect(bounds);
   if(frame!==undefined){
     if(!object(frame)||![frame.width,frame.height].every(n=>Number.isFinite(n)&&n>0&&n<=100000))fail('invalid_frame','frame needs image width, height and its global DIP bounds');
@@ -40,13 +41,22 @@ export function observedRegion(bounds,frame,displays,{validateOnly=false,now=Dat
     r={x:viewport.x+r.x*viewport.width/frame.width,y:viewport.y+r.y*viewport.height/frame.height,
       width:r.width*viewport.width/frame.width,height:r.height*viewport.height/frame.height};
   }
+  const evidence=frame??observation;
+  if(!evidence||!Number.isFinite(evidence.capturedAt)||typeof evidence.layoutSignature!=='string'||!['host','native','user'].includes(evidence.provenance))fail('observation_required','Supply observed capturedAt, layoutSignature and provenance; otherwise use coordinate-free guidance');
+  if(now-evidence.capturedAt>30000||evidence.capturedAt-now>2000)fail('stale_observation','Observation is older than 30 seconds; observe the original app again');
+  if(!/^[a-f0-9]{16}$/.test(evidence.layoutSignature))fail('invalid_frame','Invalid layoutSignature');
+  if(!validateOnly&&evidence.layoutSignature!==layoutSignature)fail('layout_changed','Display layout changed; observe again');
   if(r.width>5000||r.height>5000||Math.abs(r.x+r.width/2)>100000||Math.abs(r.y+r.height/2)>100000)fail('invalid_bounds','Mapped region exceeds the renderer limits');
   if(!validateOnly&&!regionOnDisplays(r,displays))fail('outside_display','Observed region is outside the connected displays');
   return {x:r.x+r.width/2,y:r.y+r.height/2,width:r.width,height:r.height};
 }
 export function observedScene(input,displays,context={}){
-  const hit=observedRegion(input.bounds,input.frame,displays,context);
+  const hit=observedRegion(input.bounds,input.frame,displays,{...context,observation:input.observation});
   const mark=normalizeAnnotation({...input,...hit,id:'mark_1',shape:input.shape??'spotlight'});
   return input.template||(!input.shape&&input.intent)?composeTemplate(input.template??input.intent,[mark]):
     {version:1,layers:[{id:'observed',annotations:[mark]}]};
+}
+export function observedTarget(bounds,frame,displays,context={}){
+  const hit=observedRegion(bounds,frame,displays,context),evidence=frame??context.observation,now=context.now??Date.now();
+  return {bounds:{x:hit.x-hit.width/2,y:hit.y-hit.height/2,width:hit.width,height:hit.height},frame:frame?structuredClone(frame):null,capturedAt:evidence.capturedAt,layoutSignature:evidence.layoutSignature,provenance:evidence.provenance,freshness:{status:'fresh',ageMs:Math.max(0,now-evidence.capturedAt),maxAgeMs:30000}};
 }

@@ -10,9 +10,9 @@
 npm run plugin:codex:install
 ```
 
-安装器调用 Codex 自己的本地 marketplace 和 plugin 命令，保留其他插件与配置。已有独立的 HandoffGlass MCP 时先移除旧连接，避免重复工具。此包引用本机源码和 Node 路径，移动源码或运行时后需重新生成；不是自包含的社区安装包。
+安装器调用 Codex 自己的本地 marketplace 和 plugin 命令，保留其他插件与配置。已有独立的 HandoffGlass MCP 时先移除旧连接，避免重复工具。插件自带运行代码、生产依赖与本平台 Electron 绘制进程，便携包入口使用 `${PLUGIN_ROOT}`；本机安装使用插件管理目录内的稳定快照，兼容尚未解析该占位符的 Codex。安装后不依赖源码目录，也不要求另装独立 App。仍需 Node.js 22+；Node 安装被移除后须重新接入。Electron 由多个会话复用，仅在第一次绘制时启动；插件包含桌面运行时，不等于零体积或零进程。
 
-安装后打开新聊天加载工具。屏幕绘制不需要 HandoffGlass 的辅助功能权限；宿主观察仍受自己的权限和目标限制约束。默认 host 工具目录包含 17 个工具，隐藏可选原生查找及完整图层参数。
+安装后打开新聊天加载工具。屏幕绘制不需要 HandoffGlass 的辅助功能权限；宿主观察仍受自己的权限和目标限制约束。默认 host 工具目录包含精简的绘制与会话工具，隐藏可选原生查找及完整图层参数。
 
 可选生命周期增强模式：`npm run plugin:codex:install -- --lifecycle=enhanced`。仅此模式需要在 **设置 → Hooks → Review hooks** 审核脚本（CLI：`/hooks`）。绘制不触发 Hooks；增强模式不在每次模型请求启动脚本。安装器不会代为信任。切回轻量模式用 `--lifecycle=light`。
 
@@ -40,7 +40,7 @@ npm run plugin:codex:remove
 
 ## 验证
 
-`npm run test:codex-plugin` 在临时 Codex 配置中验证原生安装与重装、17 个 MCP 工具、两个 Skill、light 模式无命令 Hook、首次调用及卸载清理。测试不调用模型或修改用户 Hook 信任。可用 `HANDOFFGLASS_CODEX_COMMAND` 指定 Codex CLI。
+`npm run test:codex-plugin` 在临时 Codex 配置中验证原生安装与重装、18 个 MCP 工具、两个 Skill、light 模式无命令 Hook、首次调用及卸载清理。测试不调用模型或修改用户 Hook 信任。可用 `HANDOFFGLASS_CODEX_COMMAND` 指定 Codex CLI。
 
 试用包采用已实测的 `.codex-plugin/plugin.json` 与 `.mcp.json`；通用根 manifest 在此前宿主版本中遗漏 Hooks，后续切换需重新验证。
 
@@ -67,6 +67,6 @@ MCP 重连和本地服务重启也保留待核实记录；已暂停的任务保�
 
 升级后新建 Codex 会话，让宿主重新加载工具参数。可直接说：“在屏幕左侧画一个蓝色手绘椭圆，写上‘查看这里’”；随后说“移到右上角”或“清除刚才的标记”。绘制和修改各用一次 `screen_mark`，不进入长等待。App“外观”也能直接试画、更新与清除。参数与组合示例见 [屏幕标注](SCREEN_DRAWING.md)。
 
-## 0.21 宿主观察优先
+## 0.22 宿主观察优先
 
 实际目标使用宿主观察的 bounds/frame 直接绘制；缺少原生定位权限不会中断这条路径。工具目录、模式和坐标边界见 [宿主观察与本地绘制](HOST_OBSERVATION.md)。Codex 自身窗口被 Computer Use 拒绝读取时，应说明限制，不绕过保护。

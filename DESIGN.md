@@ -21,7 +21,7 @@
 
 | 层 | 文件 | 职责 |
 | --- | --- | --- |
-| 令牌 | `assets/ui/tokens.css` | 字阶、间距、颜色、主题、形状、动效及唯一焦点规则 |
+| 令牌 | `assets/ui/tokens.css` | 字阶、间距、颜色、主题、形状、动效及表面焦点规则 |
 | 控件 | `assets/ui/controls.css` | Button 变体、禁用、按下、结果、Switch 轨道与滑块 |
 | 选择行为 | `src/desktop/choice-controls.mjs` | 表单值、Radio 语义、方向键、Home/End、禁用同步 |
 | 选择外观 | `src/desktop/choice-controls.css` | 分段、样式预览、宿主卡片 |
@@ -36,7 +36,7 @@
 
 | 来源 | 本项目实际采用 | 适配 |
 | --- | --- | --- |
-| shadcn/ui，commit `4aaea19`，MIT | Accordion、Button、Toggle、ToggleGroup、Switch 的尺寸、变体及状态结构 | 转成原生 DOM/CSS；焦点改为单一 outline；单选保留 Radio 语义；不声称运行 Radix 原语 |
+| shadcn/ui，commit `4aaea19`，MIT | Accordion、Button、Toggle、ToggleGroup、Switch 的尺寸、变体及状态结构 | 转成原生 DOM/CSS；焦点使用底色与文字；单选保留 Radio 语义；不声称运行 Radix 原语 |
 | Radix Themes 3.3.0，MIT | 字阶与空间尺度 | px 令牌转换为 rem；补充 13px 元数据级与 HandoffGlass 语义色 |
 | Open Props 1.7.23，MIT | `ease-3`、`ease-out-4` | 分别映射状态与面板动画 |
 
@@ -44,7 +44,7 @@
 
 ## 固定质量规则
 
-1. 一个视觉边界由一个组件负责。键盘焦点仅附着实际控件，选择组与父容器不追加 outline 或 shadow。
+1. 一个视觉边界由一个组件负责。键盘焦点使用实际控件的底色、文字和亮度；全项目不追加 outline 或阴影环。
 2. 常规文字最终对比度至少 4.5:1。主按钮前景与实际填色一起检查；状态包含文字或图形线索。
 3. 中文按钮说明动作和对象；错误与结果留在对应字段或操作附近。复制与保存按真实结果改变按钮文字。
 4. 页面只显示一个主标题。导航名称承担定位作用，不再添加同义副标题、装饰性口号或免责声明。
@@ -61,3 +61,5 @@
 - 外观草稿与已保存设置分开；保存状态在原表单内反馈，独立开关只保存自己改变的字段。
 
 屏幕试画与外观保存各自提交。低频的尺寸、批注、位置和笔触参数放在同一共享展开区；试画、更新、清除的结果显示在操作旁。选项使用已有 ToggleGroup/Radio 与 Button 适配；数值输入保持 40px 点击高度与独立键盘焦点。
+
+焦点规则以 2026-11-13 前端处方为准：键盘焦点通过控件底色、文字和亮度反馈，不增加 outline 或阴影环。共享策略覆盖独立窗口、同源 iframe 和开放 ShadowRoot；保留 Tab、输入光标与焦点返回。来源记录在 `vendor/frontend-prescription/provenance.json`。

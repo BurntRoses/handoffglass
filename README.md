@@ -30,7 +30,7 @@ Tell your agent what you need: “Show me how to empty the Trash.” During othe
 
 To disable or remove a connection, tell the agent to “disable HandoffGlass” or “clean HandoffGlass from Codex.” It checks the integration first and removes only HandoffGlass-owned content. The same actions are available from the app’s Connections page.
 
-For Codex, use the [native plugin trial](docs/CODEX_PLUGIN.md) to install the MCP, Skill and lifecycle hooks together. Review the plugin hooks in Codex before the first guided task.
+For Codex, use the [native plugin trial](docs/CODEX_PLUGIN.md) for MCP + Skills and an on-demand local renderer. Command hooks are optional; only enhanced mode needs hook review.
 
 <details>
 <summary>Documentation</summary>
@@ -39,6 +39,8 @@ For Codex, use the [native plugin trial](docs/CODEX_PLUGIN.md) to install the MC
 
 Local macOS / Windows · MCP-capable agent · Engineering preview
 
-[Builds, upgrades and release status](docs/COMMUNITY_RELEASE.md). Free for noncommercial use, modification and redistribution under the [PolyForm Noncommercial License](LICENSE). Commercial use requires separate permission.
+[Builds, upgrades and release status](docs/COMMUNITY_RELEASE.md). Free for noncommercial use, modification and redistribution under the [PolyForm Noncommercial License](LICENSE). Commercial use requires separate permission; see [usage terms](LICENSING.md).
+
+Native Codex installation and tool discovery are tested. End-to-end model tasks with a human decision, independent verification and continuation remain unverified; see the [host evidence matrix](docs/HOST_EVIDENCE.md).
 
 </details>

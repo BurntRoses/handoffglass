@@ -114,7 +114,12 @@ export class BrokerClient {
     this.connectionId=typeof env.HANDOFFGLASS_CONNECTION_ID==='string'?env.HANDOFFGLASS_CONNECTION_ID:'';
     this.declaredHost = typeof env.HANDOFFGLASS_HOST_ID === 'string' ? env.HANDOFFGLASS_HOST_ID : '';
   }
+  withSignal(signal){
+    const client=Object.create(this);client.options={...this.options,signal};
+    Object.defineProperty(client,'live',{get:()=>this.live,set:value=>{this.live=value;}});return client;
+  }
   async request(path, { method = 'GET', body, timeoutMs = 34000 } = {}) {
+    this.options.signal?.throwIfAborted();
     let info = this.live || await ensureBroker(this.options);
     this.live=info;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -124,7 +129,7 @@ export class BrokerClient {
             authorization: `Bearer ${info.token}`, 'x-handoffglass-owner': this.ownerId, 'x-handoffglass-host': this.declaredHost, 'x-handoffglass-connection':this.connectionId,
             ...(body === undefined ? {} : { 'content-type': 'application/json' })
           }, body: body === undefined ? undefined : JSON.stringify(body),
-          signal: AbortSignal.timeout(timeoutMs)
+          signal: this.options.signal?AbortSignal.any([this.options.signal,AbortSignal.timeout(timeoutMs)]):AbortSignal.timeout(timeoutMs)
         });
         const result = await response.json();
         if (!response.ok) throw Object.assign(new Error(result.error || 'Broker request failed'), { code: result.code, httpCode: response.status });
@@ -133,7 +138,7 @@ export class BrokerClient {
         if(!error.httpCode)this.live=null;
         // A refused connection sent no request bytes; other failures may have committed.
         const unsent=error.cause?.code==='ECONNREFUSED';
-        if (error.httpCode || attempt || (!unsent && !safeBrokerRetry(path, method, body))) throw error;
+        if (this.options.signal?.aborted || error.httpCode || attempt || (!unsent && !safeBrokerRetry(path, method, body))) throw error;
         info = await ensureBroker(this.options);this.live=info;
       }
     }
@@ -164,8 +169,9 @@ export class BrokerClient {
   }
   async resume(sessionId,resumeToken){return this.request('/agent/resume',{method:'POST',body:{sessionId,resumeToken}});}
   async control(sessionId,action,phase,expectedStep){return this.request('/agent/control',{method:'POST',body:{sessionId,action,phase,expectedStep}});}
+  async review(args){return this.request('/agent/review',{method:'POST',body:args});}
   async verify(sessionId, verified, finish=false,expectedStep) {
-    return this.request('/agent/verify', { method: 'POST', body: { sessionId, verified, finish, expectedStep } });
+    return this.request('/agent/verify', { method: 'POST', body: { sessionId, ...(typeof verified==='boolean'?{verified}:{result:verified}), finish, expectedStep } });
   }
   async updateScene(sessionId, expectedRevision, operations, region={}) {
     return this.request('/agent/scene', { method: 'POST', body: { ...region, sessionId, expectedRevision, operations } });

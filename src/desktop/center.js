@@ -57,6 +57,7 @@ const lex = {
   "inspect": "定位窗口中的按钮和控件",
   "inspectDesc": "可选。让 HandoffGlass 读取并跟随原生控件；宿主观察后的绘制无需此权限。",
   "toolsEnabled": "桌面引导",
+  "guidanceLayer":"屏幕引导","reviewLayer":"改动审查","verificationLayer":"核验结果",
   "continuousEnabled": "接收后续步骤",
   "openPermission": "系统设置",
   "save": "保存",
@@ -210,6 +211,7 @@ const lex = {
   "inspect": "Locate buttons and controls",
   "inspectDesc": "Optional native control lookup and following. Drawing host-observed regions needs no HandoffGlass Accessibility access.",
   "toolsEnabled": "Desktop guidance",
+  "guidanceLayer":"Screen guidance","reviewLayer":"Change review","verificationLayer":"Verification results",
   "continuousEnabled": "Receive follow-up steps",
   "openPermission": "System settings",
   "save": "Save",
@@ -393,7 +395,7 @@ async function refresh(){
   hostPlatform=r.platform;value('appVersion',r.appVersion?`v${r.appVersion}`:'—');
   if(!settingsPending&&!busy){
    prefs={...r.preferences,accessibility:r.accessibility};$('permission').hidden=r.platform!==undefined&&r.platform!=='darwin';
-   $('accessibility').checked=prefs.accessibility;$('enabled').checked=prefs.enabled!==false;$('continuous').checked=prefs.continuous!==false;
+   $('accessibility').checked=prefs.accessibility;$('enabled').checked=prefs.enabled!==false;$('continuous').checked=prefs.continuous!==false;for(const key of ['guidanceEnabled','reviewEnabled','verificationEnabled'])$(key).checked=prefs[key]!==false;
    $('displayPolicy').value=prefs.displayPolicy;
    if(!settingsDirty){
     for(const name of ['visualStyle','motion','theme','locale','density'])$(name).value=prefs[name];
@@ -576,7 +578,7 @@ async function drawOnScreen(clear=false){
 }
 $('drawScreen').addEventListener('click',()=>drawOnScreen());$('clearDrawing').addEventListener('click',()=>drawOnScreen(true));
 
-for(const switchId of ['accessibility','continuous'])$(switchId).addEventListener('change',async()=>{
+for(const switchId of ['accessibility','continuous','guidanceEnabled','reviewEnabled','verificationEnabled'])$(switchId).addEventListener('change',async()=>{
  if(!prefs)return;
  const node=$(switchId),requested=node.checked;node.disabled=true;
  try{await savePatch({[switchId]:requested});renderLocal();void refreshPermission();}
