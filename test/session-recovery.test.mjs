@@ -48,6 +48,23 @@ test('pause freezes a normal step, resumes into reobservation, and never extends
   } finally {m.close();}
 });
 
+test('a shorter task deadline declines a pending sensitive decision but expires reported verification',()=>{
+  for(const reported of [false,true])for(const paused of [false,true]){
+    let now=0;const m=new HandoffManager({clock:()=>now});
+    try{
+      const request={...step,sensitive:true,timeoutSeconds:300,taskTimeoutSeconds:60};
+      const session=m.show(request,'a');assert.equal(session.timeoutAt,60000);assert.equal(session.confirmationTimeoutAt,300000);
+      if(reported)m.resolve(session.id,'completed','a');
+      if(paused)m.control(session.id,'a','pause');
+      assert.equal(m.get(session.id).confirmationTimeoutAt,reported?null:300000);
+      now=60001;
+      assert.equal(m.get(session.id).status,reported?'expired':'declined');
+      assert.equal(m.active(),null);
+      if(!reported)assert.deepEqual(m.show({...request,requestId:'same-sensitive-step'},'a'),{error:'declined_by_user',nextAction:'respect_refusal'});
+    }finally{m.close();}
+  }
+});
+
 test('recovery requires a scoped token, rotates it, clears old marks and revokes the previous owner',()=>{
   const m=new HandoffManager();
   try {

@@ -7,12 +7,18 @@ import { VISUAL_STYLES, MOTION_MODES, LOCALES, THEMES } from './local/preference
 import { SHAPES, normalizeAnnotation, normalizeScene, flattenScene, patchScene, composeTemplate, MAX_MARKS } from './visual/scene.mjs';
 export { SHAPES, normalizeAnnotation } from './visual/scene.mjs';
 const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+const refusalKey = (owner, request) => createHash('sha256').update(JSON.stringify([
+  owner, request.mode, request.title, request.message, request.purpose, request.sensitive,
+  request.completion.kind, request.completion.condition ?? null
+])).digest('hex');
+const refused = () => ({error:'declined_by_user',nextAction:'respect_refusal'});
 export function normalizeRequest(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Request must be an object');
   const mode = input.mode ?? 'handoff';
   const execution=input.execution??'attached';
   if(!['attached','parked'].includes(execution))throw new TypeError('Invalid execution mode');
   if(input.continuous!==undefined && typeof input.continuous!=='boolean')throw new TypeError('Invalid continuous flag');
+  if(input.retryDeclined!==undefined && typeof input.retryDeclined!=='boolean')throw new TypeError('Invalid retryDeclined flag');
   const locale = input.locale ?? 'zh-CN';
   const density = input.density ?? 'normal';
   const theme = input.theme ?? 'system';
@@ -76,7 +82,7 @@ export function normalizeRequest(input) {
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { execution, taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true||purpose==='verification', purpose,intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
+  return { execution, retryDeclined:input.retryDeclined===true, taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true||purpose==='verification', purpose,intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
 }
 function copySession(session) {
   if (!session) return null;
@@ -98,6 +104,7 @@ export class HandoffManager extends EventEmitter {
     this.owners = new Map();
     this.timers = new Map();
     this.requestKeys = new Map(); // owner + requestId -> { id, normalized payload }
+    this.refusals = new Map(); // Bounded, memory-only SHA256 fingerprints; no decision history on disk.
     this.pendingWaits = 0;
     this.setMaxListeners(96);
     this.activeId = null;
@@ -111,13 +118,16 @@ export class HandoffManager extends EventEmitter {
     if (key && this.requestKeys.has(key)) {
       const record = this.requestKeys.get(key);
       if (record.payload !== JSON.stringify(normalized)) throw new TypeError('requestId was reused with different content');
-      return this.get(record.id) ?? { error: 'request_expired' };
+      const session=this.get(record.id);
+      return session?.status==='declined'?refused():session ?? { error: 'request_expired' };
     }
     if(this.activeId)this.get(this.activeId);
     const previous = this.activeId && this.sessions.get(this.activeId);
     if (previous && this.owners.get(previous.id) !== owner) {
       return { error: 'busy', activeMode: previous.mode };
     }
+    const fingerprint=refusalKey(owner,normalized);
+    if(this.refusals.has(fingerprint)&&!normalized.retryDeclined)return refused();
     if (previous && !TERMINAL.has(previous.status)) this.#finish(previous, 'superseded');
     const now = this.clock();
     const session = {
@@ -143,13 +153,14 @@ export class HandoffManager extends EventEmitter {
     this.activeId = session.id;
     this.#arm(session);
     this.#prune();
+    this.refusals.delete(fingerprint);
     this.emit('show', copySession(session));
     return copySession(session);
   }
   get(id) {
     const session = this.sessions.get(id);
     if (!session) return null;
-    if (!TERMINAL.has(session.status) && this.clock() >= session.timeoutAt) this.#finish(session, session.confirmationTimeoutAt&&this.clock()>=session.confirmationTimeoutAt?'declined':'expired');
+    if (!TERMINAL.has(session.status) && this.clock() >= session.timeoutAt) this.#finish(session, session.sensitive&&session.confirmationTimeoutAt!=null?'declined':'expired');
     return copySession(session);
   }
   active() { return this.activeId ? this.get(this.activeId) : null; }
@@ -217,13 +228,16 @@ export class HandoffManager extends EventEmitter {
     if(key && this.requestKeys.has(key)){
       const saved=this.requestKeys.get(key);
       if(saved.id!==id||saved.payload!==JSON.stringify(normalized))throw new TypeError('requestId was reused with different content');
-      return {session:this.get(id)};
+      const session=this.get(id);
+      return session?.status==='declined'?refused():{session};
     }
     if(TERMINAL.has(current.status)||this.activeId!==id)return {error:'already_final'};
     if(current.status==='paused')return {error:'paused'};
     if(current.phase==='verifying')return {error:'verification_due'};
     const layoutRecovery=current.status==='awaiting_user'&&current.targetTracking?.status==='layout_changed';
     if(current.status!=='observing'&&!layoutRecovery)return {error:'step_not_verified'};
+    const fingerprint=refusalKey(owner,normalized);
+    if(this.refusals.has(fingerprint)&&!normalized.retryDeclined)return refused();
     for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','purpose','intent','scrim']) session[field]=normalized[field];
     if(input.execution!==undefined)session.execution=normalized.execution;
     if(normalized.totalSteps!==undefined)session.totalSteps=normalized.totalSteps;
@@ -236,6 +250,7 @@ export class HandoffManager extends EventEmitter {
     if(key)this.requestKeys.set(key,{id,payload:JSON.stringify(normalized)});
     session.stepTimeoutAt=this.clock()+normalized.timeoutSeconds*1000;session.confirmationTimeoutAt=normalized.sensitive?this.clock()+Math.min(300,normalized.timeoutSeconds)*1000:null;
     session.agentState={phase:'idle',at:this.clock()};this.#arm(session);
+    this.refusals.delete(fingerprint);
     this.emit('show',copySession(session));return {session:copySession(session)};
   }
   #arm(session) {
@@ -376,6 +391,11 @@ export class HandoffManager extends EventEmitter {
     const timer = this.timers.get(session.id);
     if (timer) clearTimeout(timer);
     this.timers.delete(session.id);
+    if(status==='declined'){
+      const fingerprint=refusalKey(this.owners.get(session.id),session);
+      this.refusals.delete(fingerprint);this.refusals.set(fingerprint,true);
+      while(this.refusals.size>this.maxHistory)this.refusals.delete(this.refusals.keys().next().value);
+    }
     session.status = status;
     session.phase = status === 'completed' ? (session.continuous?'complete':'verifying') : 'finished';
     session.nextAction = status === 'completed' && !session.continuous ? 'verify_in_app' : 'stop';
@@ -423,6 +443,7 @@ export class HandoffManager extends EventEmitter {
   close() {
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
+    this.refusals.clear();
     this.emit('closing');
   }
 }

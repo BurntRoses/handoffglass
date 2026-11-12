@@ -66,6 +66,7 @@ const presentation = z.object({
   intent:z.enum(['focus','point','inspect','caution','verify']).optional(),
   completion:z.object({kind:z.enum(['user_report','observed_condition']),condition:z.literal('target_absent').optional()}).optional(),
   sensitive:z.boolean().optional(),purpose:z.enum(['verification','decision','teaching']).optional(),
+  retryDeclined:z.boolean().optional().describe('Only true after the user explicitly asks to retry this previously declined step; never use for automatic retries.'),
   scrim:z.boolean().optional(),
   totalSteps:z.number().int().min(1).max(999).optional(),
   taskTimeoutSeconds:z.number().int().min(60).max(86400).optional(),
@@ -96,10 +97,10 @@ export const SERVER_INSTRUCTIONS = capabilityInstructions();
 const json = object => {const value=formatToolResult(object,{compact});return {content:[{type:'text',text:JSON.stringify(value)}],structuredContent:value};};
 const safe = fn => async args => {
   try { return json(await fn(args)); }
-  catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
+  catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error', ...(error.nextAction?{nextAction:error.nextAction}:{}) }) }; }
 };
 export function makeServer({broker=new BrokerClient(),env=process.env,server,exitOnUninstall=false}={}) {
-  server ??= new McpServer({ name: 'handoffglass', version: '0.22.0' }, { instructions: SERVER_INSTRUCTIONS });
+  server ??= new McpServer({ name: 'handoffglass', version: '0.22.1' }, { instructions: SERVER_INSTRUCTIONS });
   const legacy=env.HANDOFFGLASS_LEGACY_TOOLS==='1';
   const profile=env.HANDOFFGLASS_TOOL_PROFILE||'full';
   if(!['host','full'].includes(profile))throw new TypeError('HANDOFFGLASS_TOOL_PROFILE must be host or full');
@@ -240,7 +241,7 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   register('review_changes',{
     title:'Present a read-only change review',
     description:'Show file/config/setting/permission/external changes as summaries and SHA256 only; never send file contents or credentials. Wait for human review, then independently check before continuing. Decline/timeout means stop. Replay is read-only; no operation is executed.',
-    inputSchema:z.object({action:z.enum(['present','status','wait']).default('present'),id:z.string().uuid().optional(),timeoutMs:z.number().int().min(0).max(30000).optional(),timeoutSeconds:z.number().int().min(10).max(600).optional(),changes:z.array(z.object({kind:z.enum(['file','config','setting','permission','external']),risk:z.enum(['low','medium','high','irreversible']),summary:z.string().max(240),before:digestSummary,after:digestSummary}).strict()).min(1).max(24).optional()}),
+    inputSchema:z.object({action:z.enum(['present','status','wait']).default('present'),id:z.string().uuid().optional(),retryDeclined:z.boolean().optional().describe('Only true after the user explicitly asks to review the declined changes again.'),timeoutMs:z.number().int().min(0).max(30000).optional(),timeoutSeconds:z.number().int().min(10).max(600).optional(),changes:z.array(z.object({kind:z.enum(['file','config','setting','permission','external']),risk:z.enum(['low','medium','high','irreversible']),summary:z.string().max(240),before:digestSummary,after:digestSummary}).strict()).min(1).max(24).optional()}),
     annotations:{readOnlyHint:false}
   },safe(args=>broker.review(args)));
   register('session_verify', {

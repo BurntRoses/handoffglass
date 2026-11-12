@@ -1,6 +1,6 @@
 {
   "name":"handoffglass",
-  "version":"0.22.0",
+  "version":"0.22.1",
   "description":"Host-observed screen drawing and human-guided steps with independent verification.",
   "license":"PolyForm-Noncommercial-1.0.0"
 }

@@ -33,14 +33,16 @@ export class PresentationLog extends EventEmitter{
     else this.append(session?.id??null,'verification_recorded','broker','low',{session:null});
   }
   snapshot(){return Object.fromEntries(Object.entries(this.views).map(([k,v])=>[k,this.enabled[k]&&v?structuredClone(k==='review'?{...v,...this.appearance}:v):null]));}
-  present({changes,timeoutSeconds=300},owner){
+  present({changes,timeoutSeconds=300,retryDeclined=false},owner){
     if(!this.enabled.review)return {error:'review_disabled'};
+    if(typeof retryDeclined!=='boolean')throw new TypeError('retryDeclined must be boolean');
     if(!Array.isArray(changes)||changes.length<1||changes.length>24||!Number.isInteger(timeoutSeconds)||timeoutSeconds<10||timeoutSeconds>600)throw new TypeError('Expected 1–24 changes and 10–600 second timeout');
     const prior=this.views.review;
     const safe=changes.map(normalizeChange),risk=RISKS[Math.max(...safe.map(c=>RISKS.indexOf(c.risk)))],id=randomUUID();
-    const refused=this.refusals.get(reviewKey(owner,safe));if(refused)return {review:structuredClone(refused)};
-    if(prior&&this.owners.get(prior.id)===owner&&JSON.stringify(prior.changes)===JSON.stringify(safe))return {review:structuredClone(prior)};
+    const key=reviewKey(owner,safe),refused=this.refusals.get(key);if(refused&&!retryDeclined)return {review:structuredClone(refused)};
+    if(prior&&this.owners.get(prior.id)===owner&&JSON.stringify(prior.changes)===JSON.stringify(safe)&&!(retryDeclined&&prior.status==='declined'))return {review:structuredClone(prior)};
     if(prior?.status==='waiting_review')return {error:'busy'};
+    if(retryDeclined)this.refusals.delete(key);
     const review={id,revision:1,changes:safe,risk,readOnly:true,status:'waiting_review',nextAction:'await_human_review',deadline:this.now()+timeoutSeconds*1000};
     this.owners.set(id,owner);while(this.owners.size>64)this.owners.delete(this.owners.keys().next().value);
     this.append(id,'review_presented','agent',risk,{review});

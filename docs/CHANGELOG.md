@@ -1,4 +1,8 @@
-## 0.21.0 · 2026-11-12
+## 0.22.1 · 拒绝与超时
+
+- 普通交接与改动审查都记住本次 Broker 生命周期内的拒绝。更换请求编号、坐标或样式不会重新询问；仅在用户明确要求再试时使用 `retryDeclined:true`。
+- 敏感确认仍待处理时，任务、步骤或确认截止均返回拒绝；已报告完成、等待独立核验的会话按核验截止过期。
+- `declined_by_user` 与 `respect_refusal` 保留至 MCP 和原生宿主，避免被误报为另一 Agent 占用。
 
 ## 0.22.0 · 插件运行时与分层呈现
 
@@ -8,7 +12,7 @@
 - DeepSeek / OpenCode 原生入口共用 MCP 工具目录，按聊天分配所有权并传播取消；Claude Code 原生包加入构建和按清单清理。宿主真实模型闭环仍待验证。
 - 审查窗口提供中英文、主题、哈希折叠和只读步骤记录。前端处方焦点策略使用控件表面、文字和亮度。
 - 许可保持 PolyForm Noncommercial；签名 App 和自动更新延后，不作为插件本轮交付前提。
-
+## 0.21.0 · 2026-11-12
 
 - Split host observation from local rendering. Accept top-left bounds and explicit image frames for deterministic pixel-to-DIP mapping; validate recency, display coverage and layout changes.
 - Use a 17-tool host profile in Codex, with smaller presentation schemas and optional native lookup in full mode. Remove native permission probes from capability discovery.

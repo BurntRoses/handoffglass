@@ -138,6 +138,14 @@ try {
   assert.equal((await invoke(a,'session_wait',{sessionId:painted.session.id,maxWaitSeconds:0})).session.annotations.length,0);
   assert.equal((await invoke(a,'session_verify',{sessionId:painted.session.id,verified:true,finish:true,expectedStep:1})).session.status,'completed');
   }
+  const refusedArgs={title:'Fixture decision',message:'Decide on the local fixture setting',sensitive:true,requestId:'refusal-smoke-one'};
+  const refused=await invoke(a,'session_start',refusedArgs);
+  const refusalResponse=await fetch(`http://127.0.0.1:${desktop.port}/decision`,{method:'POST',headers:{authorization:`Bearer ${desktop.desktopToken}`,'content-type':'application/json'},body:JSON.stringify({id:refused.session.id,step:1,status:'declined'})});
+  assert.equal(refusalResponse.status,200);
+  const repeatedRefusal=await a.callTool({name:'session_start',arguments:{...refusedArgs,requestId:'refusal-smoke-two'}});
+  assert.equal(repeatedRefusal.isError,true);assert.equal(repeatedRefusal.structuredContent.code,'declined_by_user');assert.equal(repeatedRefusal.structuredContent.nextAction,'respect_refusal');
+  const explicitRetry=await invoke(a,'session_start',{...refusedArgs,requestId:'refusal-smoke-three',retryDeclined:true});
+  assert.equal(explicitRetry.session.status,'awaiting_user');await invoke(a,'session_stop',{sessionId:explicitRetry.session.id});
   const continuous=await invoke(a,'session_start',{execution:'attached',title:'Step one',message:'Review the current screen',requestId:'continuous-smoke-1'});
   assert.equal(continuous.session.continuous,true);
   const initial=await invoke(a,'session_wait',{sessionId:continuous.session.id,cursor:0,maxWaitSeconds:0});

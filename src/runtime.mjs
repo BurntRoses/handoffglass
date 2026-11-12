@@ -132,7 +132,7 @@ export class BrokerClient {
           signal: this.options.signal?AbortSignal.any([this.options.signal,AbortSignal.timeout(timeoutMs)]):AbortSignal.timeout(timeoutMs)
         });
         const result = await response.json();
-        if (!response.ok) throw Object.assign(new Error(result.error || 'Broker request failed'), { code: result.code, httpCode: response.status });
+        if (!response.ok) throw Object.assign(new Error(result.error || 'Broker request failed'), { code: result.code, httpCode: response.status, ...(result.nextAction?{nextAction:result.nextAction}:{}) });
         return result;
       } catch (error) {
         if(!error.httpCode)this.live=null;

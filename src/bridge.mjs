@@ -545,9 +545,9 @@ export class LocalBridge {
         if(body.continuous && !latestPreferences.continuous)return sendJson(res,423,{error:'Continuous sessions are disabled by the user',code:'continuous_disabled'});
         const priorStep=body.sessionId?this.manager.getOwned(body.sessionId,owner)?.step:null;
         const result=body.sessionId?this.manager.present(body.sessionId,body,owner):{session:this.manager.show(body,owner)};
-        if(result.error)return sendJson(res,409,{error:result.error,code:result.error});
+        if(result.error)return sendJson(res,409,{error:result.error,code:result.error,...(result.nextAction?{nextAction:result.nextAction}:{})});
         const session=result.session;
-        if (session.error) return sendJson(res, 409, { error: 'A different Agent already owns the active handoff', code: 'busy' });
+        if (session.error) return sendJson(res, 409, {error:session.error,code:session.error,...(session.nextAction?{nextAction:session.nextAction}:{})});
         if(body.sessionId && (!hadTarget||!followTarget||session.step!==priorStep))this.anchors.clearFor(body.sessionId);
         if((!hadTarget||!followTarget)&&session.annotations.length)this.fixedSessions.add(session.id);else this.fixedSessions.delete(session.id);
         this.armObservation(session.id,hostObservation??{});

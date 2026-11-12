@@ -151,6 +151,20 @@ test('authenticated agent bridge deduplicates retries and separates owner access
   assert.equal(finalRetry.session.status, 'cancelled');
 }));
 
+test('declined handoffs retain their stop action across the bridge and reopen only on an explicit retry',async()=>fixture(async({request,bridge,manager})=>{
+ bridge.headless=true;
+ const headers={authorization:`Bearer ${bridge.agentToken}`,'x-handoffglass-owner':'11111111-1111-4111-8111-111111111111'};
+ const body={...basic,continuous:true,sensitive:true,requestId:'declined-bridge-one'};
+ const first=await (await request('/agent/show',{method:'POST',headers,body})).json();
+ manager.resolve(first.session.id,'declined');
+ const retry=await request('/agent/show',{method:'POST',headers,body:{...body,requestId:'declined-bridge-two',motion:'off'}});
+ assert.equal(retry.status,409);
+ assert.deepEqual(await retry.json(),{error:'declined_by_user',code:'declined_by_user',nextAction:'respect_refusal'});
+ assert.equal(manager.active(),null);
+ const explicit=await (await request('/agent/show',{method:'POST',headers,body:{...body,requestId:'declined-bridge-three',retryDeclined:true}})).json();
+ assert.notEqual(explicit.session.id,first.session.id);assert.equal(explicit.session.status,'awaiting_user');
+}));
+
 test('agent scene updates are owner-scoped, versioned and revision-published', async () => fixture(async ({ request, bridge, manager }) => {
   bridge.headless = true;
   const ownerA = { authorization: `Bearer ${bridge.agentToken}`, 'x-handoffglass-owner': '11111111-1111-4111-8111-111111111111' };

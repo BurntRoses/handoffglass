@@ -61,3 +61,18 @@ test('redaction handles quoted JSON credentials and incomplete private keys befo
   assert.ok(!JSON.stringify(log.events).includes('AAAA'));
  }finally{log.close();}
 });
+test('a declined review reopens only when explicitly requested and busy attempts retain the refusal',()=>{
+ const log=new PresentationLog();
+ try{
+  const first=log.present({changes:[change]},'A').review;log.decide(first.id,1,'declined');
+  const waiting=log.present({changes:[{...change,summary:'unrelated change'}]},'B').review;
+  assert.equal(log.present({changes:[change],retryDeclined:true},'A').error,'busy');
+  assert.equal(log.present({changes:[change]},'A').review.status,'declined');
+  log.decide(waiting.id,1,'reviewed');
+  const retry=log.present({changes:[change],retryDeclined:true},'A').review;
+  assert.notEqual(retry.id,first.id);assert.equal(retry.status,'waiting_review');
+  assert.equal(log.present({changes:[change],retryDeclined:true},'A').review.id,retry.id,'retry cannot renew a live review');
+  log.decide(retry.id,1,'declined');assert.equal(log.present({changes:[change]},'A').review.id,retry.id);
+  assert.throws(()=>log.present({changes:[change],retryDeclined:'true'},'A'),/boolean/);
+ }finally{log.close();}
+});

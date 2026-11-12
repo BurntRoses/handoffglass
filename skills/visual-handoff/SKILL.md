@@ -41,6 +41,7 @@ Save session ID, recovery token and cursor privately in task context. After proc
 ## Recovery and removal
 
 - Refusal, cancellation, `disabled_by_user`, `continuous_disabled` or `busy`: stop. Enable only when asked.
+- `declined_by_user`: stop; a new request ID or visual style does not reopen the rejected step. Use `retryDeclined:true` in a new presentation only after the user explicitly asks to try that step or review again. Never set it for an automatic retry.
 - `observation_required`, `stale_observation`, `layout_changed`, `outside_frame`, `ambiguous_frame` or `outside_display`: obtain fresh host evidence and its mapping; never guess scale or silently clamp a target.
 - Native `permission_denied`/`consent_required`: explain optional native access once; keep host drawing available. Do not change permission yourself.
 - `verification_due`/`step_not_verified`: check the original app. `revision_conflict`/`stale_step`: use the returned revision or current snapshot; do not blindly repeat edits.

@@ -18,7 +18,7 @@ export function nativeTools(host,{clientFactory=()=>new BrokerClient({env:{...pr
       const scoped=broker.withSignal?broker.withSignal(signal):broker;
       const tool=toolCatalog(scoped).get(name),result=await tool.handler(spec.inputSchema.parse(args));
       if(signal?.aborted)signal.throwIfAborted();
-      if(result.isError||result.structuredContent?.error)throw Object.assign(Error(result.structuredContent.error),{code:result.structuredContent.code??result.structuredContent.error});
+      if(result.isError||result.structuredContent?.error)throw Object.assign(Error(result.structuredContent.error),{code:result.structuredContent.code??result.structuredContent.error,...(result.structuredContent.nextAction?{nextAction:result.structuredContent.nextAction}:{})});
       return result.structuredContent;
     },
     close(){closed=true;strings.clear();}
