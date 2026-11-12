@@ -44,7 +44,7 @@ test('pause freezes a normal step, resumes into reobservation, and never extends
     const repeated=m.present(s.id,step,'a').session;assert.equal(repeated.step,1);
     m.resolve(s.id,'cancelled','a');
     const sensitive=m.show({...step,sensitive:true},'a');m.control(sensitive.id,'a','pause');
-    now+=300001;assert.equal(m.get(sensitive.id).status,'expired');
+    now+=300001;assert.equal(m.get(sensitive.id).status,'declined');
   } finally {m.close();}
 });
 

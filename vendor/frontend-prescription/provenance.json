@@ -1,12 +1,12 @@
 {
   "source": "前端处方/app/src",
-  "adopted": "2026-11-11",
+  "adopted": "2026-11-13",
   "libraries": [
     {
       "name": "shadcn/ui",
       "commit": "4aaea19d9cff3e0908e12a8c1d504b8c5ec34610",
       "license": "MIT",
-      "use": "Button variant and sizing contract, Toggle whole-surface selection, Switch track/thumb; adapted to native DOM, single outline focus; no React/Radix runtime. Accordion trigger/content, reversible disclosure and chevron state adapted to native DOM."
+      "use": "Button variant and sizing contract, Toggle whole-surface selection, Switch track/thumb; adapted to native DOM, surface focus; no React/Radix runtime. Accordion trigger/content, reversible disclosure and chevron state adapted to native DOM."
     },
     {
       "name": "@radix-ui/themes",
@@ -26,7 +26,9 @@
     "assets/ui/controls.css",
     "src/desktop/choice-controls.mjs",
     "src/desktop/disclosure.mjs",
-    "src/desktop/disclosure.css"
+    "src/desktop/disclosure.css",
+    "assets/ui/focus-policy.css",
+    "assets/ui/focus-policy.mjs"
   ],
   "files": [
     {
@@ -83,6 +85,16 @@
       "snapshot": "shadcn/accordion.tsx.source",
       "source": "vendor/templates/shadcn-shared/ui/accordion.tsx.source",
       "sha256": "99de242681eb43121969db02bbb102aeeb1865ef52c7635672508a58c5429085"
+    },
+    {
+      "snapshot": "focus-policy.css.source",
+      "source": "app/src/styles/focus-policy.css",
+      "sha256": "d971ec34da459083837142ce22ce8fb9391a554671c66e9652fcaaefb71de7d4"
+    },
+    {
+      "snapshot": "focus-policy.ts.source",
+      "source": "app/src/data/focus-policy.ts",
+      "sha256": "39b62e98ea53cf465c9ea85aceed22332e9991c401a354cace34b9c4785309b8"
     }
   ]
 }

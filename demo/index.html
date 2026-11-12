@@ -30,4 +30,4 @@ $('denyActual').onclick=()=>{if(status==='awaiting_user'){appState='denied';$('m
 refresh();
 const updateTarget=()=>{const target=$('allowActual').getBoundingClientRect(),base=document.querySelector('.browser').getBoundingClientRect(),layer=document.querySelector('.annotation');for(const [key,value] of Object.entries({'--target-x':target.left-base.left-8,'--target-y':target.top-base.top-8,'--target-w':target.width+16,'--target-h':target.height+16}))layer.style.setProperty(key,value+'px');};
 new ResizeObserver(updateTarget).observe(document.querySelector('.browser'));updateTarget();
-</script></body></html>
+</script><script type="module" src="../assets/ui/focus-policy.mjs"></script></body></html>

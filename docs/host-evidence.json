@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "requiredStages": [
+    "guidance",
+    "human_decision",
+    "independent_verification",
+    "resume"
+  ],
+  "hosts": {
+    "codex": {
+      "status": "unverified",
+      "record": null,
+      "protocol": "native-plugin-smoke"
+    },
+    "claude-code": {
+      "status": "unverified",
+      "record": null,
+      "protocol": "bundle-schema"
+    },
+    "deepseek": {
+      "status": "unverified",
+      "record": null,
+      "protocol": "shared-contract-and-bundle-schema"
+    },
+    "workbuddy": {
+      "status": "unverified",
+      "record": null,
+      "protocol": "connector-schema"
+    },
+    "cursor": {
+      "status": "unverified",
+      "record": null,
+      "protocol": "config-schema"
+    },
+    "trae": {
+      "status": "unverified",
+      "record": null,
+      "protocol": "config-schema"
+    },
+    "opencode": {
+      "status": "unverified",
+      "record": null,
+      "protocol": "shared-contract-and-bundle-schema"
+    }
+  }
+}

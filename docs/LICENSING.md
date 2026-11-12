@@ -12,3 +12,5 @@ HandoffGlass 采用 [PolyForm Noncommercial License 1.0.0](../LICENSE)。
 许可证全文来自 [PolyForm 官方版本](https://github.com/polyformproject/polyform-licenses/blob/1.0.0/PolyForm-Noncommercial-1.0.0.md)，未改写条款。桌面包同时携带本项目 LICENSE、NOTICE 和依赖组件的许可声明。
 
 提交贡献即表示你有权提交该内容，并同意其按项目现有许可证提供。第三方代码须保留原许可和署名；不要将商业兼容性未知的代码混入运行时。
+
+当前授权联系说明见仓库根目录 [LICENSING.md](../LICENSING.md)。项目没有商业收费方案、发票或答复时限承诺。

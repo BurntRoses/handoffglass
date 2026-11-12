@@ -10,9 +10,11 @@ import { BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { assessHandoff, GROUNDING_EVIDENCE } from './local/policy.mjs';
 import { SHAPES, TONES, TEMPLATE_NAMES, EFFECTS, MASK_STYLES, EXIT_STYLES } from './visual/scene.mjs';
 import { PLACEMENTS, DIRECTIONS } from './visual/quick-mark.mjs';
+import {fileURLToPath} from 'node:url';
+import {realpathSync} from 'node:fs';
+import {resolve} from 'node:path';
 import { capabilityInstructions } from './capabilities.mjs';
 
-const broker = new BrokerClient();
 const annotation = z.object({
   x: z.number().finite().min(-100000).max(100000),
   y: z.number().finite().min(-100000).max(100000),
@@ -50,9 +52,10 @@ const sceneOp = z.discriminatedUnion('op', [
 ]);
 const uiTarget = z.object({ app: z.string().trim().min(1).max(128), role: z.string().trim().min(1).max(80), name: z.string().trim().min(1).max(256) });
 const bounds=z.object({x:z.number().finite().min(-100000).max(100000),y:z.number().finite().min(-100000).max(100000),width:z.number().positive().max(100000),height:z.number().positive().max(100000)});
+const observation=z.object({capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user'])});
 const frame=z.object({width:z.number().positive().max(100000),height:z.number().positive().max(100000),bounds,
-  capturedAt:z.number().finite().optional(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/).optional()});
-const observedUpdate=z.object({sessionId:z.string().uuid(),expectedRevision:z.number().int().positive(),bounds,frame:frame.optional(),
+  capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user'])});
+const observedUpdate=z.object({sessionId:z.string().uuid(),expectedRevision:z.number().int().positive(),bounds,frame:frame.optional(),observation:observation.optional(),
   shape:z.enum(SHAPES).optional(),label:z.string().max(64).optional(),color:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional()});
 const presentation = z.object({
   sessionId: z.string().uuid().optional(),
@@ -62,12 +65,12 @@ const presentation = z.object({
   targetRef:z.string().regex(/^target_[0-9a-f-]{36}$/).optional(),
   intent:z.enum(['focus','point','inspect','caution','verify']).optional(),
   completion:z.object({kind:z.enum(['user_report','observed_condition']),condition:z.literal('target_absent').optional()}).optional(),
-  sensitive:z.boolean().optional(),
+  sensitive:z.boolean().optional(),purpose:z.enum(['verification','decision','teaching']).optional(),
   scrim:z.boolean().optional(),
   totalSteps:z.number().int().min(1).max(999).optional(),
   taskTimeoutSeconds:z.number().int().min(60).max(86400).optional(),
   followTarget: z.boolean().optional(),
-  bounds:bounds.optional(),frame:frame.optional(),label:z.string().max(64).optional(),
+  bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),label:z.string().max(64).optional(),
   title: z.string().trim().min(1).max(100),
   message: z.string().trim().min(1).max(1000),
   x: z.number().finite().min(-100000).max(100000).optional(),
@@ -95,10 +98,10 @@ const safe = fn => async args => {
   try { return json(await fn(args)); }
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
-function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.21.0' }, { instructions: SERVER_INSTRUCTIONS });
-  const legacy=process.env.HANDOFFGLASS_LEGACY_TOOLS==='1';
-  const profile=process.env.HANDOFFGLASS_TOOL_PROFILE||'full';
+export function makeServer({broker=new BrokerClient(),env=process.env,server,exitOnUninstall=false}={}) {
+  server ??= new McpServer({ name: 'handoffglass', version: '0.22.0' }, { instructions: SERVER_INSTRUCTIONS });
+  const legacy=env.HANDOFFGLASS_LEGACY_TOOLS==='1';
+  const profile=env.HANDOFFGLASS_TOOL_PROFILE||'full';
   if(!['host','full'].includes(profile))throw new TypeError('HANDOFFGLASS_TOOL_PROFILE must be host or full');
   const host=profile==='host';
   const stepPresentation=host?presentation.omit({target:true,targetRef:true,followTarget:true,scene:true,annotations:true,x:true,y:true})
@@ -152,12 +155,12 @@ function makeServer() {
       visualStyle:z.enum(VISUAL_STYLES).optional(),motion:z.enum(MOTION_MODES).optional(),
       action:z.enum(['draw','update','clear']).optional(),id:z.string().uuid().optional(),expectedRevision:z.number().int().positive().optional(),
       shape:z.enum(SHAPES).optional(),placement:z.enum(PLACEMENTS).optional(),direction:z.enum(DIRECTIONS).optional(),
-      bounds:bounds.optional(),frame:frame.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),
+      bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),
       size:z.number().min(24).max(800).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
       color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),label:z.string().max(64).optional(),strokeWidth:z.number().min(1).max(8).optional(),lineStyle:z.enum(['solid','dashed']).optional(),
       effect:z.enum(EFFECTS).optional(),exit:z.enum(EXIT_STYLES).optional(),maskStyle:z.enum(MASK_STYLES).optional(),sequence:z.boolean().optional(),
       marks:z.array(z.object({id:z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),shape:z.enum(SHAPES),placement:z.enum(PLACEMENTS).optional(),
-        bounds:bounds.optional(),frame:frame.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
+        bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
         label:z.string().max(64).optional(),color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),direction:z.enum(DIRECTIONS).optional()})).min(1).max(8).optional(),
       displayId:z.string().max(80).optional(),durationSeconds:z.number().int().min(10).max(120).optional(),
       requestId:z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()
@@ -233,12 +236,19 @@ function makeServer() {
     inputSchema: z.object({ sessionId: z.string().uuid(), cursor: z.number().int().nonnegative().default(0), maxWaitSeconds: z.number().min(0).max(30).default(20) }),
     annotations: { readOnlyHint: true }
   }, safe(({sessionId,cursor,maxWaitSeconds})=>broker.wait(sessionId,maxWaitSeconds,{continuous:true,cursor})));
+  const digestSummary=z.object({summary:z.string().max(240),hash:z.string().regex(/^[a-f0-9]{64}$/)}).strict();
+  register('review_changes',{
+    title:'Present a read-only change review',
+    description:'Show file/config/setting/permission/external changes as summaries and SHA256 only; never send file contents or credentials. Wait for human review, then independently check before continuing. Decline/timeout means stop. Replay is read-only; no operation is executed.',
+    inputSchema:z.object({action:z.enum(['present','status','wait']).default('present'),id:z.string().uuid().optional(),timeoutMs:z.number().int().min(0).max(30000).optional(),timeoutSeconds:z.number().int().min(10).max(600).optional(),changes:z.array(z.object({kind:z.enum(['file','config','setting','permission','external']),risk:z.enum(['low','medium','high','irreversible']),summary:z.string().max(240),before:digestSummary,after:digestSummary}).strict()).min(1).max(24).optional()}),
+    annotations:{readOnlyHint:false}
+  },safe(args=>broker.review(args)));
   register('session_verify', {
     title: 'Record independent verification',
-    description: 'Record the Agent’s independent check after a user report or observed-condition step. verified:true + finish:true ends the workflow; otherwise retain ownership and present the next step with the same sessionId. A user report alone is insufficient.',
-    inputSchema: z.object({ sessionId: z.string().uuid(), verified: z.boolean(), finish:z.boolean().default(false),expectedStep:z.number().int().min(1).optional() }),
+    description: 'Record the Agent’s independent check after a user report or observed-condition step. result:verified + finish:true ends the workflow; inconclusive keeps a coordinate-free pending check; otherwise retain ownership and present the next step with the same sessionId. A user report alone is insufficient.',
+    inputSchema: z.object({ sessionId: z.string().uuid(), result:z.enum(['verified','mismatch','inconclusive']).optional(), verified: z.boolean().optional(), finish:z.boolean().default(false),expectedStep:z.number().int().min(1).optional() }),
     annotations: { readOnlyHint: false }
-  }, safe(({ sessionId, verified, finish,expectedStep }) => broker.verify(sessionId, verified, finish,expectedStep)));
+  }, safe(({ sessionId, result,verified, finish,expectedStep }) => {if(result===undefined&&verified===undefined)throw Error('Provide result: verified, mismatch or inconclusive');if(result!==undefined&&verified!==undefined)throw Error('Choose result or legacy verified');return broker.verify(sessionId,result??verified,finish,expectedStep);}));
   register('session_resume', {
     title:'Recover an interrupted session',description:'Reclaim with the saved sessionId and resumeToken after MCP or Broker restart. Rotates the token and clears marks; preserves pending verification and pause. Observe the app before continuing; never replay a user action.',
     inputSchema:z.object({sessionId:z.string().uuid(),resumeToken:z.string().regex(/^[0-9a-f]{64}$/)}),annotations:{readOnlyHint:false}
@@ -270,7 +280,7 @@ function makeServer() {
   register('integration_uninstall',{
     title:'Uninstall owned HandoffGlass files',description:'Preview the complete owned removal by default. confirm:true applies an explicit user uninstall request, removes host integrations and schedules app/runtime removal after exit. Report retained files and resultPath; scheduled is not completed.',
     inputSchema:z.object({confirm:z.boolean().default(false)}),annotations:{readOnlyHint:false}
-  },safe(async({confirm})=>{const result=await broker.uninstall(confirm);if(result.result?.scheduled)setTimeout(()=>process.exit(0),250);return result;}));
+  },safe(async({confirm})=>{const result=await broker.uninstall(confirm);if(exitOnUninstall&&result.result?.scheduled)setTimeout(()=>process.exit(0),250);return result;}));
   register('integration_cleanup', {
     title: 'Remove an owned local integration',
     description: 'Prepare a cleanup plan by default. Set confirm=true only when the user explicitly asked to remove the named integration; only recorded, unchanged local files are removed/restored. Edited or unrecorded content is retained. WorkBuddy host removal remains manual; the desktop app is not deleted.',
@@ -283,4 +293,12 @@ function makeServer() {
   }, safe(({ sessionId }) => broker.cancel(sessionId)));
   return server;
 }
-serveStdio(makeServer, { onerror: error => console.error('[handoffglass] MCP transport error:', error) });
+/** One authoritative catalog for MCP and native hosts; constructing it starts no process. */
+export function toolCatalog(broker,env={HANDOFFGLASS_TOOL_PROFILE:'host'}){
+  const tools=new Map();
+  makeServer({broker,env,server:{registerTool:(name,spec,handler)=>tools.set(name,{name,...spec,handler}),registerPrompt(){}}});
+  return tools;
+}
+const isMain=()=>{try{return !!process.argv[1]&&realpathSync(resolve(process.argv[1]))===fileURLToPath(import.meta.url);}catch{return false;}};
+if(isMain())
+  serveStdio(()=>makeServer({exitOnUninstall:true}), {onerror:error=>console.error('[handoffglass] MCP transport error:',error)});

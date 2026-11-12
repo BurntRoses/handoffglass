@@ -24,7 +24,7 @@
   .ui-button:where(.primary, .button-next, .action-primary, .primary-button, .complete-button):hover:not(:disabled) { background:color-mix(in srgb, var(--button) 90%, var(--ink)); }
   .ui-button:is([aria-checked='true'], [aria-pressed='true'], [aria-selected='true'], [aria-current='page'], .is-active):hover:not(:disabled) { background:var(--selection); }
 }
-/* The switch owns its boundary and thumb. Focus is one independent outline. */
+/* The switch owns its boundary and thumb. Focus uses the control surface. */
 input[role='switch'] {
   appearance:none; width:2.5rem; height:1.5rem; flex:none; margin:0;
   border:1px solid var(--edge-strong); border-radius:999px; background:var(--raised); cursor:pointer;

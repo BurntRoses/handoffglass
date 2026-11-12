@@ -1,7 +1,8 @@
 /** Declarative facts about HOST INTEGRATION, not claims about model quality. */
-const MCP = Object.freeze({ protocol:'mcp-stdio', invocation:'tool', localDesktop:true, tested:'schema-only' });
+const MCP = Object.freeze({ protocol:'mcp-stdio', invocation:'tool', localDesktop:true, tested:'schema-only',endToEnd:'unverified' });
 export const HOST_CAPABILITIES = Object.freeze({
-  claude:{ ...MCP, entry:'mcpServers', mode:'desktop-or-cli' },
+  claude:{ ...MCP, entry:'mcpServers', mode:'desktop' },
+  'claude-code':{...MCP,entry:'mcpServers',mode:'cli',endToEnd:'unverified'},
   codex:{ ...MCP, entry:'mcp_servers', mode:'cli-or-ide' },
   cursor:{ ...MCP, entry:'mcpServers', mode:'ide' },
   vscode:{ ...MCP, entry:'servers', mode:'ide' },

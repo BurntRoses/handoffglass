@@ -105,7 +105,7 @@ export async function planApplicationFiles(options={}) {
     try{
       if(/[\\/](Application Support|Roaming)[\\/]handoffglass$/i.test(path)) {
         // Electron-owned storage names are known; files a user adds alongside them remain.
-        const known=new Set(['Cache','Code Cache','GPUCache','DawnCache','DawnGraphiteCache','DawnWebGPUCache','Session Storage','Local Storage','Network','Crashpad','Dictionaries','Preferences','Local State','Cookies','Cookies-journal','Network Persistent State','TransportSecurity','blob_storage','logs','SharedStorage','SharedStorage-wal','SharedStorage-journal','Trust Tokens','Trust Tokens-journal']);
+        const known=new Set(['Cache','Code Cache','GPUCache','GPUPersistentCache','GraphiteDawnCache','DawnCache','DawnGraphiteCache','DawnWebGPUCache','Session Storage','Local Storage','Network','Crashpad','Dictionaries','Preferences','Local State','Cookies','Cookies-journal','Network Persistent State','TransportSecurity','blob_storage','logs','SharedStorage','SharedStorage-wal','SharedStorage-journal','Shared Dictionary','Trust Tokens','Trust Tokens-journal','DIPS','DIPS-wal','DIPS-shm','declarative_performance_observer.db','declarative_performance_observer.db-journal','declarative_performance_observer.db-wal','declarative_performance_observer.db-shm']);
         let names=[];try{names=await readdir(path);}catch(error){if(error.code!=='ENOENT')throw error;}
         for(const name of names){if(known.has(name))entries.push(...await snapshotTree(join(path,name)));else retained.push({path:join(path,name),reason:'not_in_installation_record'});}
         entries.push({path,kind:'directory'});

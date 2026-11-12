@@ -25,7 +25,7 @@ async function launchDesktop(bridge) {
   starting = (async () => {
     if (!desktop || desktop.exitCode !== null || desktop.signalCode !== null) {
       bridge.lastPoll = 0; // Require a fresh /hello from the replacement renderer.
-      const installed=await installedDesktop();
+      const installed=process.env.HANDOFFGLASS_EMBEDDED_RENDERER==='1'?null:await installedDesktop();
       let executable = installed?.executable;
       if (!executable) {
         try { executable = process.versions.electron ? process.execPath : (await import('electron')).default; }

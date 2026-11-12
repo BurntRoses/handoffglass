@@ -31,7 +31,7 @@ const tool=(name,result)=>envelope('PostToolUse',{tool_name:'mcp__handoffglass__
 
 test('local plugin declares the tested Codex format, one MCP, hooks and bundled skills without trust edits',()=>isolated(async({dir})=>{
   const output=join(dir,'bundle'),built=await buildCodexPlugin({output,lifecycle:'enhanced'}),read=path=>readFile(join(built.pluginPath,path),'utf8').then(JSON.parse);
-  assert.equal(built.machineLocal,true);
+  assert.equal(built.checkoutRequired,false);
   await assert.rejects(read('plugin.json'),{code:'ENOENT'});
   assert.equal((await read('.codex-plugin/plugin.json')).name,'handoffglass');
   assert.equal((await read('.codex-plugin/plugin.json')).hooks,'./hooks/hooks.json');
@@ -121,7 +121,7 @@ test('plugin cleanup preview preserves unknown and edited files and excludes pri
   const plan=await codexPluginPlan({dir,codexHome:env.CODEX_HOME});
   assert.equal(plan.retained.length,2);assert.equal(plan.changed,true);
   assert.equal(plan.items.some(x=>x.path.endsWith('notes.txt')),false);
-  assert.equal(plan.items.some(x=>x.path.endsWith('/plugin.json')),false);
+  assert.equal(plan.items.some(x=>x.path===join(build.pluginPath,'.codex-plugin/plugin.json')),false);
   const receiptPath=join(build.marketplaceRoot,'handoffglass-build.json'),receipt=JSON.parse(await readFile(receiptPath,'utf8'));
   receipt.files['plugins/handoffglass/../../private']=sha('keep');await writeFile(receiptPath,JSON.stringify(receipt));
   await assert.rejects(codexPluginPlan({dir,codexHome:env.CODEX_HOME}),/Invalid plugin file ownership/);

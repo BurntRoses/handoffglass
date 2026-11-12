@@ -25,17 +25,19 @@
 
 `bounds:{x,y,width,height}` 是左上角矩形。无 frame 时使用全局 DIP，支持负坐标、贴边目标和相邻屏幕。不会将精确区域悄悄缩小到旧版尺寸上限。
 
-有 frame 时 bounds 为该图像内的像素区域。`frame:{width,height,bounds}` 分别给出图像实际像素尺寸及其覆盖的全局 DIP 范围。截图裁剪后的范围必须同步调整；工具按 x/y 两轴分别换算，不自行假设缩放或 DPI。
+有 frame 时 bounds 为该图像内的像素区域。`frame:{width,height,bounds,capturedAt,layoutSignature,provenance}` 分别给出图像实际像素尺寸及其覆盖的全局 DIP 范围。截图裁剪后的范围必须同步调整；工具按 x/y 两轴分别换算，不自行假设缩放或 DPI。
 
-图像 frame 必须位于单个显示器；不同 DPI 的多屏分别提交 frame，或由宿主提供实测全局 DIP。区域越界、跨屏图像映射不明确、可选 capturedAt 超过 30 秒、可选 layoutSignature 不匹配均返回明确错误。这里验证映射与时效，目标语义由宿主观察负责。
+图像 frame 必须位于单个显示器；不同 DPI 的多屏分别提交 frame，或由宿主提供实测全局 DIP。区域越界、跨屏图像映射不明确、必需 capturedAt 超过 30 秒、必需 layoutSignature 不匹配均返回明确错误。这里验证映射与时效，目标语义由宿主观察负责。
 
-固定标记默认 20 秒清除；窗口移动后由宿主重新观察并 update，不能声称自动跟随。显示器布局变化清除临时标记、隐藏固定任务场景；重新呈现仍是原步骤，用户报告仍须独立核验。
+全局 DIP 的 `observation` 或图像 `frame` 必须携带真实 `capturedAt`、当前 16hex `layoutSignature` 与 `provenance`。签名复用宿主元数据，缺少时只读取一次显示器信息；不为每次绘制重复查询。证据不全时使用无坐标引导。
+
+固定标记默认 20 秒清除，带坐标证据的绘制最迟在观察满 30 秒时清空；窗口移动后由宿主重新观察并 update，不能声称自动跟随。显示器布局变化清除临时标记、隐藏固定任务场景；重新呈现仍是原步骤，用户报告仍须独立核验。
 
 参数示例见随包 [工具契约](../skills/visual-handoff/references/tool-contracts.md)。
 
 ## 发现与生命周期
 
-Codex 插件设置 `HANDOFFGLASS_TOOL_PROFILE=host`：17 个工具，呈现和更新只提供宿主区域所需的结构。`full` 默认用于现有独立 MCP，保留 19 个工具、原生定位、图层和旧坐标参数；旧工具别名仍由独立开关控制。
+Codex 插件设置 `HANDOFFGLASS_TOOL_PROFILE=host`：18 个工具，呈现和更新只提供宿主区域所需的结构。`full` 默认用于现有独立 MCP，保留 20 个工具、原生定位、图层和旧坐标参数；旧工具别名仍由独立开关控制。
 
 初始化的短规则直接说明职责和快路径。manifest 不再探测原生权限；设置原生定位时才调用 permission_status。App 也将原生权限标为可选，不再表示绘制依赖它。
 

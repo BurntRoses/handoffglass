@@ -1,4 +1,4 @@
-/* Toggle/Radio adaptation. Selection uses the full surface; focus owns one outline. */
+/* Toggle/Radio adaptation. Selection uses the full surface; focus uses the control surface. */
 .choice-group { display:flex; gap:var(--space-1); flex-wrap:wrap; }
 .choice { color:var(--sub); min-height:36px; padding:.375rem .75rem; }
 .choice[aria-checked='true'] { color:var(--ink); background:var(--selection); }

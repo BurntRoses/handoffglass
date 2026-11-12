@@ -1,3 +1,4 @@
+import {reviewSurface} from './review.mjs';
 import {desktopOwner} from './identity.mjs';
 import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage } from 'electron';
 import { registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
@@ -121,9 +122,11 @@ function findTargetDisplay(active) {
     x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height
   }, first))) || screen.getPrimaryDisplay();
 }
+const renderReview=reviewSurface({call});
 function applySnapshot(state) {
   if (!state || !Number.isSafeInteger(state.revision) || state.revision < revision) return;
   revision = state.revision;
+  void renderReview(state.layers?.review??null).catch(error=>console.error('Review surface:',error.code||'unavailable'));
   updateUI(state.active?{...state.active,agentWaiting:state.agentWaiting,agentWaitUntil:state.agentWaitUntil,desktopConnection:'connected'}:null);
 }
 function layoutPanel(resizeOnly=false){

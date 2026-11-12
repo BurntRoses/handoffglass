@@ -22,26 +22,26 @@ test('WorkBuddy local MCP connector includes one stdio server and bilingual meta
   assert.match(await readFile(join(dir,'skills/visual-handoff/SKILL.md'),'utf8'),/handoff/i);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
-test('DeepSeek Cordis source exports a real tool registration and requires explicit project checkout',async()=>{
+test('DeepSeek Cordis entry uses shared schemas, canonical JSON and host-scoped cancellation',async()=>{
  const code=await readFile(new URL('../integrations/deepseek-harness/src/plugin.ts',import.meta.url),'utf8');
- assert.match(code,/ctx\.tools\.register\(defineTool/);
- assert.match(code,/handoffglass_guide/);
- assert.match(code,/handoffglass_check/);
- assert.match(code,/handoffglass_wait/);
- assert.match(code,/bridge\.wait\(args\.sessionId, seconds\)/);
- assert.match(code,/verified:false/);
+ assert.match(code,/ctx\.tools\.register/);
+ assert.match(code,/parameters:spec\.input/);
+ assert.match(code,/identity:exec\.agent,signal:exec\.signal/);
+ assert.match(code,/return tools\.execute/);
+ assert.doesNotMatch(code,/handoffglass_guide|__HANDOFFGLASS_RUNTIME__/);
 });
 test('DeepSeek installer generates valid source-root patch with no magic user path',async()=>{
   const folder=await mkdtemp(join(tmpdir(),'hg-dsh-'));
   try {
     await writeFile(join(folder,'pnpm-workspace.yaml'),'packages:\n  - "packages/*"\n');
-    const cmd=spawnSync(process.execPath,['scripts/prepare-deepseek.mjs',folder],{cwd:root,encoding:'utf8'});
+    const cmd=spawnSync(process.execPath,['scripts/prepare-deepseek.mjs',folder,'--no-desktop'],{cwd:root,encoding:'utf8'});
     assert.equal(cmd.status,0,cmd.stderr);
     const patch=await readFile(join(folder,'scratch-handoffglass/cordis.yml'),'utf8');
     const plugin=await readFile(join(folder,'scratch-handoffglass/src/plugin.ts'),'utf8');
-    assert.match(patch,/insert:/);assert.match(plugin,/file:\/\//);
+    assert.match(patch,/insert:/);assert.match(patch,/scratch-handoffglass\/src\/plugin\.ts/);assert.doesNotMatch(plugin,/file:\/\//);
     assert.doesNotMatch(plugin,/__HANDOFFGLASS_RUNTIME__/);
     assert.match(plugin,/ctx\.tools\.register/);
-    assert.match(plugin,/handoffglass_wait/);
+    assert.match(plugin,/nativeTools/);
+    assert.ok(await readFile(join(folder,'scratch-handoffglass/runtime/src/mcp.mjs')));
   } finally {await rm(folder,{recursive:true,force:true});}
 });

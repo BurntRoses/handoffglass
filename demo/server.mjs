@@ -6,7 +6,9 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const files=new Map([
  ['/', ['demo/index.html','text/html']], ['/index.html',['demo/index.html','text/html']],
  ['/demo.css',['demo/demo.css','text/css']], ['/assets/ui/tokens.css',['assets/ui/tokens.css','text/css']],
- ['/assets/ui/controls.css',['assets/ui/controls.css','text/css']]
+ ['/assets/ui/controls.css',['assets/ui/controls.css','text/css']],
+ ['/assets/ui/focus-policy.css',['assets/ui/focus-policy.css','text/css']],
+ ['/assets/ui/focus-policy.mjs',['assets/ui/focus-policy.mjs','text/javascript']]
 ]);
 export async function startDemo({port=0}={}) {
 const server=http.createServer(async(req,res)=>{

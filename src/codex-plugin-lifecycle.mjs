@@ -8,7 +8,7 @@ import {constants} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {parse} from 'smol-toml';
 import {buildCodexPlugin,CODEX_PLUGIN,CODEX_MARKETPLACE} from './codex-plugin.mjs';
-import {readManagedFile,compareWrite,digest,removeEmptyParents} from './managed-files.mjs';
+import {readManagedFile,readManagedBytes,readManagedLink,compareWrite,digest,removeEmptyParents} from './managed-files.mjs';
 import {codexHookDirectory,requestCodexHook} from './hosts/codex-hooks.mjs';
 import {runtimeDir} from './runtime.mjs';
 const run=promisify(execFile);
@@ -35,10 +35,10 @@ export async function installCodexPlugin(options={}) {
   if(config.mcp_servers?.handoffglass && config.mcp_servers.handoffglass.enabled!==false)
     throw Error('A standalone handoffglass MCP entry exists. Remove that connection before installing the plugin to avoid duplicate tools.');
   const path=recordPath(options),prior=await readManagedFile(path),old=prior?JSON.parse(prior):null;
-  const output=options.output||old?.marketplaceRoot;
+  const output=options.output||old?.marketplaceRoot||join(home(options),'handoffglass-local');
   if(old && output && resolve(output)!==old.marketplaceRoot)throw Error('Remove the previous local plugin bundle before changing its location.');
   const installationId=old?.installationId||randomUUID();
-  const build=await buildCodexPlugin({root:options.root,command:options.nodeCommand,output,lifecycle:options.lifecycle,toolProfile:options.toolProfile,envOverrides:{CODEX_HOME:home(options),HANDOFFGLASS_CONNECTION_ID:installationId,...options.mcpEnv}});
+  const build=await buildCodexPlugin({root:options.root,command:options.nodeCommand,output,runtimeLink:options.runtimeLink??'stable',desktopRuntime:options.desktopRuntime??true,lifecycle:options.lifecycle,toolProfile:options.toolProfile,envOverrides:{CODEX_HOME:home(options),HANDOFFGLASS_CONNECTION_ID:installationId,...options.mcpEnv}});
   await nativeCodexPlugin(['marketplace','add',build.marketplaceRoot],options);
   const result=await nativeCodexPlugin(['add',CODEX_PLUGIN],options);
   await compareWrite({path,prior,next:JSON.stringify({version:1,plugin:CODEX_PLUGIN,installationId,marketplaceRoot:build.marketplaceRoot,command:options.codexCommand||process.env.HANDOFFGLASS_CODEX_COMMAND||'codex'})+'\n'});
@@ -70,10 +70,10 @@ export async function codexPluginPlan(options={}) {
     for(const [relative,expected] of Object.entries(receipt.files)){
       const file=resolve(record.marketplaceRoot,relative);
       if(relative.split(/[\\/]/).includes('..')||!file.startsWith(record.marketplaceRoot+sep)||(!relative.startsWith('plugins/handoffglass/')&&relative!=='.agents/plugins/marketplace.json')||!/^[a-f0-9]{64}$/.test(expected))throw Error('Invalid plugin file ownership');
-      const prior=await readManagedFile(file);
+      const kind=receipt.links?.[relative]?'symlink':undefined,prior=kind?await readManagedLink(file):await readManagedBytes(file);
       if(prior===null)continue;
       if(digest(prior)!==expected){retained.push({path:file,reason:'changed_by_user'});continue;}
-      changes.push({path:file,prior,next:null});
+      changes.push({path:file,prior,next:null,kind});
     }
     async function scan(folder,prefix=''){
       for(const entry of await readdir(folder,{withFileTypes:true})){

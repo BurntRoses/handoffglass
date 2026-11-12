@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {PresentationLog} from './local/presentation-log.mjs';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { validDisplay, canLocateAll } from './geometry.mjs';
 import { loadPreferences, hasUserPreferences, savePreferences, validatePreferences } from './local/preferences.mjs';
@@ -73,20 +74,22 @@ export class LocalBridge {
     this.lastAgentRequestAt = null;
     this.hostActivity = new HostActivity();
     this.journal = new InteractionJournal(manager);
+    this.presentation=new PresentationLog();
+    this.presentation.on('change',()=>{if(!this.projecting)this.#publish();});
     this.displays = [];
-    this.drawings=new Map();this.fixedSessions=new Set();this.pluginBindings=new Map();this.targets=new TargetRegistry();this.agentWaits=new Map();this.connectionEvidence=new Map();this.permissionCache=null;
+    this.observationTimers=new Map();this.drawings=new Map();this.fixedSessions=new Set();this.pluginBindings=new Map();this.targets=new TargetRegistry();this.agentWaits=new Map();this.connectionEvidence=new Map();this.permissionCache=null;
     this.resolvedTargets = new Map(); // owner/requestId -> original and grounded payload for safe retry
     this.revision = 0;
     this.waiters = new Set();
     this.streams=new Set();
     this.anchors = new NativeAnchorTracker({manager,locator:(target, displays)=>this.locator(target,displays),
       getDisplays:()=>this.displays,desktopReady:()=>this.headless || this.connected});
-    this.onManagerChange = () => this.#publish();
+    this.onManagerChange = () => {this.projecting=true;try{this.presentation.observe(this.manager.active());}finally{this.projecting=false;}this.#publish();};
     manager.on('show', this.onManagerChange);
     manager.on('change', this.onManagerChange);
   }
   get connected() { return this.streams.size > 0 || Date.now() - this.lastPoll < 35000; }
-  snapshot() { const active=this.manager.active(),wait=active&&this.agentWaits.get(active.id);return { revision: this.revision, active, agentWaiting:!!wait?.count, agentWaitUntil:wait?.until||null }; }
+  snapshot() { const layers=this.presentation.snapshot(),active=layers.guidance||layers.verification,wait=active&&this.agentWaits.get(active.id);return { revision: this.revision, active, layers:{review:layers.review,verification:layers.verification?.verification??null}, agentWaiting:!!wait?.count, agentWaitUntil:wait?.until||null }; }
   async permissions(){
     if(!this.permissionCache || Date.now()-this.permissionCache.at>10000){
       this.permissionCache={at:Date.now(),promise:nativePermissionStatus()};
@@ -105,6 +108,8 @@ export class LocalBridge {
   }
   async start() {
     if (this.server) return this.port;
+    this.presentation.configure(await loadPreferences());
+    this.presentation.observe(this.manager.active());
     this.server = http.createServer((req, res) => {
       void this.#handle(req, res).catch(error => {
         sendJson(res, error.httpCode || 400, { error: error.message,
@@ -122,10 +127,11 @@ export class LocalBridge {
   }
   async stop() {
     this.trial?.dispose();
+    for(const timer of this.observationTimers.values())clearTimeout(timer);this.observationTimers.clear();
     for(const stream of this.streams)stream.close();
     this.streams.clear();
     this.anchors.close();this.targets.clear();closeNativeWorkers();
-    this.journal.close();
+    this.journal.close();this.presentation.close();
     for (const respond of [...this.waiters]) respond(this.snapshot());
     if (this.server) {
       await new Promise(resolve => this.server.close(resolve));
@@ -163,7 +169,7 @@ export class LocalBridge {
       const compiled=quickMarkRequest(input,this.displays,preference,{layoutSignature:layoutSignature(this.displays)});
       const result=this.manager.updateScene(body.id,owner,body.expectedRevision,[{op:'upsert_layer',layer:drawingScene(compiled).layers[0]}],{visualStyle:compiled.visualStyle,motion:compiled.motion});
       if(result.error)return error(409,result.error);
-      record.input=input;
+      record.input=input;this.armObservation(body.id,input);
       return {status:200,body:this.markResult(result.session,started)};
     }
     if(body.id!==undefined||body.expectedRevision!==undefined)return error(400,'draw_does_not_take_id');
@@ -180,7 +186,18 @@ export class LocalBridge {
     if(TERMINAL_STATES.includes(session.status))return error(409,'already_final');
     if(!this.drawings.has(session.id))this.drawings.set(session.id,{input:structuredClone(body)});
     while(this.drawings.size>64)this.drawings.delete(this.drawings.keys().next().value);
+    this.armObservation(session.id,body);
     return {status:200,body:this.markResult(session,started)};
+  }
+  armObservation(id,input){
+    clearTimeout(this.observationTimers.get(id));this.observationTimers.delete(id);
+    const captures=(input.marks??[input]).filter(m=>m.bounds).map(m=>(m.frame??m.observation??input.observation)?.capturedAt).filter(Number.isFinite);
+    if(!captures.length)return;
+    const timer=setTimeout(()=>{
+      this.observationTimers.delete(id);
+      this.manager.setAnchorState(id,{status:'lost',annotations:[],scene:{version:1,layers:[]},reason:'stale_observation'});
+    },Math.max(0,Math.min(...captures)+30000-Date.now()));
+    timer.unref?.();this.observationTimers.set(id,timer);
   }
   markResult(session,started){return {id:session.id,revision:session.sceneRevision,count:session.annotations.length,visible:!this.headless,expiresAt:session.timeoutAt,tracking:'fixed',nextAction:'done',localMs:+(performance.now()-started).toFixed(1)};}
   async #handle(req, res) {
@@ -194,7 +211,7 @@ export class LocalBridge {
     const pathname = parsed.pathname;
     // Do not allow a read-only route to be reached by a mutating method (or vice versa).
     const routes = { '/desktop/diagnostics': 'GET', '/hello': 'POST', '/health': 'GET', '/state': 'GET', '/poll': 'GET', '/decision': 'POST',
-      '/desktop/mark':'POST', '/agent/mark':'POST', '/desktop/preferences':'POST', '/desktop/stream':'GET', '/desktop/control':'POST', '/desktop/permissions':'GET', '/desktop/trial':'POST', '/desktop/shutdown':'POST',
+      '/agent/review':'POST','/desktop/review-decision':'POST','/desktop/review-export':'POST','/desktop/mark':'POST', '/agent/mark':'POST', '/desktop/preferences':'POST', '/desktop/stream':'GET', '/desktop/control':'POST', '/desktop/permissions':'GET', '/desktop/trial':'POST', '/desktop/shutdown':'POST',
       '/agent/displays': 'GET', '/agent/inspect': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
       '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/capabilities': 'GET',
       '/agent/connection': 'GET', '/agent/permissions': 'GET', '/agent/integration-status': 'GET', '/agent/integration-cleanup': 'POST', '/agent/integration-enabled':'POST',
@@ -245,6 +262,14 @@ export class LocalBridge {
         timeline: this.journal.recent(12).map(({type,at,reason})=>({type,at,...(reason?{reason}:{})}))
       });
     }
+    if(req.method==='POST' && pathname==='/desktop/review-decision'){
+      const body=await readJson(req);
+      return sendJson(res,200,this.presentation.decide(body.id,body.revision,body.decision));
+    }
+    if(req.method==='POST' && pathname==='/desktop/review-export'){
+      const body=await readJson(req);
+      return sendJson(res,200,this.presentation.export(body.id,{confirmed:body.confirmed===true}));
+    }
     if(req.method==='POST' && pathname==='/desktop/shutdown'){await readJson(req);res.once('finish',()=>this.manager.emit('uninstall'));return sendJson(res,200,{ok:true});}
     if(req.method==='GET' && pathname==='/desktop/permissions')return sendJson(res,200,await this.permissions());
     if(req.method==='POST' && pathname==='/desktop/control'){
@@ -265,7 +290,9 @@ export class LocalBridge {
       const preferences=await loadPreferences();
       if(!preferences.enabled)return sendJson(res,423,{error:'disabled_by_user'});
       const active=this.manager.active();if(active)return sendJson(res,409,{error:'busy'});
-      this.trial?.dispose();this.trial=startDesktopTrial(this.manager,preferences,this.displays);
+      this.trial?.dispose();
+      for(const timer of this.observationTimers.values())clearTimeout(timer);this.observationTimers.clear();
+      this.trial=startDesktopTrial(this.manager,preferences,this.displays);
       return sendJson(res,200,{session:this.trial.session});
     }
     if(req.method==='POST' && pathname==='/desktop/preferences'){
@@ -275,6 +302,8 @@ export class LocalBridge {
       // Desktop windows submit patches to the Broker, which also owns Agent enable/disable writes.
       const preferences=Object.keys(patch).length?await savePreferences(patch):await loadPreferences();
       if(accessibility!==undefined)await setAccessibilityConsent(accessibility);
+      this.presentation.configure(preferences);
+      this.#publish();
       this.permissionCache=null;
       if(!preferences.enabled || !preferences.continuous){this.anchors.clear();this.manager.stopActive();}
       else if(accessibility===false){
@@ -344,6 +373,20 @@ export class LocalBridge {
         const current=this.manager.get(s.id),{id,status,phase,nextAction,step,verified,execution}=current;
         return sendJson(res,200,{session:{id,status,phase,nextAction,step,verified,execution}});
       }
+      if(req.method==='POST' && pathname==='/agent/review'){
+        const body=await readJson(req);
+        if(body.action==='present'||body.action===undefined){
+          if(await isDisabled())return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
+          await this.prepare();
+          const result=this.presentation.present(body,owner);
+          return sendJson(res,result.error?409:200,result);
+        }
+        if(!['status','wait'].includes(body.action))return sendJson(res,400,{error:'invalid_action'});
+        const review=this.presentation.owned(body.id,owner);
+        if(!review)return sendJson(res,404,{error:'not_found'});
+        if(!Number.isFinite(body.timeoutMs??0)||(body.timeoutMs??0)<0||(body.timeoutMs??0)>30000)return sendJson(res,400,{error:'invalid_timeout'});
+        return sendJson(res,200,body.action==='wait'?await this.presentation.wait(body.id,owner,body.timeoutMs??20000):{review});
+      }
       if (req.method === 'GET' && pathname === '/agent/displays') {
         if(await isDisabled())return sendJson(res,423,{error:'HandoffGlass is disabled by the user',code:'disabled_by_user'});
         await this.prepare();
@@ -376,6 +419,7 @@ export class LocalBridge {
       if (req.method === 'POST' && pathname === '/agent/integration-enabled') {
         const body=await readJson(req);
         const result=await setIntegrationEnabled(body.enabled);
+        this.presentation.configure(await loadPreferences());this.#publish();
         if(!result.enabled){this.anchors.clear();this.manager.stopActive();}
         return sendJson(res,200,result);
       }
@@ -432,6 +476,7 @@ export class LocalBridge {
         const original = JSON.stringify(body);
         const hadTarget = body.target !== undefined || body.targetRef !== undefined;
         const hostBounds=body.bounds!==undefined;
+        const hostObservation=hostBounds?structuredClone(body):null;
         if(body.frame!==undefined&&!hostBounds)return sendJson(res,400,{code:'invalid_frame',error:'frame requires bounds'});
         if(hostBounds&&['target','targetRef','x','y','annotations','scene'].some(k=>body[k]!==undefined))return sendJson(res,400,{code:'invalid_target',error:'Choose host bounds or native target/scene'});
         const followTarget = body.followTarget !== false;
@@ -505,6 +550,7 @@ export class LocalBridge {
         if (session.error) return sendJson(res, 409, { error: 'A different Agent already owns the active handoff', code: 'busy' });
         if(body.sessionId && (!hadTarget||!followTarget||session.step!==priorStep))this.anchors.clearFor(body.sessionId);
         if((!hadTarget||!followTarget)&&session.annotations.length)this.fixedSessions.add(session.id);else this.fixedSessions.delete(session.id);
+        this.armObservation(session.id,hostObservation??{});
         while(this.fixedSessions.size>200)this.fixedSessions.delete(this.fixedSessions.values().next().value);
         if (anchoredQuery && followTarget) this.anchors.track(session.id,anchoredQuery,anchoredHit);
         if (retryKey && !previous && hadTarget) {
@@ -578,10 +624,12 @@ export class LocalBridge {
       }
       if (req.method === 'POST' && pathname === '/agent/verify') {
         const body = await readJson(req);
-        if (typeof body.sessionId !== 'string' || typeof body.verified !== 'boolean' || (body.finish!==undefined && typeof body.finish!=='boolean')) return sendJson(res, 400, { error: 'sessionId and verified are required' });
+        const verificationResult=body.result??(typeof body.verified==='boolean'?(body.verified?'verified':'mismatch'):null);
+        if(typeof body.sessionId!=='string'||!['verified','mismatch','inconclusive'].includes(verificationResult)||(body.finish!==undefined&&typeof body.finish!=='boolean'))return sendJson(res,400,{error:'sessionId and verification result are required'});
+        if(body.result!==undefined&&body.verified!==undefined&&body.verified!==(verificationResult==='verified'))return sendJson(res,400,{code:'conflicting_verification',error:'Conflicting verification result'});
         const current=this.manager.getOwned(body.sessionId,owner);
         if(body.expectedStep!==undefined&&body.expectedStep!==current?.step)return sendJson(res,409,{error:'stale_step',code:'stale_step'});
-        const result = this.manager.verify(body.sessionId, owner, body.verified, body.finish === true);
+        const result = this.manager.verify(body.sessionId, owner, verificationResult, body.finish === true);
         return sendJson(res, result.error ? 409 : 200, result);
       }
       if (req.method === 'POST' && pathname === '/agent/scene') {
@@ -615,7 +663,7 @@ export class LocalBridge {
           return sendJson(res,409,{error:'Native target currently unverified',code:'target_unavailable'});
         const result = this.manager.updateScene(body.sessionId, owner, body.expectedRevision, body.operations);
         // Manual edits take ownership of the scene and stop automatic target following.
-        if (!result.error) {this.anchors.clearFor(body.sessionId);this.fixedSessions.add(body.sessionId);}
+        if (!result.error) {this.anchors.clearFor(body.sessionId);this.fixedSessions.add(body.sessionId);this.armObservation(body.sessionId,body);if(body.bounds!==undefined&&owned.targetTracking)this.manager.setAnchorState(body.sessionId,{status:'tracking',annotations:result.session.annotations,scene:result.session.scene});}
         return sendJson(res, result.error ? 409 : 200, result);
       }
       if (req.method === 'POST' && pathname === '/agent/cancel') {
