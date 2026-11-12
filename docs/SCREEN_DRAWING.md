@@ -1,6 +1,6 @@
 # 屏幕标注
 
-0.20.0。绘制、修改和清除共用 `screen_mark`，立即返回，桌面按本地时钟显示与清除。绘制不启动任务等待，也不调用模型。
+0.21.0。绘制、修改和清除共用 `screen_mark`，立即返回，桌面按本地时钟显示与清除。绘制不启动任务等待，也不调用模型。
 
 ## Agent 调用
 
@@ -32,3 +32,7 @@ screen_mark({action:"clear",id,expectedRevision:revision})
 绘制直接走 MCP → 常驻 Broker → 本地推送 → SVG；更新复用场景和标记编号，不启动额外进程。目标跟随与任务事件仍由桌面独立处理。需要留在屏幕上的任务使用 `execution:"parked"`；返回 `yield_to_user` 后结束当前聊天回合。用户回到聊天后由 Agent attach、观察并核验。Codex 插件不能自行唤醒已经结束的模型回合。
 
 本地响应基准与桌面检查记录见 [0.20 标注验收](qa/2026-11-12-drawing.md)。
+
+## 宿主观察的区域
+
+实际应用目标优先复用宿主已获授权的观察，提交 `bounds:{x,y,width,height}`（全局 DIP 左上角矩形）。截图像素坐标另带 `frame:{width,height,bounds}`，由本地换算。无需先调用原生检查、manifest 或权限状态；窗口变化后重新观察再更新。完整契约和受保护窗口限制见 [宿主观察与本地绘制](HOST_OBSERVATION.md)。

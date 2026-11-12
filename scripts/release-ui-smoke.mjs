@@ -120,8 +120,13 @@ void app.whenReady().then(async()=>{
   assert.equal(connectedPlugin.nativePlugin,true);assert.equal(await readFile(configPath,'utf8'),beforePluginCheck);
   bridge.connectionEvidence.set(pluginId,{connectionId:pluginId,host:'codex',lastSuccessAt:Date.now(),lastTool:'connection'});
   await page('overview');await page('connections');
-  await until(async()=>await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent.includes("Hooks")'),'Native Hook review step was not rendered');
+  await until(async()=>await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent.includes("真实调用")'),'Light plugin was not ready after a verified call');
+  assert.equal((await js('window.hgCenter.connection("codex")')).hookTrust,'not_required');
   await capture('codex-plugin-light');
+  await buildCodexPlugin({output:built.marketplaceRoot,lifecycle:'enhanced',envOverrides:{HANDOFFGLASS_CONNECTION_ID:pluginId}});
+  await page('overview');await page('connections');
+  await until(async()=>await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent.includes("Hooks")'),'Optional native Hook review step was not rendered');
+  await capture('codex-plugin-enhanced');
   bridge.connectionEvidence.delete(pluginId);await rm(pluginRecord);await writeFile(configPath,standalone);
 
   await set('host','workbuddy');await until(async()=>await js('!document.querySelector("#copy").disabled'),'WorkBuddy preview did not load');

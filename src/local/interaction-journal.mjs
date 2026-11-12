@@ -6,7 +6,7 @@ import { EventEmitter } from 'node:events';
 const TERMINAL = new Set(['completed','declined','cancelled','expired','superseded']);
 const REASONS = new Set(['consent_required','permission_denied','target_not_found',
   'ambiguous_target','display_mapping','native_timeout','native_error',
-  'no_desktop','helper_unavailable','unsupported_platform']);
+  'no_desktop','helper_unavailable','unsupported_platform','display_layout_changed']);
 export const EVENT_TYPES = Object.freeze(['started','session_started','target_acquired','target_moved',
   'target_lost','target_restored','display_changed','desktop_unavailable',
   'scene_changed','scene_updated','session_finished','tracking_released','completed','declined','cancelled',

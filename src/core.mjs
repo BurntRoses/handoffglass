@@ -209,7 +209,8 @@ export class HandoffManager extends EventEmitter {
     if(TERMINAL.has(current.status)||this.activeId!==id)return {error:'already_final'};
     if(current.status==='paused')return {error:'paused'};
     if(current.phase==='verifying')return {error:'verification_due'};
-    if(current.status!=='observing')return {error:'step_not_verified'};
+    const layoutRecovery=current.status==='awaiting_user'&&current.targetTracking?.status==='layout_changed';
+    if(current.status!=='observing'&&!layoutRecovery)return {error:'step_not_verified'};
     for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','intent','scrim']) session[field]=normalized[field];
     if(input.execution!==undefined)session.execution=normalized.execution;
     if(normalized.totalSteps!==undefined)session.totalSteps=normalized.totalSteps;
@@ -217,7 +218,7 @@ export class HandoffManager extends EventEmitter {
     if(normalized.scene)session.scene=normalized.scene;
     else delete session.scene;
     delete session.targetTracking;
-    if(!session.recoveryRequired)session.step++;delete session.recoveryRequired;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
+    if(!session.recoveryRequired&&!layoutRecovery)session.step++;delete session.recoveryRequired;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
     session.nextAction=normalized.mode==='guide'?'observe_app':'wait_for_user';session.verified=false;session.completionSource=null;session.updatedAt=this.clock();
     if(key)this.requestKeys.set(key,{id,payload:JSON.stringify(normalized)});
     session.stepTimeoutAt=this.clock()+normalized.timeoutSeconds*1000;session.confirmationTimeoutAt=normalized.sensitive?this.clock()+Math.min(300,normalized.timeoutSeconds)*1000:null;

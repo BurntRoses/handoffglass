@@ -28,6 +28,33 @@ void app.whenReady().then(async()=>{
     for(const win of BrowserWindow.getAllWindows())win.webContents.on('console-message',e=>{if(/Uncaught|Refused/.test(e.message))errors.push(e.message);});
     let overlay;await until(()=>{overlay=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/overlay.html'));return !!overlay;},'Overlay absent');
     await until(()=>!overlay.webContents.isLoading(),'Overlay loading');
+    // A disposable app supplies its own captured-image metadata, never Codex's protected window.
+    const d=b.displays.find(d=>d.primary)||b.displays[0];
+    const fixture=new BrowserWindow({x:d.x+50,y:d.y+60,width:Math.min(600,d.width-100),height:Math.min(420,d.height-120),frame:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false}});
+    await fixture.loadURL('data:text/html,'+encodeURIComponent('<style>body{margin:0;font:16px system-ui;background:#fafafa}aside{width:176px;height:100vh;background:#e8eee9;padding:20px;box-sizing:border-box}main{position:absolute;left:196px;top:20px}</style><aside id="sidebar">Test sidebar</aside><main>Host observation fixture</main>'));
+    fixture.showInactive();
+    const image=await fixture.webContents.capturePage(),pixels=image.getSize(),viewport=fixture.getContentBounds();
+    const target=await fixture.webContents.executeJavaScript('(()=>{const r=document.querySelector("#sidebar").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()');
+    const pixelBounds={x:target.x*pixels.width/viewport.width,y:target.y*pixels.height/viewport.height,width:target.width*pixels.width/viewport.width,height:target.height*pixels.height/viewport.height};
+    let nativeCalls=0;b.locator=b.inspector=b.permissions=async()=>{nativeCalls++;throw Object.assign(Error('Native access denied in fixture'),{code:'permission_denied'});};
+    const hostStarted=performance.now();
+    const hostMark=await post('/agent/mark',{shape:'spotlight',effect:'still',bounds:pixelBounds,frame:{width:pixels.width,height:pixels.height,bounds:viewport},color:'#75b9ff'});
+    const hostResponseMs=performance.now()-hostStarted;
+    const hostOverlay=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/overlay.html')&&w.getBounds().x===d.x&&w.getBounds().y===d.y);
+    await until(()=>hostOverlay.webContents.executeJavaScript('!!document.querySelector(".hg-mark[data-shape=spotlight]")'),'Host region did not render');
+    const rendered=await hostOverlay.webContents.executeJavaScript('(()=>{const r=document.querySelector(".hg-mark[data-shape=spotlight] rect.hg-trace");return Object.fromEntries(["x","y","width","height"].map(k=>[k,Number(r.getAttribute(k))]))})()');
+    assert.ok(Math.abs(rendered.x-(viewport.x-d.x+target.x-7))<.01);
+    assert.ok(Math.abs(rendered.y-(viewport.y-d.y+target.y-7))<.01);
+    assert.ok(Math.abs(rendered.width-target.width-14)<.01);
+    assert.ok(Math.abs(rendered.height-target.height-14)<.01);
+    assert.equal(panel.isVisible(),false);assert.equal(nativeCalls,0);
+    const hostDomMs=performance.now()-hostStarted;
+    await mkdir(output,{recursive:true});
+    await writeFile(join(output,'host-source.png'),image.toPNG());
+    await writeFile(join(output,'host-region.png'),(await hostOverlay.webContents.capturePage()).toPNG());
+    await writeFile(join(output,'host-region.json'),JSON.stringify({hostResponseMs,hostDomMs,nativeCalls,pixels,viewport,target,rendered,maxErrorDIP:.01,modelCalls:0},null,2));
+    await post('/agent/mark',{action:'clear',id:hostMark.id,expectedRevision:hostMark.revision});
+    fixture.destroy();
     const samples=[];
     for(let i=0;i<12;i++){
       const started=performance.now(),mark=await post('/agent/mark',{shape:i%2?'double_ring':'ring',requestId:'paint-check-'+i});

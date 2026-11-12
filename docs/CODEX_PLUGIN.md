@@ -1,6 +1,6 @@
 # Codex 本机插件试用
 
-插件把 MCP、引导 Skill 和生命周期 Hooks 装在一起。会话开始时提供精简工作流；引导期间同步实际执行阶段；用户中断时暂停当前引导；会话结束时清理自己的引导。未结束的任务最多提供一次同状态接续提醒，避免直接丢下用户。
+插件默认包含 MCP 与引导 Skill。Codex 负责已授权的界面观察和结果核验，HandoffGlass 负责坐标转换、屏幕绘制、步骤卡片与事件。新安装默认 light，不运行命令 Hooks；已有安装保留原选择。
 
 ## 安装与试用
 
@@ -12,7 +12,9 @@ npm run plugin:codex:install
 
 安装器调用 Codex 自己的本地 marketplace 和 plugin 命令，保留其他插件与配置。已有独立的 HandoffGlass MCP 时先移除旧连接，避免重复工具。此包引用本机源码和 Node 路径，移动源码或运行时后需重新生成；不是自包含的社区安装包。
 
-安装后打开新聊天，在 **设置 → Hooks → Review hooks** 审核 HandoffGlass 的脚本；CLI 使用 `/hooks`。这是 [Codex 的插件脚本信任要求](https://learn.chatgpt.com/docs/hooks)，安装器不会代为信任。脚本引用此仓库中的运行代码，审核时也应查看该本地源码。首次需要原生控件定位时，按权限检查结果完成辅助功能授权。
+安装后打开新聊天加载工具。屏幕绘制不需要 HandoffGlass 的辅助功能权限；宿主观察仍受自己的权限和目标限制约束。默认 host 工具目录包含 17 个工具，隐藏可选原生查找及完整图层参数。
+
+可选生命周期增强模式：`npm run plugin:codex:install -- --lifecycle=enhanced`。仅此模式需要在 **设置 → Hooks → Review hooks** 审核脚本（CLI：`/hooks`）。绘制不触发 Hooks；增强模式不在每次模型请求启动脚本。安装器不会代为信任。切回轻量模式用 `--lifecycle=light`。
 
 对 Codex 说：
 
@@ -36,20 +38,11 @@ npm run plugin:codex:remove
 
 直接在 Codex 中移除插件会由宿主管理缓存；如要连本项目生成的试用包和绑定记录一起清理，再执行上面的项目移除命令。清理不会编辑 Codex 的 Hook 信任数据库。
 
-## 本轮验证
+## 验证
 
-- 本机 Codex `0.167.0-alpha.3.2`：原生安装/加载、18 个 MCP 工具、两个 Skill、7 个待审核 Hooks、`screen_displays` 首调、公共卸载入口与重复清理通过。
-- App 连接页会识别原生插件，显示“已安装 / 待重载 / 待审核 Hooks”，不会再把插件当作旧 MCP 重装。
-- 原生测试使用临时配置和隔离的无桌面 Broker，不调用模型、不代替用户信任 Hooks。
-- 此版本的根目录通用 `plugin.json` 能发现 Skill/MCP，但原生检查未列出 Hooks；试用包采用已实测的 `.codex-plugin/plugin.json` 与 `.mcp.json`。未来切换通用格式时必须重新通过宿主加载检查。
-- 完整真实任务、用户审核后的 Hooks 触发、多屏与 Windows 尚需实机验收。
-- 本轮 `handoff:check` 的 213 个测试、MCP/连接集成、真实 Electron UI 回归通过；UI 回归覆盖插件识别、重复接入拦截及审核提示。当前聊天已发现随包技能并成功读取真实桌面与权限状态。
+`npm run test:codex-plugin` 在临时 Codex 配置中验证原生安装与重装、17 个 MCP 工具、两个 Skill、light 模式无命令 Hook、首次调用及卸载清理。测试不调用模型或修改用户 Hook 信任。可用 `HANDOFFGLASS_CODEX_COMMAND` 指定 Codex CLI。
 
-```sh
-npm run test:codex-plugin
-```
-
-此测试需要本机 Codex CLI；可用 `HANDOFFGLASS_CODEX_COMMAND` 指定可执行文件。CI 单元测试检查打包与绑定契约，不把缺少原生宿主的 CI 当作实机通过。
+试用包采用已实测的 `.codex-plugin/plugin.json` 与 `.mcp.json`；通用根 manifest 在此前宿主版本中遗漏 Hooks，后续切换需重新验证。
 
 ## 接续范围
 
@@ -73,3 +66,7 @@ MCP 重连和本地服务重启也保留待核实记录；已暂停的任务保�
 ## 0.20 屏幕标注
 
 升级后新建 Codex 会话，让宿主重新加载工具参数。可直接说：“在屏幕左侧画一个蓝色手绘椭圆，写上‘查看这里’”；随后说“移到右上角”或“清除刚才的标记”。绘制和修改各用一次 `screen_mark`，不进入长等待。App“外观”也能直接试画、更新与清除。参数与组合示例见 [屏幕标注](SCREEN_DRAWING.md)。
+
+## 0.21 宿主观察优先
+
+实际目标使用宿主观察的 bounds/frame 直接绘制；缺少原生定位权限不会中断这条路径。工具目录、模式和坐标边界见 [宿主观察与本地绘制](HOST_OBSERVATION.md)。Codex 自身窗口被 Computer Use 拒绝读取时，应说明限制，不绕过保护。

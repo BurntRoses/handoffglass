@@ -1,3 +1,11 @@
+## 0.21.0 · 2026-11-12
+
+- Split host observation from local rendering. Accept top-left bounds and explicit image frames for deterministic pixel-to-DIP mapping; validate recency, display coverage and layout changes.
+- Use a 17-tool host profile in Codex, with smaller presentation schemas and optional native lookup in full mode. Remove native permission probes from capability discovery.
+- Default new plugins to Skills + MCP without command Hooks. Keep optional lifecycle hooks scoped to sessions, preserve existing mode choices, and remove per-model-request scripts.
+- Rewrite bundled routing around one-call drawing from authorized host evidence. Mark native lookup permissions as optional in App and setup; retain verification, ownership and cleanup.
+- Preserve a blocked step across display recalibration without advancing or treating it as verified. See [validation](qa/2026-11-12-host-observation.md).
+
 ## 0.20.0 · 2026-11-12
 
 - Expand direct screen drawing to all 19 shapes, nine display positions, captions, directional arrows, stroke weight/dashes and numbered compositions of up to eight marks. Compute layout locally in one call.

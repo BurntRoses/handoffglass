@@ -38,23 +38,24 @@ export async function installCodexPlugin(options={}) {
   const output=options.output||old?.marketplaceRoot;
   if(old && output && resolve(output)!==old.marketplaceRoot)throw Error('Remove the previous local plugin bundle before changing its location.');
   const installationId=old?.installationId||randomUUID();
-  const build=await buildCodexPlugin({root:options.root,command:options.nodeCommand,output,envOverrides:{CODEX_HOME:home(options),HANDOFFGLASS_CONNECTION_ID:installationId,...options.mcpEnv}});
+  const build=await buildCodexPlugin({root:options.root,command:options.nodeCommand,output,lifecycle:options.lifecycle,toolProfile:options.toolProfile,envOverrides:{CODEX_HOME:home(options),HANDOFFGLASS_CONNECTION_ID:installationId,...options.mcpEnv}});
   await nativeCodexPlugin(['marketplace','add',build.marketplaceRoot],options);
   const result=await nativeCodexPlugin(['add',CODEX_PLUGIN],options);
   await compareWrite({path,prior,next:JSON.stringify({version:1,plugin:CODEX_PLUGIN,installationId,marketplaceRoot:build.marketplaceRoot,command:options.codexCommand||process.env.HANDOFFGLASS_CODEX_COMMAND||'codex'})+'\n'});
-  return {build,result,nextAction:'Open a new Codex chat and review HandoffGlass in Settings > Hooks. No hook trust or system permission was granted.'};
+  return {build,result,nextAction:build.lifecycle==='light'?'Open a new Codex chat. Screen drawing needs no HandoffGlass Accessibility permission or hook trust. Host observation uses its own permissions.':'Open a new Codex chat. Optional lifecycle hooks require review in Settings > Hooks; drawing works without them. No trust or permission was changed.'};
 }
 export async function codexPluginEvidence(options={}) {
   const configRaw=await readManagedFile(join(home(options),'config.toml')),config=configRaw?parse(configRaw):{};
   const entry=config.plugins?.[CODEX_PLUGIN],raw=await readManagedFile(recordPath(options)),record=raw?JSON.parse(raw):null;
-  let configurationMatches=false;
+  let configurationMatches=false,hookMode='unknown';
   if(entry&&record?.version===1&&record.plugin===CODEX_PLUGIN&&record.installationId){
     const file=join(record.marketplaceRoot,'plugins','handoffglass','.mcp.json');
     const content=await readManagedFile(file),receiptRaw=await readManagedFile(join(record.marketplaceRoot,'handoffglass-build.json'));
     const receipt=receiptRaw?JSON.parse(receiptRaw):null;
+    hookMode=receipt?.lifecycle||(receipt?.files?.['plugins/handoffglass/hooks/hooks.json']?'enhanced':'unknown');
     configurationMatches=content!==null&&digest(content)===receipt?.files?.['plugins/handoffglass/.mcp.json']&&JSON.parse(content).mcpServers?.handoffglass?.env?.HANDOFFGLASS_CONNECTION_ID===record.installationId;
   }
-  return {nativePlugin:!!entry,installed:!!entry,managed:!!record,enabled:entry?entry.enabled!==false:null,installationId:record?.installationId||null,configurationMatches};
+  return {nativePlugin:!!entry,installed:!!entry,managed:!!record,enabled:entry?entry.enabled!==false:null,installationId:record?.installationId||null,configurationMatches,hookMode};
 }
 export async function codexPluginPlan(options={}) {
   const path=recordPath(options),raw=await readManagedFile(path),items=[],retained=[],changes=[];

@@ -26,3 +26,20 @@ const value={schemaVersion:1,scope:'synthetic MCP tool result JSON only',
   compactPreservesStatus:formatToolResult(example,{compact:true}).session.status === 'awaiting_user',
   compactPreservesVerification:formatToolResult(example,{compact:true}).session.verified === false};
 console.log(JSON.stringify(value,null,2));
+
+
+if(process.argv.includes('--tools')){
+  const {Client}=await import('@modelcontextprotocol/client');
+  const {StdioClientTransport}=await import('@modelcontextprotocol/client/stdio');
+  const {fileURLToPath}=await import('node:url');
+  const catalogs=[];
+  for(const profile of ['full','host']){
+    const c=new Client({name:'catalog-measure',version:'1'}),started=performance.now();
+    try{
+      await c.connect(new StdioClientTransport({command:process.execPath,args:[fileURLToPath(new URL('../src/mcp.mjs',import.meta.url))],env:{...process.env,HANDOFFGLASS_TOOL_PROFILE:profile,HANDOFFGLASS_HEADLESS:'1'},stderr:'pipe'}));
+      const tools=await c.listTools();
+      catalogs.push({profile,tools:tools.tools.length,catalogBytes:bytes(tools),instructionsBytes:Buffer.byteLength(c.getInstructions()),initAndDiscoveryMs:+(performance.now()-started).toFixed(1)});
+    }finally{await c.close();}
+  }
+  console.log(JSON.stringify({scope:'actual MCP initialize and tools/list, process startup included; no model calls',catalogs,reductionPercent:+((1-catalogs[1].catalogBytes/catalogs[0].catalogBytes)*100).toFixed(1)},null,2));
+}

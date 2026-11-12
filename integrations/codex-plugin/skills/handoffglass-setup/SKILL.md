@@ -5,11 +5,11 @@ description: Check a newly installed HandoffGlass Codex plugin, explain any rema
 
 # HandoffGlass setup
 
-Call the plugin's `connection_status` and `permission_status`. These report facts; installation alone does not prove the desktop or hooks work. Do not install a second user-level MCP entry or duplicate Skill: this plugin already bundles them.
+Call the plugin's `connection_status` once. Drawing needs no HandoffGlass Accessibility access. Call `permission_status` only when the user is setting up optional native control lookup. These report facts; installation alone does not prove the desktop or hooks work. Do not install a second user-level MCP entry or duplicate Skill: this plugin already bundles them.
 
-If hooks need trust, point the user to **Settings → Hooks → Review hooks** (CLI: `/hooks`). Codex requires trust for the exact installed scripts; never edit its trust records. A new chat may be needed to load the installed plugin. Do not restart the user's app yourself.
+New installs use MCP + Skills without hooks. If optional lifecycle hooks are present and need trust, point the user to **Settings → Hooks → Review hooks** (CLI: `/hooks`). Codex requires trust for the exact installed scripts; never edit its trust records. A new chat may be needed to load the installed plugin. Do not restart the user's app yourself.
 
-For a trial, ask the user to give an ordinary task such as “用 HandoffGlass 教我打开一个应用的设置”. Follow the bundled visual-handoff Skill. Locate an observed target before drawing, keep the same session, wait for meaningful changes and independently verify the original app. No automatic clicks or approvals.
+For a trial, ask the user to give an ordinary task such as “用 HandoffGlass 教我打开一个应用的设置”. Follow the bundled visual-handoff Skill. Reuse an authorized host observation and pass bounds/frame directly to drawing, keep the same session, wait for meaningful changes and independently verify the original app. No automatic clicks or approvals.
 
 Hooks synchronize honest phases and provide one bounded continuation reminder. They cannot wake an idle model. Do not claim the full future event-driven step runtime is already implemented.
 

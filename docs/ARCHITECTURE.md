@@ -45,9 +45,9 @@ User preferences persist locally. `integration_set_enabled` changes only the glo
 
 ## Interfaces
 
-**Default MCP tools (18):** `screen_displays`, `ui_inspect`, `ui_locate`, `capability_manifest`, `session_start`, `session_present`, `session_wait`, `session_update`, `session_verify`, `session_stop`, `connection_status`, `permission_status`, `integration_status`, `integration_cleanup` `integration_set_enabled`, `session_resume`, `session_control` and `integration_uninstall`. Tool results include machine-readable `structuredContent` and a text fallback. Installers enable compact output.
+**Full MCP tools (19):** `screen_mark`, `screen_displays`, `ui_inspect`, `ui_locate`, `capability_manifest`, `session_start`, `session_present`, `session_wait`, `session_update`, `session_verify`, `session_stop`, `connection_status`, `permission_status`, `integration_status`, `integration_cleanup` `integration_set_enabled`, `session_resume`, `session_control` and `integration_uninstall`. Tool results include machine-readable `structuredContent` and a text fallback. Installers enable compact output.
 
-`HANDOFFGLASS_LEGACY_TOOLS=1` adds the seven old one-step/scene aliases for existing clients. They are excluded from the normal tool catalog. `HANDOFFGLASS_EXTRAS=1` adds the three local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`). Initialization includes the core workflow in fewer than 512 characters; `capability_manifest` exposes conditions, inputs, recovery actions and host/transport limits. The installed Skill provides a short routing table without asking the model to reread a manual each step.
+`HANDOFFGLASS_LEGACY_TOOLS=1` adds the seven old one-step/scene aliases for existing clients. They are excluded from the normal tool catalog. `HANDOFFGLASS_EXTRAS=1` adds the three local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`). The Codex plugin uses the 17-tool host profile, with native lookup hidden and compact bounds/frame presentation schemas. Standalone full preserves existing interfaces. Initialization includes the core workflow in fewer than 512 characters; `capability_manifest` exposes conditions, inputs, recovery actions and host/transport limits. The installed Skill provides a short routing table without asking the model to reread a manual each step.
 
 
 The single local Bridge has distinct Agent and desktop tokens, loopback-only socket, Host/Origin checks, bounded JSON, event streams and waits, and per-owner access checks. Only Agent routes accept the agent token; desktop state, event delivery and human decisions require the desktop token. `src/local/host-activity.mjs` exposes recent authenticated calls with **caller-declared** host labels (not verified application identity).
@@ -93,3 +93,7 @@ Full uninstall uses the same service from App, CLI and MCP. An installation rece
 用户报告在暂停后保留待核实状态，恢复只重新通知核验，不再记录一次用户操作。挂起唤醒当前等待并返回 `yield_to_user`；终态不再进入游标长等待。桌面“挂起”只调整本地执行模式，重新 attach 由回到聊天后的 Agent 发起。状态/等待变化不重绘相同标记、不重建遮罩、不重复设置原生窗口 bounds。
 
 恢复凭证轮换与 Broker 重启保留待核实/用户暂停状态，不保留坐标、任务文字或原始凭证。用户报告的桌面应答等待最小检查点落盘；重连后按 `verify_in_app` 核实既有报告，按 `observe_app` 重观测待操作步骤，按 `wait_for_resume` 尊重用户暂停。所有恢复均清理旧标记并保持未核实，不能把记录视作应用成功。
+
+## Host observation (0.21)
+
+The host supplies authorized screen/DOM/UI evidence; the plugin deterministically converts top-left bounds/frame into DIP and renders without native lookup. Native permission probes are absent from capability discovery. Fixed targets require fresh host evidence after window movement, and display layout changes invalidate them. New Codex installations use Skills + MCP with no command hooks; optional lifecycle hooks exclude drawing and model requests. See [responsibilities, coordinate contract and validation](HOST_OBSERVATION.md).

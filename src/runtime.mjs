@@ -167,8 +167,8 @@ export class BrokerClient {
   async verify(sessionId, verified, finish=false,expectedStep) {
     return this.request('/agent/verify', { method: 'POST', body: { sessionId, verified, finish, expectedStep } });
   }
-  async updateScene(sessionId, expectedRevision, operations) {
-    return this.request('/agent/scene', { method: 'POST', body: { sessionId, expectedRevision, operations } });
+  async updateScene(sessionId, expectedRevision, operations, region={}) {
+    return this.request('/agent/scene', { method: 'POST', body: { ...region, sessionId, expectedRevision, operations } });
   }
   async locate(target,previous) { return this.request('/agent/locate', { method: 'POST', body: { target, ...(previous ? {previous} : {}) } }); }
   async cancel(sessionId) { return this.request('/agent/cancel', { method: 'POST', body: { sessionId } }); }
