@@ -9,6 +9,7 @@ import { VISUAL_STYLES, MOTION_MODES } from './local/preferences.mjs';
 import { BLUEPRINT_NAMES } from './local/blueprints.mjs';
 import { assessHandoff, GROUNDING_EVIDENCE } from './local/policy.mjs';
 import { SHAPES, TONES, TEMPLATE_NAMES, EFFECTS, MASK_STYLES, EXIT_STYLES } from './visual/scene.mjs';
+import { PLACEMENTS, DIRECTIONS } from './visual/quick-mark.mjs';
 import { capabilityInstructions } from './capabilities.mjs';
 
 const broker = new BrokerClient();
@@ -18,6 +19,9 @@ const annotation = z.object({
   shape: z.enum(SHAPES).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   label: z.string().max(64).optional(),
+  direction:z.enum(DIRECTIONS).optional(),
+  strokeWidth:z.number().min(1).max(8).optional(),
+  lineStyle:z.enum(['solid','dashed']).optional(),
   width: z.number().positive().max(5000).optional(),
   height: z.number().positive().max(5000).optional(),
   id: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),
@@ -86,7 +90,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error' }) }; }
 };
 function makeServer() {
-  const server = new McpServer({ name: 'handoffglass', version: '0.19.2' }, { instructions: SERVER_INSTRUCTIONS });
+  const server = new McpServer({ name: 'handoffglass', version: '0.20.0' }, { instructions: SERVER_INSTRUCTIONS });
   const legacy=process.env.HANDOFFGLASS_LEGACY_TOOLS==='1';
   const legacyNames=new Set(['visual_show','handoff_request','visual_scene_update','handoff_status','handoff_events','handoff_wait','handoff_cancel']);
   const replacements={visual_scene_update:'session_update',handoff_cancel:'session_stop'};
@@ -130,9 +134,21 @@ function makeServer() {
     inputSchema: z.object({}), annotations: { readOnlyHint: true }
   }, safe(() => broker.displays()));
   register('screen_mark', {
-    title:'Draw a temporary screen mark',
-    description:'For “draw a circle on my screen”: call directly once. Local placement at display center; no inspection, display query, session waiting or verification needed. Returns immediately; auto-clears. Never use to guess an application control.',
-    inputSchema:z.object({shape:z.enum(['ring','double_ring','scribble','halo','dot','crosshair']).default('ring'),displayId:z.string().max(80).optional(),size:z.number().min(24).max(800).default(220),durationSeconds:z.number().int().min(10).max(120).default(20),color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),requestId:z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()}),
+    title:'Draw, revise or clear screen marks',
+    description:'Explicit screen drawing: one call, no inspect/wait. Draw 1–8 semantic marks, labels, arrows, spotlights or numbered sequences at named screen positions. Update/clear own id with expectedRevision; updates keep expiry. Never guess application controls.',
+    inputSchema:z.object({
+      visualStyle:z.enum(VISUAL_STYLES).optional(),motion:z.enum(MOTION_MODES).optional(),
+      action:z.enum(['draw','update','clear']).optional(),id:z.string().uuid().optional(),expectedRevision:z.number().int().positive().optional(),
+      shape:z.enum(SHAPES).optional(),placement:z.enum(PLACEMENTS).optional(),direction:z.enum(DIRECTIONS).optional(),
+      size:z.number().min(24).max(800).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
+      color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),label:z.string().max(64).optional(),strokeWidth:z.number().min(1).max(8).optional(),lineStyle:z.enum(['solid','dashed']).optional(),
+      effect:z.enum(EFFECTS).optional(),exit:z.enum(EXIT_STYLES).optional(),maskStyle:z.enum(MASK_STYLES).optional(),sequence:z.boolean().optional(),
+      marks:z.array(z.object({id:z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),shape:z.enum(SHAPES),placement:z.enum(PLACEMENTS).optional(),
+        position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
+        label:z.string().max(64).optional(),color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),direction:z.enum(DIRECTIONS).optional()})).min(1).max(8).optional(),
+      displayId:z.string().max(80).optional(),durationSeconds:z.number().int().min(10).max(120).optional(),
+      requestId:z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()
+    }),
     annotations:{readOnlyHint:false}
   },safe(args=>broker.mark(args)));
   register('capability_manifest', {

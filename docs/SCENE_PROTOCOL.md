@@ -88,3 +88,5 @@ Annotation 可选 `effect:draw|pulse|flow|still`、`delayMs:0..5000` 和 `durati
 稳定的图层 ID、标记 ID 和 shape 在同一会话内保留播放起点。几何更新不会反复起笔；新增 ID 或新会话重新播放。隐藏后恢复的标记重新描绘。系统减少动态效果与用户偏好优先。`check` 形状、`verify` 模板及任何动画都不修改 `verified`。
 
 [Agent 试用与调用示例](AGENT_VISUAL_TRIAL.md)
+
+Outlines also accept `strokeWidth` (1–8 DIP), `lineStyle` (`solid`/`dashed`) and arrow `direction` (`auto`/`left`/`right`/`up`/`down`). See [direct drawing](SCREEN_DRAWING.md) for locally computed display placement without a task wait.

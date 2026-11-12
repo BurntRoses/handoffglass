@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { SHAPES, EFFECTS } from '../src/visual/scene.mjs';
-import { readManifest } from '../src/runtime.mjs';
+import { readManifest, readDesktopManifest } from '../src/runtime.mjs';
 import { fromJSONSchema } from 'zod/v4';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,6 +73,16 @@ try {
   assert.match(guide.messages[0].content.text, /Do not invent screen coordinates/);
   const params = { title: 'Permission review', message: 'Human decision needed; no guessed coordinates', timeoutSeconds: 30, requestId: 'smoke-case-unique-123' };
   assert.equal((await invoke(a, 'screen_displays', {})).headless, true);
+  const desktop=await readDesktopManifest(dir);
+  const hello=await fetch(`http://127.0.0.1:${desktop.port}/hello`,{method:'POST',headers:{authorization:`Bearer ${desktop.desktopToken}`,'content-type':'application/json'},body:JSON.stringify({displays:[{id:'fixture',x:0,y:0,width:1440,height:900,primary:true}]})});
+  assert.equal(hello.status,200);
+  const drawing=await invoke(a,'screen_mark',{sequence:true,lineStyle:'dashed',marks:[{shape:'spotlight',placement:'left',label:'区域'},{shape:'arrow',placement:'right',direction:'left'}]});
+  assert.equal(drawing.revision,1);assert.equal(drawing.count,4);assert.equal(drawing.nextAction,'done');
+  const otherDrawing=await b.callTool({name:'screen_mark',arguments:{action:'clear',id:drawing.id,expectedRevision:1}});
+  assert.equal(otherDrawing.isError,true);
+  const revised=await invoke(a,'screen_mark',{action:'update',id:drawing.id,expectedRevision:1,color:'#75b9ff'});
+  assert.equal(revised.revision,2);assert.equal(revised.expiresAt,drawing.expiresAt);
+  assert.equal((await invoke(a,'screen_mark',{action:'clear',id:drawing.id,expectedRevision:2})).visible,false);
   const first = await invoke(a, 'session_start', params);
   assert.equal(first.visible, false);
   const id = first.session.id;

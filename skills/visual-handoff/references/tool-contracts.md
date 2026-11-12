@@ -1,6 +1,14 @@
 ## Quick drawing and parked delivery (0.19)
 
-`screen_mark({shape:"ring",size:220,durationSeconds:20})` places one explicit temporary drawing at the live display center. No observation, task session or waiting. Optional `displayId`, `color` and `requestId`; never use it as a guessed app target. An active task returns `busy`.
+`screen_mark({shape:"ring",size:220,durationSeconds:20})` draws directly at the primary display center and auto-clears. No observation or wait. Returns `{id,revision,count,expiresAt,nextAction:"done",localMs}`. An active task or another owner returns `busy`.
+
+- Circle with caption: `{shape:"scribble",placement:"left",width:280,height:160,label:"查看这里"}`.
+- Focus and pointer: `{marks:[{shape:"spotlight",placement:"left",width:400,height:240},{shape:"arrow",placement:"right",direction:"left",label:"从这里开始"}],sequence:true}`.
+- Edit: `{action:"update",id,expectedRevision:revision,color:"#75b9ff",placement:"top_right"}`. Save the returned revision. Unspecified values are retained; `marks` replaces the group. Expiry is unchanged.
+- Remove: `{action:"clear",id,expectedRevision:revision}`. No waiting. `revision_conflict` returns the current `revision`; do not blindly retry stale edits.
+
+Placement accepts center, top, bottom, left, right and four corner names (`top_left`, etc.). `direction` is the arrowhead direction. `lineStyle:"dashed"` and `strokeWidth:1..8` apply to outlines. Per-mark `position:{x,y}` is explicit global DIP supplied by the user or independent measurement; never guess application controls. `displayId` selects a connected screen. Disconnected displays return `no_display`.
+
 
 `session_start execution:"parked"` leaves native tracking, rendering and user actions with the Broker. `session_wait` returns immediately with `nextAction:"yield_to_user"`, events and `nextCursor`. Stop the chat turn; retain id, token and cursor. `session_control action:"park"|"attach"` changes delivery without changing step, clearing marks or claiming verification. The App's current-status disclosure offers the same action. Pausing hides marks; parking retains them. User reports remain `verified:false`; on return attach, inspect, verify, then present. SessionEnd retains a parked task; an explicit interrupt pauses it. Broker restart restores only minimal recovery evidence and requires fresh observation.
 

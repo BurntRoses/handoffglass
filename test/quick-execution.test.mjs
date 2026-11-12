@@ -20,6 +20,21 @@ test('quick mark places locally on primary or negative-coordinate display; valid
   assert.throws(()=>quickMarkRequest({displayId:'gone'},screens,{}),{code:'no_display'});
   for(const invalid of [{size:2},{shape:'approval'},{durationSeconds:200},{color:'red'}])assert.throws(()=>quickMarkRequest(invalid,screens,{}));
 });
+test('semantic drawing composes numbered groups, clamps regions, and preserves stroke metadata',()=>{
+  const r=quickMarkRequest({sequence:true,lineStyle:'dashed',strokeWidth:5,marks:[
+    {shape:'scribble',placement:'left',label:'先看这里'},
+    {shape:'arrow',placement:'right',direction:'left',width:400,height:80,label:'再看这里'}
+  ]},screens,{});
+  assert.equal(r.annotations.length,4);
+  assert.deepEqual(r.annotations.filter(a=>a.shape==='badge').map(a=>a.label),['1','2']);
+  const arrow=r.annotations.find(a=>a.shape==='arrow');assert.equal(arrow.direction,'left');assert.equal(arrow.strokeWidth,5);assert.equal(arrow.lineStyle,'dashed');
+  assert.ok(arrow.x>960);assert.ok(r.annotations[0].x<960);
+  const focus=quickMarkRequest({shape:'spotlight',width:1200,height:1200,placement:'top_left',displayId:'left'},screens,{}).annotations[0];
+  assert.ok(focus.x-focus.width/2>=-1440);assert.ok(focus.y-focus.height/2>=-200);
+  const exact=quickMarkRequest({displayId:'left',marks:[{shape:'dot',position:{x:-100,y:200}}]},screens,{}).annotations[0];
+  assert.deepEqual([exact.x,exact.y],[-100,200]);
+  for(const invalid of [{marks:[]},{marks:Array(9).fill({shape:'ring'})},{marks:[{shape:'ring',id:'a'},{shape:'ring',id:'a'}]},{placement:'guess'},{strokeWidth:99},{lineStyle:'html'},{marks:[{shape:'ring',position:{x:-10,y:20}}]}])assert.throws(()=>quickMarkRequest(invalid,screens,{}));
+});
 test('park keeps scene and ownership; user action still needs independent verification',()=>{
   const m=new HandoffManager();try{
     const s=m.show(step,owner),token=m.issueResume(s.id,owner);
@@ -49,8 +64,24 @@ test('one mark call is idempotent; parked waits return immediately and survive h
     const first=await request('/agent/mark',{requestId:'one-quick-mark'});
     assert.equal(first.status,200);assert.equal(first.body.nextAction,'done');assert.equal(first.body.session,undefined);
     assert.equal((await request('/agent/mark',{requestId:'one-quick-mark'})).body.id,first.body.id);
-    m.resolve(first.body.id,'cancelled',owner);
+    assert.equal(first.body.revision,1);
+    const lifetime=first.body.expiresAt;
+    const changed=await request('/agent/mark',{action:'update',id:first.body.id,expectedRevision:1,shape:'spotlight',width:360,label:'区域聚焦',visualStyle:'handdrawn',motion:'off'});
+    assert.equal(changed.status,200);assert.equal(changed.body.revision,2);assert.equal(changed.body.expiresAt,lifetime);
+    assert.equal(m.get(first.body.id).annotations[0].shape,'spotlight');
+    assert.equal(m.get(first.body.id).visualStyle,'handdrawn');assert.equal(m.get(first.body.id).motion,'off');
+    assert.equal((await request('/agent/mark',{action:'update',id:first.body.id,expectedRevision:1,color:'#75b9ff'})).body.code,'revision_conflict');
+    const foreign=await fetch(`http://127.0.0.1:${b.port}/agent/mark`,{method:'POST',headers:{authorization:`Bearer ${b.agentToken}`,'content-type':'application/json','x-handoffglass-owner':'66666666-6666-4666-8666-666666666666'},body:JSON.stringify({action:'clear',id:first.body.id,expectedRevision:2})});
+    assert.equal(foreign.status,404);assert.equal(m.active().id,first.body.id);
+    const cleared=await request('/agent/mark',{action:'clear',id:first.body.id,expectedRevision:2});
+    assert.equal(cleared.body.visible,false);assert.equal(m.active(),null);
+    assert.equal((await request('/agent/mark',{action:'update',id:first.body.id,expectedRevision:2})).body.code,'not_found');
+
+    const positioned=await request('/agent/mark',{displayId:'left',marks:[{shape:'arrow',position:{x:-400,y:100},direction:'up'}]});
+    assert.equal(positioned.status,200);assert.equal(m.get(positioned.body.id).annotations[0].x,-400);
+    await request('/agent/mark',{action:'clear',id:positioned.body.id,expectedRevision:1});
     const s=m.show({...step,execution:'parked'},owner),resumeToken=m.issueResume(s.id,owner);
+    assert.equal((await request('/agent/mark',{})).body.code,'busy');
     const start=performance.now(),wait=await request(`/agent/wait?continuous=1&sessionId=${s.id}&cursor=${b.journal.latestCursor(s.id)}&maxWaitMs=30000`);
     assert.equal(wait.body.nextAction,'yield_to_user');assert.ok(performance.now()-start<300);
     assert.equal(b.agentWaits.size,0);
