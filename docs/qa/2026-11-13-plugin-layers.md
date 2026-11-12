@@ -4,7 +4,7 @@
 
 ## 已执行
 
-- `handoff:check`：245 个测试通过，语法、仓库链接、版本、场景通过。
+- `handoff:check`：246 个测试通过，语法、仓库链接、版本、场景通过。卸载覆盖当前 Electron 的 GPU、字典、DIPS 和性能观察缓存，并保留用户另加的文件。
 - `test:integration` / `mcp-smoke --host` / `connection:check`：full 20、host 18 个工具；游标、双宿主所有权、恢复与独立核验。
 - `test:codex-plugin`：临时 Codex 配置中的原生安装/同版本更新、两个 Skill、light 无 Hooks、18 个工具、首次调用、卸载。未调用模型。
 - `test:plugin-runtime`：复制插件后移动目录，用副本 MCP 与 Electron 实际绘制并清除；不使用已安装 App 或开发目录入口。

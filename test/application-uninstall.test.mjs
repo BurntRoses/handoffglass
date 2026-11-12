@@ -33,6 +33,20 @@ test('uninstallation refuses traversal in a forged package record and unrelated 
  record.entries.push({path:appPath+'/../private',kind:'file',digest:'a'.repeat(64)});await writeFile(file,JSON.stringify(record));
  await assert.rejects(readApplicationInstallation(options),/Invalid application ownership/);
 }));
+test('application cleanup removes current Electron caches and retains user additions',()=>isolated(async options=>{
+ const dataPath=join(options.userHome,'Library','Application Support','HandoffGlass');
+ await mkdir(dataPath,{recursive:true});
+ const directories=['GPUPersistentCache','GraphiteDawnCache','Shared Dictionary'];
+ const files=['DIPS','DIPS-wal','DIPS-shm','declarative_performance_observer.db','declarative_performance_observer.db-journal','declarative_performance_observer.db-wal','declarative_performance_observer.db-shm'];
+ for(const name of directories){await mkdir(join(dataPath,name));await writeFile(join(dataPath,name,'cache'),'cache');}
+ for(const name of files)await writeFile(join(dataPath,name),'browser storage');
+ await writeFile(join(dataPath,'notes.txt'),'keep');
+ await registerApplicationInstallation({...options,dataPaths:[dataPath]});
+ const plan=await planApplicationFiles(options);await removeOwnedFiles(plan);
+ assert.deepEqual(await readdir(dataPath),['notes.txt']);
+ assert.equal(await readFile(join(dataPath,'notes.txt'),'utf8'),'keep');
+ assert.deepEqual(plan.retained,[{path:join(dataPath,'notes.txt'),reason:'not_in_installation_record'}]);
+}));
 test('standalone remover preserves a symlink that redirects a previously recorded file',()=>isolated(async options=>{
  const folder=join(options.userHome,'owned');await mkdir(folder);await writeFile(join(folder,'data'),'owned');
  const entries=await snapshotTree(folder),other=join(options.userHome,'private');await writeFile(other,'keep');await rm(join(folder,'data'));await symlink(other,join(folder,'data'));
