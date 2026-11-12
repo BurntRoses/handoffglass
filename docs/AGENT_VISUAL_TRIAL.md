@@ -13,15 +13,17 @@ npm run visual:trial
 4. 试用 Agent 读取 `session_wait`，再独立读取原界面项目状态，调用 `session_verify` 并显示核验结果。
 5. 关闭试用窗口结束；临时 Broker、偏好和运行目录被清理。
 
-试用 Agent 是同仓库的 MCP SDK 客户端，使用真实 stdio 工具与生产 Broker/覆盖层。目标坐标来自专用窗口实时 DOM 测量，加上 Electron 内容区的全局 DIP 原点；移动事件会触发带 revision 的场景更新。它用于验证接入契约，不包含任务规划模型，也不代替第三方原生应用验收。正常原生任务优先用 `target`，跟随由本地 AX/UIA 完成。
+试用 Agent 是同仓库的 MCP SDK 客户端，使用真实 stdio 工具与生产 Broker/覆盖层。目标坐标来自专用窗口实时 DOM 测量，加上 Electron 内容区的全局 DIP 原点；移动事件会触发带 revision 的场景更新。它用于验证接入契约，不包含任务规划模型，也不代替第三方原生应用验收。实际任务优先复用宿主已授权的观察，再交给 HandoffGlass 绘制；可选的 AX/UIA 定位与跟随需要 full 工具目录及用户授权。
 
 试用只改临时目录中的偏好，用户实际保存的偏好不变。关闭流程支持取消或拒绝；用户上报完成仍为 `completionSource:user_report, verified:false`。独立应用状态核验发生在 Agent 侧。
 
 ## 给当前 Agent 使用
 
-仓库的 Codex MCP 配置仍指向 `src/mcp.mjs`。已运行的 MCP 进程保留旧工具枚举，更新源码后需在宿主中重新连接/加载 MCP 工具。
+Codex 原生插件使用安装器维护的运行快照，不依赖仓库路径。新版本安装后打开新聊天加载工具；已运行的聊天可能保留旧枚举。独立源码 MCP 接入仍使用 `src/mcp.mjs`，移动目录后需要重新接入。
 
-原生窗口已经可靠定位时，可直接使用新模板：
+默认 host 工具目录使用 `session_start` 的 `bounds` / `frame` 和真实 `observation`，见 [宿主观察](HOST_OBSERVATION.md)。缺少可靠观察时省略坐标，使用文字交接。不要把下方 full 目录示例直接用于默认插件，也不要在绘制前额外申请原生定位权限。
+
+以下为已启用 full 目录、且原生窗口已可靠定位时的模板示例：
 
 ```json
 {
@@ -35,7 +37,7 @@ npm run visual:trial
 
 将 `YourApp` 和控件名称替换为真实前台原生目标，要求本机已启用只读定位及系统 Accessibility 权限。支持 `sketch`、`highlight`、`bracket` 以及原有六种模板。保存的用户风格与动态偏好优先。
 
-复杂编排使用 `scene`，形状可选 `arrow/ring/box/spotlight/badge/underline/crosshair/highlight/bracket/check/scribble/halo/cursor`。以下是**字段示意**，坐标需来自当前任务的测量：
+full 目录的复杂编排使用 `scene`；完整形状目录由 `capability_manifest.visuals` 提供。以下是**字段示意**，坐标需来自当前任务的测量：
 
 ```json
 {
