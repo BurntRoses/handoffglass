@@ -27,6 +27,14 @@ The check returns `hostVerified:false`, even on success. The connection wizard s
 
 Do not copy Broker tokens, task logs, screenshot files or personal paths into bug reports. **Help → Details → Copy diagnostics** produces an allowlisted, path-free JSON summary suitable for reporting. No automated repair modifies any MCP host configuration.
 
+## Codex tool approval
+
+Plugin enablement, Hook trust and permission to call a tool are separate checks. A successful local service check or visible tool list does not establish that the current Codex session may call `screen_mark`. The default light plugin has no command Hooks; drawing a decorative mark does not need Accessibility permission.
+
+If Codex reports `MCP tool call requires approval, but approval policy is never`, the host stopped the call before HandoffGlass received it. Repeating the drawing call, reinstalling the plugin or enabling Accessibility does not resolve that approval decision. Verify in a new interactive Codex chat that can show the tool approval request, and let the user decide when it appears. Keep the installation marked as unverified until an actual call succeeds.
+
+Codex documents [plugin-scoped server and tool policy](https://developers.openai.com/plugins/build/plugins#configure-installed-server-policy). In the tested CLI `0.167.0-alpha.4.1`, temporary `screen_mark` approval settings parsed successfully with both the short plugin name and the marketplace-qualified name, but the model call still returned the error above. Runtime application of those settings remains unverified for that version. Tool authorization remains a host setting; the installer leaves it unchanged.
+
 ## Display map
 
 Help → Details shows local display rectangles in a common **device-independent pixel (DIP)** coordinate space. Negative origins and each screen's scale factor are displayed. The desktop separately checks whether display metadata is internally consistent. This check is **not** a calibration against a physical pointer or window. This map is intended to troubleshoot geometry; it is not a live screenshot, an accessibility tree or proof that a marked control has been grounded.
