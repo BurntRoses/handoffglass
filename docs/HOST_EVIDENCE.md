@@ -13,6 +13,8 @@
 | Cursor / Trae | MCP 配置结构 | 未验证 |
 | OpenCode v2 | Plugin.define 原生入口、共享契约、按聊天隔离；未运行宿主 | 未验证 |
 
+Codex CLI `0.167.0-alpha.4.1` 的真实模型试跑已发现 `screen_mark` 并尝试调用，但宿主返回 `MCP tool call requires approval, but approval policy is never`，调用未进入 HandoffGlass，未产生标记。临时工具级审批配置使用短插件名或 marketplace 完整名称均未改变结果。此记录只证明模型选择了工具，不证明绘制、人工决定、核验或恢复；对应处理见[工具审批诊断](CONNECTION_DIAGNOSTICS.md#codex-tool-approval)。
+
 状态源为 [host-evidence.json](host-evidence.json)。每条完成记录须包含：版本与平台、真实任务、引导事件、人类决定、宿主独立核验、任务恢复和失败情况。不得包含账号 ID、凭证、截图、文件正文或同意历史；公开记录只记测试事实与脱敏摘要。
 
 云端 Jules、Codex Cloud 不进行本地屏幕适配。后台 Hooks 不能启动空闲模型轮次，用户需要回到原会话继续。
