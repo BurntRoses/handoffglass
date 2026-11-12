@@ -38,6 +38,11 @@ test('native hosts reuse all host-profile MCP schemas and never share ownership 
   m.resolve(s.session.id,'completed');
   const pending=await tools.execute('session_verify',{sessionId:s.session.id,result:'inconclusive'},{identity:'chat-A'});assert.equal(pending.session.nextAction,'request_independent_evidence');
   await tools.execute('session_verify',{sessionId:s.session.id,result:'verified',finish:true},{identity:'chat-A'});
+  const declinedArgs={title:'Fixture decision',message:'Review the fixture setting',sensitive:true,requestId:'native-refusal-one'};
+  const declined=await tools.execute('session_start',declinedArgs,{identity:'chat-A'});m.resolve(declined.session.id,'declined');
+  await assert.rejects(tools.execute('session_start',{...declinedArgs,requestId:'native-refusal-two'},{identity:'chat-A'}),e=>e.code==='declined_by_user'&&e.nextAction==='respect_refusal');
+  const retried=await tools.execute('session_start',{...declinedArgs,requestId:'native-refusal-three',retryDeclined:true},{identity:'chat-A'});
+  assert.equal(retried.session.status,'awaiting_user');await tools.execute('session_stop',{sessionId:retried.session.id},{identity:'chat-A'});
   tools.close();await assert.rejects(tools.execute('screen_displays',{}, {identity:'chat-A'}),/disposed/);
  }finally{m.close();await b.stop();if(previous===undefined)delete process.env.HANDOFFGLASS_RUNTIME_DIR;else process.env.HANDOFFGLASS_RUNTIME_DIR=previous;await rm(dir,{recursive:true,force:true});}
 });
