@@ -6,22 +6,23 @@
 import { VISUAL_CAPABILITIES } from './visual/catalog.mjs';
 export const CAPABILITY_MANIFEST = Object.freeze({
   schemaVersion: 1,
-  version: 5,
+  version: 6,
   visuals: VISUAL_CAPABILITIES,
-  workflow: Object.freeze(['observe', 'present', 'wait', 'verify']),
+  workflow: Object.freeze(['host_observe', 'present', 'wait', 'host_verify']),
+  responsibilities: {host:['authorized observation','target semantics','independent verification'],plugin:['DIP mapping','rendering','animation','local events','owned lifecycle'],nativeLookup:'optional full profile; never a prerequisite for rendering'},
   lifecycle: Object.freeze(['integration_status', 'integration_cleanup', 'integration_set_enabled', 'integration_uninstall', 'permission_status']),
   hosts: Object.freeze([
     { id: 'codex', transport: 'local stdio', setup: 'native plugin (MCP + Skills + reviewed Hooks), or standalone config.toml + Skill; choose one', cleanup: 'integration_cleanup' },
     { id: 'workbuddy', transport: 'local stdio connector', setup: 'one MCP server + Skill; trust and enable in WorkBuddy', cleanup: 'integration_cleanup' }
   ]),
   capabilities: Object.freeze([
-    {id:'mark',tool:'screen_mark',phase:'draw',when:'Draw or revise up to 8 semantic marks without inspection or waiting.',requires:['enabled'],returns:'id, revision, expiry; update/clear with expectedRevision'},
+    {id:'mark',tool:'screen_mark',phase:'draw',when:'Render existing host-observed bounds once, or decorative placement. No native lookup, preflight or wait.',requires:['enabled'],returns:'id, revision, expiry; update/clear with expectedRevision'},
     { id:'start',tool:'session_start',phase:'present',when:'Start one workflow.',requires:['enabled'],returns:'session id and nextAction' },
     {id:'resume',tool:'session_resume',phase:'recover',when:'MCP or Broker restarted; saved recovery token available.',requires:['sessionId','resumeToken'],returns:'rotated token; observe before presenting'},
     {id:'control',tool:'session_control',phase:'recover',when:'User pauses/resumes or an actual observation phase begins.',requires:['sessionId'],returns:'session state'},
     { id:'stop',tool:'session_stop',phase:'finish',when:'Cancel the owned workflow.',requires:['sessionId'],returns:'cancelled session' },
-    { id: 'observe', tool: 'ui_inspect', phase: 'observe', when: 'Foreground app or target changed.', requires: ['enabled','accessibility'], returns: 'bounded controls' },
-    { id: 'locate', tool: 'ui_locate', phase: 'observe', when: 'Revalidate one exact observed control.', requires: ['enabled', 'accessibility'], returns: 'fresh global_DIP bounds and targetRef' },
+    { id: 'observe', tool: 'ui_inspect', phase: 'observe', when: 'Optional full-profile native observation, with explicit consent; host observation is preferred.', requires: ['enabled','accessibility'], returns: 'bounded controls' },
+    { id: 'locate', tool: 'ui_locate', phase: 'observe', when: 'Optional full-profile native target following.', requires: ['enabled', 'accessibility'], returns: 'fresh global_DIP bounds and targetRef' },
     { id: 'present', tool: 'session_present', phase: 'present', when: 'Show one grounded step or human decision.', requires: ['enabled'], returns: 'session id and nextAction' },
     { id: 'wait', tool: 'session_wait', phase: 'wait', when: 'Wait for meaningful events in the same session; carry nextCursor.', requires: ['enabled', 'continuous'], returns: 'events and cursor' },
     { id: 'update_scene', tool: 'session_update', phase: 'present', when: 'Patch an existing layered scene.', requires: ['enabled', 'sceneRevision'], returns: 'new sceneRevision' },
@@ -35,7 +36,7 @@ export const CAPABILITY_MANIFEST = Object.freeze({
   ]),
   quickstart: [
     {tool:'screen_mark',args:{shape:'scribble',placement:'left',label:'查看这里'},note:'Explicit drawing, no observation or wait. Save id/revision for update or clear.'},
-    {tool:'session_start',args:{title:'打开设置',message:'点击已标出的设置按钮。',target:{app:'Example',role:'button',name:'设置'},requestId:'unique-step-1'},note:'Replace the target with exact observed labels; omit target when evidence is unavailable.'},
+    {tool:'session_start',args:{title:'打开设置',message:'点击已标出的设置按钮。',bounds:{x:100,y:100,width:80,height:32},requestId:'unique-step-1'},note:'Replace illustrative bounds with an authorized host observation. Omit bounds for text guidance.'},
     {tool:'session_wait',args:{sessionId:'00000000-0000-4000-8000-000000000001',cursor:0,maxWaitSeconds:20},note:'Use the returned session.id and carry nextCursor into subsequent waits.'},
     {tool:'session_verify',args:{sessionId:'00000000-0000-4000-8000-000000000001',verified:true,finish:false},note:'Set verified from an independent check; finish:true only after the final successful step.'},
     {tool:'session_present',args:{sessionId:'00000000-0000-4000-8000-000000000001',title:'选择项目',message:'选择要打开的项目。',requestId:'unique-step-2'},note:'Keep the same session.id; use a new requestId for each step.'}
@@ -52,5 +53,5 @@ export const CAPABILITY_MANIFEST = Object.freeze({
 });
 
 export function capabilityInstructions() {
-  return "HandoffGlass is the agent's hand. Draw: screen_mark once; update/clear use id+expectedRevision. No inspect/wait. Tasks: observe→session_start→session_wait(cursor)→inspect→session_verify→session_present. execution:parked yields chat; attach on return. One action per card; never ask the user to name a tool. Never guess controls/click/approve. Save id/resumeToken/cursor; resume then observe. Verify user reports. Stop on refusal/disable/busy. Removal: integration_cleanup/uninstall.";
+  return "HandoffGlass draws; host observes. Reuse authorized host evidence→screen_mark(bounds[,frame]) once; no native lookup/preflight/wait. Decoration:placement. Update/clear: id+expectedRevision. Tasks: host observe→session_start(parked)→yield; attach on return→host verify→session_verify→session_present. Never bypass protected apps, guess controls, click or approve; never ask the user to name a tool. Save id/token/cursor. Stop on refusal/disable/busy. Native lookup is optional (full profile).";
 }

@@ -12,6 +12,7 @@ import { promisify } from 'node:util';
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { packagedRuntime } from '../src/release-contract.mjs';
+import {capabilityInstructions} from '../src/capabilities.mjs';
 const dist=resolve(process.env.HANDOFFGLASS_DIST_DIR || `dist/desktop-${process.platform}-${process.arch}`);
 const {binary:appBinary,entry}=await packagedRuntime(dist);
 await access(appBinary); // do not stat virtual files inside asar
@@ -41,7 +42,7 @@ try{
   await Promise.race([client.connect(transport),new Promise((_r,reject)=>setTimeout(()=>reject(new Error('Packaged MCP connection timeout')),15000))]);
   const {tools}=await client.listTools();
   assert.ok((client.getInstructions() || '').length <= 512);
-  assert.match(client.getInstructions() || '',/agent's hand/);
+  assert.equal(client.getInstructions(),capabilityInstructions());
   assert.ok(tools.some(t=>t.name==='session_start'));
   assert.ok(tools.some(t=>t.name==='ui_locate'));
   assert.ok(tools.some(t=>t.name==='ui_inspect'));

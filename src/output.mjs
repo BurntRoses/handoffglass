@@ -27,8 +27,8 @@ export function formatToolResult(value, { compact = false } = {}) {
   }
   if (!compact) return value;
   if ('displays' in value && Array.isArray(value.displays)) {
-    return { displays: value.displays.map(({ id, x, y, width, height }) => ({ id, x, y, width, height })),
-      connected: value.connected, headless: value.headless };
+    return { displays: value.displays.map(({ id, x, y, width, height,primary,scaleFactor }) => ({ id, x, y, width, height,primary,scaleFactor })),
+      ...(value.layoutSignature?{layoutSignature:value.layoutSignature,coordinateSystem:value.coordinateSystem}:{}),connected: value.connected, headless: value.headless };
   }
   return value;
 }

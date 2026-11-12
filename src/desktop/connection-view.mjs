@@ -15,9 +15,9 @@ export function renderConnectionSteps(node,result,locale='zh-CN'){
 }
 export function permissionLabel(result,locale='zh-CN'){
  const zh=locale==='zh-CN',s=result?.status||result;
- if(!s||s.helper==='unavailable'||s.osPermission==='unavailable')return zh?'定位组件暂不可用，可以先用文字引导。':'Control lookup is unavailable. Text guidance is available.';
- if(!s.localConsent)return zh?'尚未允许控件定位。开启后可检查系统权限。':'Control lookup is off. Enable it to check system access.';
- if(s.osPermission==='denied')return zh?'系统尚未允许辅助功能访问。请在系统设置中开启。':'System Accessibility access is not granted. Enable it in settings.';
+ if(!s||s.helper==='unavailable'||s.osPermission==='unavailable')return zh?'原生定位暂不可用，仍可使用宿主观察绘制标记。':'Native lookup is unavailable. Host-observed drawing is available.';
+ if(!s.localConsent)return zh?'原生定位未开启，不影响宿主观察和屏幕绘制。':'Native lookup is off. Host observation and drawing are available.';
+ if(s.osPermission==='denied')return zh?'原生定位缺少辅助功能权限；屏幕绘制可继续使用。':'Native lookup needs Accessibility access. Screen drawing remains available.';
  if(['granted','available'].includes(s.osPermission))return zh?'控件定位已就绪。':'Control lookup is ready.';
  return zh?'系统权限待检查。':'System access has not been checked.';
 }

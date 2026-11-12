@@ -30,6 +30,8 @@ jobs:
         run: npm run verify
       - name: Real MCP SDK stdio handshake smoke test (headless)
         run: npm run test:integration
+      - name: Host-observation MCP profile
+        run: node scripts/mcp-smoke.mjs --host
       - name: Isolated local MCP connection preflight
         run: npm run connection:check
       - name: MCP optional local-context and deterministic blueprint smoke

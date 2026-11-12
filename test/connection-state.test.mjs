@@ -30,7 +30,7 @@ test('verified legacy source integration can be removed while identical-name unk
  const config=await readFile(installed.configPath,'utf8');assert.equal(config.trim(),'');await assert.rejects(readFile(installed.skillPath),{code:'ENOENT'});
 }));
 test('native plugin calls verify tools but do not claim Hook trust or install a duplicate standalone connection',()=>isolated(async options=>{
- const build=await buildCodexPlugin({output:join(options.userHome,'plugin'),envOverrides:{HANDOFFGLASS_CONNECTION_ID:'plugin-test-id'}});
+ const build=await buildCodexPlugin({output:join(options.userHome,'plugin'),lifecycle:'enhanced',envOverrides:{HANDOFFGLASS_CONNECTION_ID:'plugin-test-id'}});
  await mkdir(options.codexHome);
  const configPath=join(options.codexHome,'config.toml');
  const before='model="keep"\n[plugins."'+CODEX_PLUGIN+'"]\nenabled=true\n';

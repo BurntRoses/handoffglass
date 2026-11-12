@@ -30,14 +30,14 @@ const envelope=(event,extra={})=>({hook_event_name:event,session_id:'host-A',...
 const tool=(name,result)=>envelope('PostToolUse',{tool_name:'mcp__handoffglass__'+name,tool_response:{content:[{type:'text',text:JSON.stringify(result)}]}});
 
 test('local plugin declares the tested Codex format, one MCP, hooks and bundled skills without trust edits',()=>isolated(async({dir})=>{
-  const output=join(dir,'bundle'),built=await buildCodexPlugin({output}),read=path=>readFile(join(built.pluginPath,path),'utf8').then(JSON.parse);
+  const output=join(dir,'bundle'),built=await buildCodexPlugin({output,lifecycle:'enhanced'}),read=path=>readFile(join(built.pluginPath,path),'utf8').then(JSON.parse);
   assert.equal(built.machineLocal,true);
   await assert.rejects(read('plugin.json'),{code:'ENOENT'});
   assert.equal((await read('.codex-plugin/plugin.json')).name,'handoffglass');
   assert.equal((await read('.codex-plugin/plugin.json')).hooks,'./hooks/hooks.json');
   assert.deepEqual(Object.keys((await read('.mcp.json')).mcpServers),['handoffglass']);
   const hooks=(await read('hooks/hooks.json')).hooks;
-  assert.deepEqual(Object.keys(hooks),['SessionStart','PreToolUse','PostToolUse','PreModelRequest','Stop','Interrupt','SessionEnd']);
+  assert.deepEqual(Object.keys(hooks),['PreToolUse','PostToolUse','Stop','Interrupt','SessionEnd']);
   assert.ok(!hooks.PermissionRequest);
   assert.match(await readFile(join(built.pluginPath,'skills/visual-handoff/references/tool-contracts.md'),'utf8'),/session_wait/);
   assert.match(await readFile(join(built.pluginPath,'hooks/run.mjs'),'utf8'),/codex-hooks\.mjs/);
@@ -125,4 +125,25 @@ test('plugin cleanup preview preserves unknown and edited files and excludes pri
   const receiptPath=join(build.marketplaceRoot,'handoffglass-build.json'),receipt=JSON.parse(await readFile(receiptPath,'utf8'));
   receipt.files['plugins/handoffglass/../../private']=sha('keep');await writeFile(receiptPath,JSON.stringify(receipt));
   await assert.rejects(codexPluginPlan({dir,codexHome:env.CODEX_HOME}),/Invalid plugin file ownership/);
+}));
+
+
+test('light plugin has no executable hooks; optional lifecycle choice survives rebuild and can be removed transactionally',()=>isolated(async({dir})=>{
+  const output=join(dir,'bundle'),build=await buildCodexPlugin({output});
+  const read=path=>readFile(join(build.pluginPath,path),'utf8').then(JSON.parse);
+  assert.equal(build.lifecycle,'light');assert.equal((await read('.codex-plugin/plugin.json')).hooks,undefined);
+  await assert.rejects(read('hooks/hooks.json'),{code:'ENOENT'});
+  assert.equal((await read('.mcp.json')).mcpServers.handoffglass.env.HANDOFFGLASS_TOOL_PROFILE,'host');
+  await buildCodexPlugin({output,lifecycle:'enhanced'});
+  const hooks=(await read('hooks/hooks.json')).hooks;
+  assert.equal(hooks.PreModelRequest,undefined);assert.equal(hooks.SessionStart,undefined);
+  const matcher=new RegExp(hooks.PreToolUse[0].matcher);
+  assert.equal(matcher.test('mcp__handoffglass__screen_mark'),false);
+  assert.equal(matcher.test('mcp__handoffglass__session_verify'),true);
+  assert.equal((await buildCodexPlugin({output})).lifecycle,'enhanced');
+  await buildCodexPlugin({output,lifecycle:'light'});
+  await assert.rejects(read('hooks/run.mjs'),{code:'ENOENT'});
+  assert.equal((await buildCodexPlugin({output})).lifecycle,'light');
+  await buildCodexPlugin({output,toolProfile:'full'});
+  assert.equal((await buildCodexPlugin({output})).toolProfile,'full');
 }));

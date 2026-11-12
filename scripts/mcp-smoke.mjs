@@ -16,7 +16,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = await mkdtemp(join(tmpdir(), 'handoffglass-mcp-'));
 const extras = process.argv.includes('--extras');
 const legacy=process.argv.includes('--legacy');
-const env = { ...process.env, HANDOFFGLASS_HEADLESS: '1', HANDOFFGLASS_RUNTIME_DIR: dir, HANDOFFGLASS_EXTRAS: extras ? '1' : '0',HANDOFFGLASS_LEGACY_TOOLS:legacy?'1':'0' };
+const hostProfile=process.argv.includes('--host');
+const env = { ...process.env, HANDOFFGLASS_HEADLESS: '1', HANDOFFGLASS_RUNTIME_DIR: dir, HANDOFFGLASS_EXTRAS: extras ? '1' : '0',HANDOFFGLASS_LEGACY_TOOLS:legacy?'1':'0',HANDOFFGLASS_TOOL_PROFILE:hostProfile?'host':'full' };
 const clients = [];
 function decode(result) {
   if (result.isError) throw new Error(result.content.map(c => c.text || '').join('; '));
@@ -35,14 +36,15 @@ const invoke = async (c, name, args) => decode(await c.callTool({ name, argument
 try {
   const [a, b] = await Promise.all([client('host-A'), client('host-B')]);
   assert.ok((a.getInstructions() || '').length <= 512);
-  assert.match(a.getInstructions() || '', /agent's hand/);
+  assert.match(a.getInstructions() || '', /host observes/);
   assert.match(a.getInstructions() || '', /never ask the user to name a tool/);
   const { tools } = await a.listTools();
-  const names=['screen_mark','screen_displays','ui_inspect','ui_locate','capability_manifest','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control','integration_uninstall','connection_status','permission_status','integration_status','integration_cleanup','integration_set_enabled'];
+  const names=['screen_mark','screen_displays',...(!hostProfile?['ui_inspect','ui_locate']:[]),'capability_manifest','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control','integration_uninstall','connection_status','permission_status','integration_status','integration_cleanup','integration_set_enabled'];
   if(legacy)names.push('visual_show','handoff_request','visual_scene_update','handoff_status','handoff_events','handoff_wait','handoff_cancel');
   if (extras) names.push('handoff_context', 'handoff_blueprint', 'handoff_assess');
   assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());
-  const {manifest}=await invoke(a,'capability_manifest',{});
+  const {manifest,runtime}=await invoke(a,'capability_manifest',{});
+  assert.equal(runtime.native.status,'not_probed');
   assert.deepEqual(manifest.visuals.categories.flatMap(c=>c.shapes).sort(),[...SHAPES].sort());
   assert.deepEqual(manifest.visuals.effects,EFFECTS);
   for(const example of manifest.quickstart){
@@ -107,6 +109,16 @@ try {
   const second = await invoke(b, 'session_start', params);
   assert.notEqual(id, second.session.id);
   assert.equal((await invoke(b, 'session_stop', { sessionId: second.session.id })).session.status, 'cancelled');
+  if(hostProfile){
+    const h=await invoke(a,'session_start',{mode:'guide',title:'Host region',message:'Review the highlighted region',bounds:{x:20,y:40,width:200,height:80},frame:{width:1440,height:900,bounds:{x:0,y:0,width:1440,height:900}}});
+    assert.equal(h.session.annotations[0].x,120);
+    const update=await invoke(a,'session_update',{sessionId:h.session.id,expectedRevision:1,bounds:{x:200,y:100,width:40,height:20}});
+    assert.equal(update.session.annotations[0].x,220);
+    assert.equal(update.session.annotations[0].shape,'spotlight');
+    await invoke(a,'session_verify',{sessionId:h.session.id,verified:true,finish:true,expectedStep:1});
+    assert.equal(tools.some(t=>t.name==='ui_inspect'),false);
+    assert.equal(tools.find(t=>t.name==='session_start').inputSchema.properties.target,undefined);
+  }else{
   const painted = await invoke(a, 'session_start', {mode:'guide', title:'Visual scene', message:'Review the highlight',
     scene:{version:1,layers:[{id:'focus',annotations:SHAPES.map((shape,i)=>({id:`mark_${i}`,x:10+i*20,y:20,shape,tone:'info',effect:EFFECTS[i%EFFECTS.length],delayMs:i*120,durationMs:1100,exit:'retract',maskStyle:'deep'}))}]}});
   assert.equal(painted.session.sceneRevision,1);
@@ -125,6 +137,7 @@ try {
   assert.equal((await invoke(a,'session_update',mutating)).session.sceneRevision,2);
   assert.equal((await invoke(a,'session_wait',{sessionId:painted.session.id,maxWaitSeconds:0})).session.annotations.length,0);
   assert.equal((await invoke(a,'session_verify',{sessionId:painted.session.id,verified:true,finish:true,expectedStep:1})).session.status,'completed');
+  }
   const continuous=await invoke(a,'session_start',{execution:'attached',title:'Step one',message:'Review the current screen',requestId:'continuous-smoke-1'});
   assert.equal(continuous.session.continuous,true);
   const initial=await invoke(a,'session_wait',{sessionId:continuous.session.id,cursor:0,maxWaitSeconds:0});

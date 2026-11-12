@@ -24,7 +24,7 @@ test('Codex connection installs discoverable skill and one server, preserves oth
     assert.equal(parse(config).mcp_servers.handoffglass.env.HANDOFFGLASS_OUTPUT,'compact');
     const skill=await readFile(result.skillPath,'utf8');
     assert.match(skill,/name: visual-handoff/);
-    assert.match(skill,/教我清空废纸篓/);
+    assert.equal(skill,await readFile(new URL('../skills/visual-handoff/SKILL.md',import.meta.url),'utf8'));
     await assert.rejects(installCodex({...options,apply:true}),/already configured/);
     const again=await installCodex({...options,apply:true,replace:true});
     assert.equal(again.changed,false,'Repeated connect must not churn files or backups');

@@ -31,3 +31,5 @@
 - [界面处方](../DESIGN.md) · [逐项核对与整改](FRONTEND_REDESIGN.md)
 
 - [0.19.2 交互与状态修正](qa/2026-11-12-interaction.md)
+
+- [宿主观察与本地绘制](HOST_OBSERVATION.md)：职责、区域坐标、轻量插件与权限边界。

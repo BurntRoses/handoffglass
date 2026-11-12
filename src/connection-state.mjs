@@ -8,10 +8,11 @@ import { readManagedFile, digest } from './managed-files.mjs';
 
 export async function connectionState(host,{dir,userHome,codexHome,root,live={},now=Date.now()}={}) {
   if(!['codex','workbuddy'].includes(host))throw new TypeError('Unsupported connection');
-  let installed=false,managed=false,enabled=null,configurationMatches=false,ids=[],nativePlugin=false;
+  let installed=false,managed=false,enabled=null,configurationMatches=false,ids=[],nativePlugin=false,hookMode='unknown';
   if(host==='codex') {
     const plugin=await codexPluginEvidence({userHome,codexHome});
     nativePlugin=plugin.nativePlugin;
+    hookMode=plugin.hookMode;
     const evidence=nativePlugin?plugin:await codexInstallationEvidence({userHome,codexHome});
     ({installed,managed,enabled,configurationMatches}=evidence);
     if(evidence.installationId)ids.push(evidence.installationId);
@@ -30,15 +31,15 @@ export async function connectionState(host,{dir,userHome,codexHome,root,live={},
   const steps=[
     {id:'detect',state:'complete'},
     {id:'write',state:installed?'complete':'pending'},
-    {id:'trust',state:enabled===false?'blocked':hostVerified&&!nativePlugin?'complete':'unknown'},
+    {id:'trust',state:enabled===false?'blocked':hostVerified&&(!nativePlugin||hookMode==='light')?'complete':'unknown'},
     {id:'reload',state:hostVerified?'complete':installed?'pending':'unknown'},
     {id:'tools',state:hostVerified?'complete':'unknown'},
     {id:'call',state:hostVerified?'complete':'pending'}
   ];
-  return {host,installed,managed,enabled,configurationMatches,steps,hostVerified,nativePlugin,...(nativePlugin?{hookTrust:'not_observed'}:{}),
+  return {host,installed,managed,enabled,configurationMatches,steps,hostVerified,nativePlugin,...(nativePlugin?{hookMode,hookTrust:hookMode==='light'?'not_required':'not_observed'}:{}),
     attribution:hostVerified?'installation_token':'none',hostIdentity:'caller_declared',version:null,
     verifiedAt:proof?.lastSuccessAt??null,lastTool:proof?.lastTool??null,
-    nextAction:hostVerified?(nativePlugin?'review_hooks':'ready'):!installed?'install':enabled===false?'enable_in_host':
+    nextAction:hostVerified?(nativePlugin&&hookMode!=='light'?'review_hooks':'ready'):!installed?'install':enabled===false?'enable_in_host':
       host==='workbuddy'?'import_trust_enable_reload_and_call':!configurationMatches?'review_configuration':'reload_and_call',
     verificationPrompt:host==='codex'?'请调用 HandoffGlass 的 connection_status，检查此次连接。':'请启用 HandoffGlass 连接器，然后调用 connection_status 检查连接。'};
 }
