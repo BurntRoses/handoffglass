@@ -1,5 +1,8 @@
 /** Local UI actions; host trust and actual tool calls remain separate. */
 export const MANAGED_HOSTS=Object.freeze(['codex','workbuddy','claude-code','deepseek','opencode','cursor','trae']);
+export function connectionRuntimeHint(state,locale='zh-CN'){
+  return state?.runtimeMode==='app-linked'?(locale==='zh-CN'?'此连接使用已安装的 HandoffGlass App。':'This connection uses the installed HandoffGlass App.') : '';
+}
 export function connectionHint(state,locale='zh-CN'){
   const zh=locale==='zh-CN';
   if(state?.nextAction==='review_hooks')return zh?'工具已连接，请在宿主设置中检查 HandoffGlass Hooks。':'Tools are connected. Review HandoffGlass Hooks in the host settings.';

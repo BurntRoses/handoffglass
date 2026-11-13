@@ -1,8 +1,18 @@
 /** Runtime-only plugin snapshot. No checkout, build cache, account files or developer tools. */
 import {readdir,readFile,lstat,readlink,realpath} from 'node:fs/promises';
 import {join,resolve,dirname,isAbsolute,sep} from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+/** App-created connections reuse the registered App; source plugins carry their own renderer. */
+export async function pluginRuntimeMode(root=fileURLToPath(new URL('../',import.meta.url)),desktop=true) {
+  let pkg;
+  try{pkg=JSON.parse(await readFile(join(root,'package.json'),'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}
+  const appLinked=pkg?.handoffglassBuild?.schemaVersion===1;
+  return {desktop:!!desktop&&!appLinked,runtimeMode:appLinked?'app-linked':desktop?'embedded':'external'};
+}
 
 export async function pluginSnapshot(root,{desktop=false}={}) {
+  const mode=await pluginRuntimeMode(root,desktop);desktop=mode.desktop;
   if(desktop){
     try{
       const binary=(await readFile(join(root,'node_modules/electron/path.txt'),'utf8')).trim();
@@ -26,8 +36,12 @@ export async function pluginSnapshot(root,{desktop=false}={}) {
     }else throw Error('Unsupported runtime file: '+relative);
   }
   for(const dir of ['src','assets','skills/visual-handoff','integrations'])await add(dir);
-  for(const file of ['package.json','package-lock.json','LICENSE','NOTICE','scripts/remove-owned-files.mjs','scripts/remove-owned-files.ps1','scripts/claude-hook.mjs'])await add(file);
-  const lock=JSON.parse(await readFile(join(root,'package-lock.json'),'utf8'));
+  for(const file of ['package.json','LICENSE','NOTICE','scripts/remove-owned-files.mjs','scripts/remove-owned-files.ps1','scripts/claude-hook.mjs'])await add(file);
+  // electron-builder excludes lockfiles from ASAR; keep its explicit resource
+  // copy in exported snapshots so they can be rebuilt without the original App.
+  const lockPath=mode.runtimeMode==='app-linked'&&root.endsWith('.asar')?join(dirname(root),'plugin-package-lock.json'):join(root,'package-lock.json');
+  const lockBytes=await readFile(lockPath),lock=JSON.parse(lockBytes);
+  files.set('runtime/package-lock.json',lockBytes);modes['runtime/package-lock.json']=0o644;
   // Only production dependencies. Electron's downloader/build chain is never shipped.
   for(const [path,info]of Object.entries(lock.packages)){
     if(!path.startsWith('node_modules/')||info.dev||info.optional||info.devOptional||path.includes('/node_modules/'))continue;
@@ -38,5 +52,5 @@ export async function pluginSnapshot(root,{desktop=false}={}) {
     if(process.platform==='darwin')try{await add('native/macos/hg-locate');}catch(error){if(error.code!=='ENOENT')throw error;}
     if(process.platform==='win32')await add('native/windows/locate.ps1');
   }
-  return {files,modes,links,desktop};
+  return {files,modes,links,...mode};
 }

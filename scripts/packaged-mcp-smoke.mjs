@@ -67,6 +67,91 @@ try{
     {env:nativeEnv,timeout:15000});
   await assert.rejects(access(join(bundle,'mcp.json')),{code:'ENOENT'});
   console.log('Packaged WorkBuddy metadata, MCP, Skill and owned bundle cleanup verified');
+  // Exercise the App's real connection-building modules inside ASAR. A source
+  // checkout smoke cannot catch missing templates or a nested Electron request.
+  // These are bundle fixtures only: no host CLI, trust or configuration is used.
+  const codexPluginURL=pathToFileURL(join(dirname(entry),'codex-plugin.mjs')).href;
+  const harnessPluginURL=pathToFileURL(join(dirname(entry),'harness-plugin.mjs')).href;
+  const packagedRoot=dirname(dirname(entry)),connectionsRoot=join(dir,'app-linked-connections');
+  const {stdout:connectionsJSON}=await promisify(execFile)(appBinary,['--input-type=module','-e',`
+    import assert from 'node:assert/strict';
+    import {readFile,access} from 'node:fs/promises';
+    import {join} from 'node:path';
+    const {buildCodexPlugin}=await import(${JSON.stringify(codexPluginURL)});
+    const {buildHarnessPlugin,HARNESS_BUNDLE_HOSTS}=await import(${JSON.stringify(harnessPluginURL)});
+    const base=${JSON.stringify(connectionsRoot)},root=${JSON.stringify(packagedRoot)};
+    const command=process.execPath,envOverrides={ELECTRON_RUN_AS_NODE:'1'};
+    const codex=await buildCodexPlugin({root,command,output:join(base,'codex'),desktopRuntime:true,runtimeLink:'stable',envOverrides});
+    const results=[{host:'codex',output:codex.marketplaceRoot,pluginPath:codex.pluginPath,
+      metadata:JSON.parse(await readFile(join(codex.pluginPath,'local-runtime.json'),'utf8')),result:codex}];
+    for(const host of HARNESS_BUNDLE_HOSTS){
+      const built=await buildHarnessPlugin({host,root,command,output:join(base,host),desktopRuntime:true,envOverrides});
+      results.push({host,output:built.output,pluginPath:built.output,
+        metadata:JSON.parse(await readFile(join(built.output,'runtime-evidence.json'),'utf8')),result:built});
+    }
+    for(const item of results){
+      assert.equal(item.result.desktopRuntime,false,item.host+' must reuse the App renderer');
+      assert.equal(item.result.runtimeMode,'app-linked');
+      assert.equal(item.metadata.desktopRuntime,false);
+      assert.equal(item.metadata.runtimeMode,'app-linked');
+      await assert.rejects(access(join(item.pluginPath,'runtime/node_modules/electron')),{code:'ENOENT'});
+      if(item.host==='codex')item.server=JSON.parse(await readFile(join(item.pluginPath,'.mcp.json'),'utf8')).mcpServers.handoffglass;
+      else item.server={command,args:[join(item.pluginPath,'runtime/src/mcp.mjs')],env:JSON.parse(await readFile(join(item.pluginPath,'connection.json'),'utf8')).env};
+      assert.equal(item.server.command,command);
+      assert.equal(item.server.env.HANDOFFGLASS_RUNTIME_MODE,'app-linked');
+      assert.equal(item.server.env.HANDOFFGLASS_EMBEDDED_RENDERER,undefined);
+      delete item.result;delete item.metadata;
+    }
+    process.stdout.write(JSON.stringify(results));
+  `],{env:nativeEnv,timeout:60000,maxBuffer:1024*1024});
+  const connections=JSON.parse(connectionsJSON);
+  assert.deepEqual(connections.map(item=>item.host),['codex','claude-code','deepseek','opencode','cursor','trae']);
+  for(const item of connections){
+    const copiedClient=new Client({name:'handoffglass-packaged-'+item.host,version:'0.23.0'});
+    let timer;
+    try{
+      const copiedTransport=new StdioClientTransport({command:item.server.command,args:item.server.args,
+        env:{...process.env,...item.server.env,HANDOFFGLASS_HEADLESS:'1',HANDOFFGLASS_RUNTIME_DIR:dir},stderr:'pipe'});
+      await Promise.race([copiedClient.connect(copiedTransport),new Promise((_r,reject)=>{
+        timer=setTimeout(()=>reject(new Error('App-linked MCP connection timeout: '+item.host)),15000);
+      })]);
+      const copiedTools=await copiedClient.listTools();
+      assert.equal(copiedTools.tools.length,19,item.host+' must expose the host tool profile');
+      for(const name of ['screen_mark','session_start','session_wait','connection_status'])
+        assert.ok(copiedTools.tools.some(tool=>tool.name===name),item.host+' missing '+name);
+    }finally{clearTimeout(timer);await copiedClient.close().catch(()=>{});}
+  }
+  // Run ownership-aware deletion from the packaged code as well. Codex's plan
+  // is applied locally; its actual native removal command belongs to real-host
+  // acceptance and must never be called by this isolated packaging fixture.
+  const codexLifecycleURL=pathToFileURL(join(dirname(entry),'codex-plugin-lifecycle.mjs')).href;
+  const managedFilesURL=pathToFileURL(join(dirname(entry),'managed-files.mjs')).href;
+  await promisify(execFile)(appBinary,['--input-type=module','-e',`
+    import assert from 'node:assert/strict';
+    import {mkdir,readFile,writeFile,access} from 'node:fs/promises';
+    import {join} from 'node:path';
+    const {removeHarnessPlugin}=await import(${JSON.stringify(harnessPluginURL)});
+    const {codexPluginPlan}=await import(${JSON.stringify(codexLifecycleURL)});
+    const {applyFileTransaction,removeEmptyParents}=await import(${JSON.stringify(managedFilesURL)});
+    const connections=${JSON.stringify(connections)};
+    for(const item of connections){
+      const note=join(item.output,'my-note.txt');await writeFile(note,'Keep my connection notes.');
+      let retained;
+      if(item.host==='codex'){
+        const codexHome=join(${JSON.stringify(connectionsRoot)},'codex-profile');await mkdir(codexHome);
+        await writeFile(join(codexHome,'handoffglass-plugin-install.json'),JSON.stringify({version:1,plugin:'handoffglass@handoffglass-local',marketplaceRoot:item.output,command:process.execPath}));
+        const plan=await codexPluginPlan({codexHome,dir:${JSON.stringify(dir)}});
+        assert.ok(plan.changes.length);assert.ok(plan.retained.some(entry=>entry.path===note));
+        await applyFileTransaction(plan.changes);
+        for(const change of plan.changes)await removeEmptyParents(change.path,item.output);
+        retained=plan.retained;
+      }else retained=(await removeHarnessPlugin({host:item.host,output:item.output,confirm:true})).retained;
+      assert.ok(retained.some(entry=>entry.path===note),item.host+' must retain user files');
+      assert.equal(await readFile(note,'utf8'),'Keep my connection notes.');
+      await assert.rejects(access(join(item.pluginPath,'runtime/src/mcp.mjs')),{code:'ENOENT'});
+    }
+  `],{env:nativeEnv,timeout:60000,maxBuffer:1024*1024});
+  console.log('Packaged App builds, loads and cleans six App-linked connection bundles without nested Electron or host commands');
   const applicationURL=pathToFileURL(join(dirname(entry),'application-installation.mjs')).href;
   const uninstallOptions={dir:join(dir,'uninstall-runtime'),userHome:join(dir,'uninstall-home'),codexHome:join(dir,'uninstall-codex'),root:dirname(dirname(entry))};
   const {stdout:uninstallResult}=await promisify(execFile)(appBinary,['--input-type=module','-e',`

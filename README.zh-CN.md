@@ -32,9 +32,7 @@ Agent 需要你操作时，在屏幕上指出位置，等待你完成，再继�
 
 如果使用 Codex，推荐安装[原生插件试用版](docs/CODEX_PLUGIN.md)：默认包含 MCP、Skill 和按需启动的本地绘制进程，无需独立 App。生命周期 Hooks 为可选增强，选择后才需审核。
 
-Claude Code、DeepSeek Harness、OpenCode v2 也有本地原生入口；WorkBuddy、Cursor、Trae 使用连接器或 MCP 包。七种宿主共用安装、启停和清理服务，重载与验证步骤见[宿主接入](docs/HARNESS_PLUGINS.md)。
-
-Codex 原生插件的安装和工具发现已通过协议测试。包含人类决策、独立核验和继续任务的真实模型闭环仍待实测，见[宿主证据](docs/HOST_EVIDENCE.md)。
+目前为插件试用版。Codex 原生插件的安装和工具发现已测试；包含人类决策、独立核验和继续任务的真实模型闭环仍待实测。试用各宿主接入前，请查看[安装步骤](docs/HARNESS_PLUGINS.md)和[验证状态](docs/HOST_EVIDENCE.md)。
 
 <details>
 <summary>文档</summary>

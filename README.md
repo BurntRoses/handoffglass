@@ -32,7 +32,7 @@ To disable or remove a connection, tell the agent to “disable HandoffGlass” 
 
 For Codex, use the [native plugin trial](docs/CODEX_PLUGIN.md) for MCP + Skills and an on-demand local renderer. Command hooks are optional; only enhanced mode needs hook review.
 
-Claude Code, DeepSeek Harness and OpenCode v2 have local native adapters; WorkBuddy, Cursor and Trae use managed connectors or MCP packages. Installation, enablement and cleanup share one service. See [host setup](docs/HARNESS_PLUGINS.md) for each host's reload and verification steps.
+This is a plugin preview. Native Codex installation and tool discovery are tested; model tasks with a human decision, independent verification and continuation remain unverified. See [host setup](docs/HARNESS_PLUGINS.md) and the [host evidence matrix](docs/HOST_EVIDENCE.md) before trying an adapter.
 
 <details>
 <summary>Documentation</summary>
@@ -44,7 +44,5 @@ Before a device trial, run `npm run test:preacceptance` in a prepared checkout. 
 Local macOS / Windows · MCP-capable agent · Engineering preview
 
 [Builds, upgrades and release status](docs/COMMUNITY_RELEASE.md). Free for noncommercial use, modification and redistribution under the [PolyForm Noncommercial License](LICENSE). Commercial use requires separate permission; see [usage terms](LICENSING.md).
-
-Native Codex installation and tool discovery are tested. End-to-end model tasks with a human decision, independent verification and continuation remain unverified; see the [host evidence matrix](docs/HOST_EVIDENCE.md).
 
 </details>

@@ -1,5 +1,5 @@
 import {renderConnectionSteps,permissionLabel} from './connection-view.mjs';
-import {MANAGED_HOSTS,connectionHint,connectionFailure,formatHostLauncher} from './host-connections.mjs';
+import {MANAGED_HOSTS,connectionHint,connectionFailure,formatHostLauncher,connectionRuntimeHint} from './host-connections.mjs';
 import {upgradeChoices,syncChoices} from './choice-controls.mjs';
 'use strict';
 upgradeChoices();
@@ -129,7 +129,7 @@ function connectionLabels(){const host=$('host').value,codex=host==='codex',work
  if(!codex&&!workbuddy&&state)document.querySelector('[data-t="hostNote"]').textContent=connectionHint(state,locale)||t('hostNote');
  const command=formatHostLauncher(state,platform);$('hostLaunch').hidden=!command;$('launcherCommand').textContent=command;$('launcherLabel').textContent=locale==='zh-CN'?'在 DeepSeek Harness 目录运行：':'Run from the DeepSeek Harness directory:';$('copyLauncher').textContent=locale==='zh-CN'?'复制启动命令':'Copy launch command';
 }
-function renderConnection(){const state=connectionStates[$('host').value];renderConnectionSteps($('connectionSteps'),state,locale);$('connectionEvidence').textContent=connectionErrors[$('host').value]?connectionFailure(connectionErrors[$('host').value],locale):state?t(state.hostVerified?'hostReady':'hostPending'):'';}
+function renderConnection(){const state=connectionStates[$('host').value];renderConnectionSteps($('connectionSteps'),state,locale);$('connectionEvidence').textContent=connectionErrors[$('host').value]?connectionFailure(connectionErrors[$('host').value],locale):state?[t(state.hostVerified?'hostReady':'hostPending'),connectionRuntimeHint(state,locale)].filter(Boolean).join(' '):'';}
 async function refreshConnection(){const host=$('host').value;if(!MANAGED_HOSTS.includes(host)){renderConnection();return;}
  try{const result=await window.hgSetup.connection(host);if(result?.ok)connectionStates[host]=result.status||result;else connectionErrors[host]=result?.code||'connection_state_unavailable';}catch{connectionErrors[host]='connection_state_unavailable';}if(host===$('host').value)translate();
 }

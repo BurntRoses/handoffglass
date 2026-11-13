@@ -40,6 +40,8 @@ npm run plugin:codex:remove
 
 ## 验证
 
+App 内创建的 Codex 连接使用该 App 的运行时，连接页会显示依赖关系。它与源码安装的自带渲染器插件采用同一工具契约；卸载 App 前应通过“完整卸载”一起移除连接。
+
 `npm run test:codex-plugin` 在临时 Codex 配置中验证原生安装与重装、19 个 MCP 工具、两个 Skill、light 模式无命令 Hook、首次调用及卸载清理。测试不调用模型或修改用户 Hook 信任。可用 `HANDOFFGLASS_CODEX_COMMAND` 指定 Codex CLI。
 
 `npm run codex:readiness` 默认只读取本地安装和启用证据，分开显示工具加载、绘制授权和首次调用。加 `-- --probe-host` 才启动独立的无模型探测会话；它不能证明当前聊天已加载或允许绘制。实际调用时遇到宿主审批，由用户决定，见[审批诊断](CONNECTION_DIAGNOSTICS.md#codex-tool-approval)。

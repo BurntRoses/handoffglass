@@ -25,6 +25,7 @@ export async function buildCodexPlugin({output=join(projectRoot,'dist','codex-lo
   runtimeLink??=receipt?.runtimeLink??'portable';
   if(!['portable','stable'].includes(runtimeLink))throw new TypeError('Invalid runtime link');
   const snapshot=await pluginSnapshot(root,{desktop:desktopRuntime});
+  desktopRuntime=snapshot.desktop;
   for(const [name,bytes]of snapshot.files)files.set(name,bytes);
   const manifest=JSON.parse(await readFile(join(root,'integrations','codex-plugin','plugin.json'),'utf8'));
   manifest.version=pkg.version;
@@ -38,8 +39,10 @@ export async function buildCodexPlugin({output=join(projectRoot,'dist','codex-lo
   compat.interface.longDescription='宿主读取界面，HandoffGlass 绘制标记和步骤卡片。用户操作，Agent 核实后继续。';
   files.set('.codex-plugin/plugin.json',json(compat));
   const server={command,args:[runtimeLink==='portable'?'${PLUGIN_ROOT}/runtime/src/mcp.mjs':join(plugin,'runtime','src','mcp.mjs')],env:{HANDOFFGLASS_HOST_ID:'codex',HANDOFFGLASS_OUTPUT:'compact',HANDOFFGLASS_TOOL_PROFILE:toolProfile,...(desktopRuntime?{HANDOFFGLASS_EMBEDDED_RENDERER:'1'}:{}),...envOverrides}};
+  server.env.HANDOFFGLASS_RUNTIME_MODE=snapshot.runtimeMode;
+  if(!desktopRuntime)delete server.env.HANDOFFGLASS_EMBEDDED_RENDERER;
   files.set('.mcp.json',json({mcpServers:{handoffglass:server}}));
-  files.set('local-runtime.json',json({schemaVersion:2,command,runtimeLink,entry:'runtime/src/mcp.mjs',desktopRuntime,platform:desktopRuntime?process.platform:null,arch:desktopRuntime?process.arch:null,checkoutRequired:false,nodeRequired:true}));
+  files.set('local-runtime.json',json({schemaVersion:2,command,runtimeLink,entry:'runtime/src/mcp.mjs',desktopRuntime,runtimeMode:snapshot.runtimeMode,appRequired:snapshot.runtimeMode==='app-linked',platform:desktopRuntime?process.platform:null,arch:desktopRuntime?process.arch:null,checkoutRequired:false,nodeRequired:snapshot.runtimeMode!=='app-linked'}));
   if(lifecycle==='enhanced')files.set('hooks/run.mjs',`import {runCodexHook} from '../runtime/src/hosts/codex-hooks.mjs';\nawait runCodexHook();\n`);
   const hooks={};
   for(const event of ['PreToolUse','PostToolUse','Stop','Interrupt','SessionEnd']) {
@@ -72,8 +75,8 @@ export async function buildCodexPlugin({output=join(projectRoot,'dist','codex-lo
     if(prior!==null && changed && (!receipt?.files?.[key] || digest(prior)!==receipt.files[key]))throw new Error('Generated plugin file has local edits: '+key);
     if(changed)changes.push({path:name,prior,next,mode:snapshot.modes[key.slice(prefix.length)],kind});
   }
-  const nextReceipt=json({schemaVersion:1,lifecycle,desktopRuntime,runtimeLink,links:Object.fromEntries(Object.entries(snapshot.links).map(([k,v])=>[prefix+k,v])),toolProfile:server.env.HANDOFFGLASS_TOOL_PROFILE,files:Object.fromEntries([...files].map(([p,v])=>['plugins/handoffglass/'+p,digest(v)]).concat([['.agents/plugins/marketplace.json',digest(json(marketplace))]]))});
+  const nextReceipt=json({schemaVersion:1,lifecycle,desktopRuntime,runtimeMode:snapshot.runtimeMode,runtimeLink,links:Object.fromEntries(Object.entries(snapshot.links).map(([k,v])=>[prefix+k,v])),toolProfile:server.env.HANDOFFGLASS_TOOL_PROFILE,files:Object.fromEntries([...files].map(([p,v])=>['plugins/handoffglass/'+p,digest(v)]).concat([['.agents/plugins/marketplace.json',digest(json(marketplace))]]))});
   if(receiptRaw!==nextReceipt)changes.push({path:receiptPath,prior:receiptRaw,next:nextReceipt});
   await applyFileTransaction(changes);
-  return {marketplaceRoot:output,marketplacePath:marketPath,pluginPath:plugin,plugin:CODEX_PLUGIN,version:pkg.version,lifecycle,toolProfile:server.env.HANDOFFGLASS_TOOL_PROFILE,machineLocal:false,checkoutRequired:false,desktopRuntime,runtimeLink};
+  return {marketplaceRoot:output,marketplacePath:marketPath,pluginPath:plugin,plugin:CODEX_PLUGIN,version:pkg.version,lifecycle,toolProfile:server.env.HANDOFFGLASS_TOOL_PROFILE,machineLocal:snapshot.runtimeMode==='app-linked',checkoutRequired:false,desktopRuntime,runtimeMode:snapshot.runtimeMode,runtimeLink};
 }

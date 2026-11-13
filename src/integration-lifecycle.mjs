@@ -107,7 +107,7 @@ export async function installIntegration(host,options={}){
   if(host==='codex'){
     if(!options.confirm)return {host,applied:false,confirmationRequired:true,items:[{kind:'native_plugin',action:'install'}],nextAction:'install_native_plugin'};
     const result=await installCodexPlugin({...options,userHome:options.userHome,nodeCommand:options.command});
-    return {host,applied:true,installed:true,reloadRequired:true,hostState:'not_observed',nextAction:'reload_and_call',lifecycle:result.build.lifecycle};
+    return {host,applied:true,installed:true,reloadRequired:true,hostState:'not_observed',nextAction:'reload_and_call',lifecycle:result.build.lifecycle,runtimeMode:result.build.runtimeMode};
   }
   if(host==='workbuddy'){
     if(!options.confirm)return {host,applied:false,confirmationRequired:true,items:[{kind:'connector',action:'prepare'}],nextAction:'prepare_connector'};

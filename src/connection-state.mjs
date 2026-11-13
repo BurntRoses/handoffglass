@@ -11,11 +11,12 @@ import {checkCodexReadiness} from './local/codex-readiness.mjs';
 export async function connectionState(host,{dir,userHome,codexHome,root,live={},now=Date.now(),...options}={}) {
   if(!['codex','workbuddy',...HARNESS_HOSTS].includes(host))throw new TypeError('Unsupported connection');
   let installed=false,managed=false,enabled=null,configurationMatches=false,ids=[],nativePlugin=false,hookMode='unknown';
-  let local=null;
+  let local=null,runtimeMode=null;
   if(host==='codex') {
     const plugin=await codexPluginEvidence({userHome,codexHome});
     nativePlugin=plugin.nativePlugin;
     hookMode=plugin.hookMode;
+    runtimeMode=plugin.runtimeMode;
     const evidence=nativePlugin?plugin:await codexInstallationEvidence({userHome,codexHome});
     ({installed,managed,enabled,configurationMatches}=evidence);
     if(evidence.installationId)ids.push(evidence.installationId);
@@ -30,6 +31,7 @@ export async function connectionState(host,{dir,userHome,codexHome,root,live={},
     ({installed,managed,enabled,configurationMatches}=local);
     nativePlugin=['claude-code','deepseek','opencode'].includes(host);
     hookMode=local.hookMode||'light';
+    runtimeMode=local.runtimeMode;
     if(local.installationId)ids.push(local.installationId);
   }
   const evidence=Array.isArray(live.connectionEvidence)?live.connectionEvidence:[];
@@ -47,7 +49,7 @@ export async function connectionState(host,{dir,userHome,codexHome,root,live={},
     ...(readiness?[{id:'approval',state:readiness.stages.tool_approval.status==='passed'?'complete':readiness.stages.tool_approval.status==='blocked'?'blocked':'unknown'}]:[]),
     {id:'call',state:hostVerified?'complete':'pending'}
   ];
-  return {host,installed,managed,enabled,configurationMatches,steps,hostVerified,nativePlugin,...(nativePlugin?{hookMode,hookTrust:hookMode==='light'?'not_required':'not_observed'}:{}),
+  return {host,installed,managed,enabled,configurationMatches,steps,hostVerified,nativePlugin,runtimeMode,...(nativePlugin?{hookMode,hookTrust:hookMode==='light'?'not_required':'not_observed'}:{}),
     ...(readiness?{readiness}:{}),
     attribution:hostVerified?'installation_token':'none',hostIdentity:'caller_declared',version:null,
     verifiedAt:proof?.lastSuccessAt??null,lastTool:proof?.lastTool??null,
