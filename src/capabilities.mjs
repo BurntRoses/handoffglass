@@ -6,14 +6,15 @@
 import { VISUAL_CAPABILITIES } from './visual/catalog.mjs';
 export const CAPABILITY_MANIFEST = Object.freeze({
   schemaVersion: 1,
-  version: 7,
+  version: 8,
   visuals: VISUAL_CAPABILITIES,
   workflow: Object.freeze(['host_observe', 'present', 'wait', 'host_verify']),
   responsibilities: {host:['authorized observation','target semantics','independent verification'],plugin:['DIP mapping','rendering','animation','local events','owned lifecycle'],nativeLookup:'optional full profile; never a prerequisite for rendering'},
-  lifecycle: Object.freeze(['integration_status', 'integration_cleanup', 'integration_set_enabled', 'integration_uninstall', 'permission_status']),
+  lifecycle: Object.freeze(['integration_status','integration_install', 'integration_cleanup', 'integration_set_enabled', 'integration_uninstall', 'permission_status']),
   hosts: Object.freeze([
     { id: 'codex', transport: 'local stdio', setup: 'native plugin (MCP + Skills; optional reviewed Hooks); standalone config.toml + Skill is an alternative', cleanup: 'integration_cleanup' },
-    { id: 'workbuddy', transport: 'local stdio connector', setup: 'one MCP server + Skill; trust and enable in WorkBuddy', cleanup: 'integration_cleanup' }
+    { id: 'workbuddy', transport: 'local stdio connector', setup: 'one MCP server + Skill; trust and enable in WorkBuddy', cleanup: 'integration_cleanup' },
+    ...['claude-code','deepseek','opencode','cursor','trae'].map(id=>({id,transport:['cursor','trae'].includes(id)?'local stdio':'native local plugin',setup:'integration_install preview then confirm; reload host and verify first call',cleanup:'integration_cleanup',endToEnd:'unverified'}))
   ]),
   target:{coordinates:'global DIP; bounds top-left; frame pixels map to one display',evidence:'bounds require observation, or frame with capturedAt/layoutSignature/provenance',maxAgeMs:30000,layoutSignature:'Reuse host-supplied layoutSignature or screen_displays metadata; never invent it',provenance:['host','native','user'],missing:'coordinate-free session_start'},
   layers:{guidance:'positions and human-controlled steps',review:'read-only summaries, hashes and trail',verification:['verified','mismatch','inconclusive'],independentSwitches:true},
@@ -33,6 +34,7 @@ export const CAPABILITY_MANIFEST = Object.freeze({
     { id: 'connection', tool: 'connection_status', phase: 'recover', when: 'Desktop or host may be unavailable.', requires: [], returns: 'broker and desktop status' },
     { id: 'permission', tool: 'permission_status', phase: 'recover', when: 'Native lookup needs consent.', requires: [], returns: 'local consent and status-only OS/helper probe' },
     { id: 'lifecycle_status', tool: 'integration_status', phase: 'manage', when: 'User asks whether an integration is installed.', requires: [], returns: 'owned integration state' },
+    {id:'install',tool:'integration_install',phase:'manage',when:'User asks to connect a local host.',requires:['explicit_user_request'],returns:'preview or owned installation; reload and first call remain separate'},
     { id:'enablement',tool:'integration_set_enabled',phase:'manage',when:'User asks to pause or re-enable guidance.',requires:['explicit_user_request'],returns:'enabled + nextAction' },
     { id: 'lifecycle_cleanup', tool: 'integration_cleanup', phase: 'manage', when: 'User explicitly asks to remove an integration.', requires: ['explicit_user_request'], returns: 'dry-run plan or applied cleanup' },
     { id:'uninstall',tool:'integration_uninstall',phase:'manage',when:'User explicitly asks to remove the app and its integrations.',requires:['explicit_user_request'],returns:'owned-file preview or scheduled external cleanup and result path' }
@@ -45,7 +47,7 @@ export const CAPABILITY_MANIFEST = Object.freeze({
     {tool:'session_present',args:{sessionId:'00000000-0000-4000-8000-000000000001',title:'选择项目',message:'选择要打开的项目。',requestId:'unique-step-2'},note:'Keep the same session.id; use a new requestId for each step.'}
   ],
   recovery: {observation_required:{action:'use_coordinate_free_guidance_or_supply_host_evidence'},stale_observation:{action:'reobserve_target'},layout_changed:{action:'reobserve_display_and_target'},disabled_by_user:{action:'stop',tool:'integration_set_enabled',condition:'only if user asks to re-enable'},continuous_disabled:{action:'stop'},declined_by_user:{action:'respect_refusal',condition:'retryDeclined only after the user explicitly asks to retry'},consent_required:{action:'open_app_permission_settings'},permission_denied:{action:'open_system_accessibility_settings'},target_not_found:{action:'reobserve_target'},busy:{action:'stop'},verification_due:{action:'verify_in_original_app'},invalid_cursor:{action:'resume_from_nextCursor'},unmanaged:{action:'preserve_and_explain'}},
-  transport: {desktop:'local SSE',agent:'cursor long wait',durability:'private minimal checkpoint; restart requires session_resume and fresh observation',hostWakeup:'requires an active session_wait; cannot resume an idle model'},
+  transport: {desktop:'local SSE',agent:'cursor long wait',durability:'private minimal checkpoint; restart requires session_resume and fresh observation',hostWakeup:'MCP needs an active session_wait; parked never wakes. Native DeepSeek/OpenCode can queue decision events for their bound attached session; Codex/Claude Hooks cannot create an idle turn'},
   invariants: [
     'Never guess coordinates or click on behalf of the user.',
     'A user completion report is not verification.',

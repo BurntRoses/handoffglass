@@ -11,11 +11,11 @@ export function upgradeChoices(root=document){
     const group=document.createElement('div');group.className=select.id==='host'?'choice-group host-choices':select.id==='visualStyle'?'choice-group style-choices':'choice-group segments';
     group.setAttribute('role','radiogroup');
     const buttons=[];
-    let more;
+    let more,others;
     if(select.id==='host'){
       more=document.createElement('details');more.className='other-hosts';
       const summary=document.createElement('summary');more.append(summary);
-      const others=document.createElement('div');others.className='other-host-grid';more.append(others);group.append(more);
+      others=document.createElement('div');others.className='other-host-grid';more.append(others);group.append(more);
     }
     for(const option of select.options){
       const button=document.createElement('button');button.type='button';button.className='ui-button choice';button.dataset.value=option.value;button.setAttribute('role','radio');
@@ -27,7 +27,7 @@ export function upgradeChoices(root=document){
         const icon=document.createElement('span');icon.className='host-icon';const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','22');svg.setAttribute('height','22');const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',option.value==='codex'?'m6 7 5 5-5 5m7 0h5':'M7 8a4 4 0 0 1 8 0v1m-8 2v-3m10 8a4 4 0 0 1-8 0v-1m8-2v3M5 12h14');path.setAttribute('fill','none');path.setAttribute('stroke','currentColor');path.setAttribute('stroke-width','1.6');path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');svg.append(path);icon.append(svg);icon.setAttribute('aria-hidden','true');button.append(icon);
       }
       const label=document.createElement('span');label.className='choice-label';button.append(label);
-      if(more && !['codex','workbuddy'].includes(option.value))more.lastChild.append(button);else group.insertBefore(button,more||null);
+      if(more && !['codex','workbuddy'].includes(option.value))others.append(button);else group.insertBefore(button,more||null);
       button.addEventListener('click',()=>{select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));sync();});
       buttons.push(button);
     }
@@ -37,7 +37,7 @@ export function upgradeChoices(root=document){
         const option=[...select.options].find(o=>o.value===button.dataset.value),selected=select.value===option.value;
         button.querySelector('.choice-label').textContent=option.textContent;
         button.disabled=select.disabled||option.disabled;button.setAttribute('aria-checked',String(selected));button.tabIndex=selected&&!button.disabled?0:-1;
-        if(selected && button.parentElement===more?.lastChild)more.open=true;
+        if(selected && button.parentElement===others)more.open=true;
       }
       if(!buttons.some(button=>button.tabIndex===0)) {
         const first=buttons.find(button=>!button.disabled);if(first)first.tabIndex=0;

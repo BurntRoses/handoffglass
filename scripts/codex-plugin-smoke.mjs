@@ -46,7 +46,7 @@ try{
   const status=await request('mcpServerStatus/list',{threadId});
   const server=status.data.find(s=>s.name.includes('handoffglass'));
   assert.ok(server,JSON.stringify(status));
-  assert.equal(Object.keys(server.tools).length,18,JSON.stringify({server,stderr}));
+  assert.equal(Object.keys(server.tools).length,19,JSON.stringify({server,stderr}));
   const response=await request('mcpServer/tool/call',{threadId,server:server.name,tool:'screen_displays',arguments:{}});
   assert.notEqual(response.isError,true,JSON.stringify(response));
   const value=response.structuredContent||JSON.parse(response.content.find(c=>c.type==='text').text);
@@ -60,7 +60,7 @@ try{
   await assert.rejects(readFile(join(options.output,'handoffglass-build.json')),{code:'ENOENT'});
   const again=await cleanupIntegration('codex',{...options,confirm:true});assert.equal(again.applied,false);
   assert.match(await readFile(join(options.codexHome,'config.toml'),'utf8'),/model_reasoning_effort\s*=\s*"low"/);
-  console.log(JSON.stringify({nativePlugin:'loaded',hooks:own.map(h=>({event:h.eventName,trust:h.trustStatus})),skills:skillNames.filter(n=>n.includes('handoff')),server:server.name,toolCount:18,firstCall:'screen_displays',headless:true,cleanup:'passed',modelCalls:0},null,2));
+  console.log(JSON.stringify({nativePlugin:'loaded',hooks:own.map(h=>({event:h.eventName,trust:h.trustStatus})),skills:skillNames.filter(n=>n.includes('handoff')),server:server.name,toolCount:19,firstCall:'screen_displays',headless:true,cleanup:'passed',modelCalls:0},null,2));
 }finally{
   if(child){child.stdin.end();child.kill();}
   const live=await readManifest(options.dir);

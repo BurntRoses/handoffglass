@@ -12,9 +12,10 @@ import { checkLocalMcp } from '../local/mcp-probe.mjs';
 import { makeSupportReport } from '../local/support-report.mjs';
 import { inspectLayout } from '../native/calibration.mjs';
 import metadata from '../../package.json' with { type: 'json' };
-import { integrationStatus, cleanupIntegration, lifecycleGuide, uninstallApplication } from '../integration-lifecycle.mjs';
+import { integrationStatus, cleanupIntegration, lifecycleGuide, uninstallApplication,INTEGRATION_HOSTS,setIntegrationEnabled } from '../integration-lifecycle.mjs';
 import { connectionState } from '../connection-state.mjs';
 import { nativePermissionStatus } from '../native/locator.mjs';
+import {formatHostLauncher} from './host-connections.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(here, '../..');
 const HOSTS_SET = new Set(Object.keys(HOSTS));
@@ -39,7 +40,7 @@ export async function showControlCenter() {
 export function registerCenterIPC({getDiagnostics,getDisplayInfo,identifyDisplays,runTrial,showCurrent,drawMark}) {
   if (typeof getDiagnostics !== 'function' || typeof getDisplayInfo !== 'function') throw new TypeError('Diagnostics and display providers are required');
   ipcMain.handle('hg:center:connection',async(event,host)=>{
-    if(!authorized(event)||!['codex','workbuddy'].includes(host))return {ok:false,code:'unsupported_host'};
+    if(!authorized(event)||!INTEGRATION_HOSTS.includes(host))return {ok:false,code:'unsupported_host'};
     try{return {ok:true,...await connectionState(host,{root:projectRoot,userHome:app.getPath('home'),live:await getDiagnostics()})};}
     catch{return {ok:false,code:'connection_state_unavailable'};}
   });
@@ -93,10 +94,20 @@ export function registerCenterIPC({getDiagnostics,getDisplayInfo,identifyDisplay
       app.emit('hg:preferences-changed');return {ok:true,enabled};
     }catch{return {ok:false,code:'update_failed'};}
   });
+  ipcMain.handle('hg:center:host-enabled',async(event,host,enabled)=>{
+    if(!authorized(event)||!INTEGRATION_HOSTS.includes(host)||typeof enabled!=='boolean')return {ok:false,code:'invalid_request'};
+    try{return {ok:true,...await setIntegrationEnabled(enabled,{host,root:projectRoot,userHome:app.getPath('home'),home:app.getPath('home')})};}
+    catch(error){return {ok:false,code:error.code||'update_failed'};}
+  });
   ipcMain.handle('hg:center:copy',async(event,host)=>{
     if(!authorized(event)||typeof host!=='string'||!HOSTS_SET.has(host))return {ok:false,error:'Unknown host'};
     try {clipboard.writeText(connection(host));return {ok:true};}
     catch {return {ok:false,error:'Cannot generate this host configuration'};}
+  });
+  ipcMain.handle('hg:center:copy-launcher',async(event,host)=>{
+    if(!authorized(event)||host!=='deepseek')return {ok:false,code:'unsupported_host'};
+    try{const command=formatHostLauncher(await connectionState(host,{root:projectRoot,userHome:app.getPath('home')}),process.platform);if(!command)return {ok:false,code:'not_prepared'};clipboard.writeText(command);return {ok:true};}
+    catch{return {ok:false,code:'not_prepared'};}
   });
   ipcMain.handle('hg:center:connect',async(event,host='codex')=>{
     if(!authorized(event))return {ok:false,code:'unauthorized'};

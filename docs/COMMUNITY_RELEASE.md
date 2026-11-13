@@ -1,13 +1,29 @@
 # Community builds and release checks
 
-HandoffGlass is an engineering preview. A passing build proves neither host acceptance nor a signed, supported installer. Current release evidence is recorded in [release-status.json](release-status.json); the remaining work is listed by `npm run release:check`.
+HandoffGlass is a plugin-first engineering preview. A plugin includes the local drawing runtime and does not require a separately installed App. A passing build proves neither host acceptance nor a signed, supported desktop installer. Platform evidence is recorded in [release-status.json](release-status.json), and individual host tasks in [host-evidence.json](host-evidence.json).
+
+## Prepare the plugin trial
+
+With dependencies installed, run the source and isolated protocol checks in one command:
+
+```sh
+npm run test:preacceptance
+```
+
+This does not install a host, open the desktop or call a model. It includes syntax/repository checks, unit tests, the full and host MCP profiles, connection checks, extras/legacy compatibility and the plugin preview gate. Graphical regressions are separate: `npm run test:release-ui` and `npm run test:plugin-runtime` open an isolated Electron runtime.
+
+```sh
+npm run release:check:plugin
+```
+
+The plugin gate reports `delivery:plugin` and `signingRequired:false`. Signing a separate desktop App is not a prerequisite for this route. A supported public plugin release still needs the relevant Windows, physical multi-display and seven-host task evidence; preview checks report those pending items without claiming acceptance. Use `npm run release:check:plugin -- --public` to enforce that gate. See [host setup](HARNESS_PLUGINS.md) and [acceptance steps](HOST_EVIDENCE.md#开始实机验收).
 
 ## What is available
 
-- Source installation requires Node.js 22+, npm, Git and local macOS/Windows. The installation directory must remain in place while a host configuration points to it.
+- Source setup requires Node.js 22+, npm, Git and local macOS/Windows. Managed plugins copy their own runtime; source-based standalone MCP entries still require their installation directory to remain in place. Each plugin runtime is generated for its platform and architecture.
 - CI builds unsigned macOS Apple silicon, macOS Intel and Windows x64 previews. Availability depends on the corresponding workflow passing. Linux desktop, Windows ARM and remote display bridging are not release targets.
 - No npm package, WorkBuddy marketplace listing or automatic updater is published by this workflow. A generated WorkBuddy connector contains local executable paths and is only for the machine that generated it.
-- Codex configuration/Skill cleanup and generated WorkBuddy bundle cleanup have installation records. Other generated host configurations require manual removal of their own HandoffGlass entry. They do not have automatic cleanup support.
+- Receipt-based install, enable/disable and cleanup cover Codex, Claude Code, DeepSeek Harness, WorkBuddy's local bundle, Cursor, Trae and OpenCode. WorkBuddy's imported connector remains a host-side action. Other generated host templates and manually installed rules require their own removal procedure.
 
 ## Build a preview
 
@@ -46,7 +62,7 @@ For source installation, follow [Agent installation](INSTALL_AGENT.md). That pat
 
 For an app preview, extract the ZIP into a stable application directory on macOS, or choose the Windows installer/portable executable. Keep the executable in place after connecting a host: MCP entries reference its absolute path. Version 0.18 records a verified desktop application's owned files for the in-app full removal flow. Windows NSIS separately removes installed application files and preserves user data and external host configurations. OS security prompts for unsigned builds remain in force. Do not instruct users to bypass their device's security policy.
 
-There is no automatic update. Finish or cancel active guidance and exit the old application before replacing it. For source updates, record the current commit, verify a clean working tree and the expected origin, fast-forward, run `npm ci --omit=dev --include=optional`, and rerun the local preflight. Keep user modifications. Reconnect Codex with `--replace` only when the previous managed content is unchanged; regenerate the local WorkBuddy bundle and reimport it in WorkBuddy. Reload the host, then make an actual read-only tool call. Preflight alone does not prove the host loaded the update.
+There is no automatic update. Finish or cancel active guidance and exit the old application before replacing it. For source updates, record the current commit, verify a clean working tree and the expected origin, fast-forward, run `npm ci --omit=dev --include=optional`, and rerun the local preflight. Keep user modifications. Refresh a managed plugin by rerunning its installation command; the installer checks the prior receipt before replacing its files. For an explicitly chosen standalone Codex MCP, use `--replace` only when its previous managed content is unchanged. Regenerate the WorkBuddy bundle and reimport it in WorkBuddy. Reload the host, then make an actual read-only tool call. Preflight alone does not prove the host loaded the update.
 
 If an upgrade fails, stop before reporting success. Restore the recorded source commit with the user's changes preserved and reinstall its lockfile dependencies, or replace the application with the previous preview at the same stable path. Reload the host. Do not delete the prior installation record to force an upgrade over modified configuration or Skills.
 

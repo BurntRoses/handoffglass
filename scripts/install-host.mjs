@@ -6,6 +6,7 @@ import { readFile, mkdir, lstat, writeFile, rename, rm } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto';
 import { mergeHostJson } from '../src/host-install.mjs';
 import { installCodex } from '../src/codex-install.mjs';
+import {HARNESS_HOSTS,installHarness} from '../src/harness-installation.mjs';
 
 const args = process.argv.slice(2);
 const host = args.find(x => !x.startsWith('--'));
@@ -34,11 +35,15 @@ function destination() {
 }
 if (!host || args.some(x => x.startsWith('--') && !['--apply','--replace','--compact','--workspace'].includes(x)) ||
     (workAt !== -1 && (!args[workAt+1] || args[workAt+1].startsWith('--')))) {
-  console.error('Usage: node scripts/install-host.mjs <codex|cursor|cline|windsurf|gemini|copilot|zed|vscode|claude> [--workspace PATH] [--compact] [--apply] [--replace]');
+  console.error('Usage: node scripts/install-host.mjs <codex|claude-code|deepseek|opencode|cursor|trae|cline|windsurf|gemini|copilot|zed|vscode|claude> [--workspace PATH] [--compact] [--apply] [--replace]');
   process.exit(2);
 }
 let tmp;
 try {
+  if(HARNESS_HOSTS.includes(host)){
+    const result=await installHarness(host,{confirm:apply,...(workAt>=0?{workspace}:{})});
+    console.log(JSON.stringify(result,null,2));process.exit(0);
+  }
   if (host === 'codex') {
     const result=await installCodex({apply,replace,configOptions:{compact}});
     console.log(`${apply ? 'Updated' : 'DRY RUN — would update'} ${result.configPath}`);

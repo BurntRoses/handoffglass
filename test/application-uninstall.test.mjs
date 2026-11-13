@@ -11,6 +11,7 @@ import {spawn,execFile} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {promisify} from 'node:util';
 import {readManifest,probe} from '../src/runtime.mjs';
+import {installHarness} from '../src/harness-installation.mjs';
 const isolated=async run=>{const userHome=await mkdtemp(join(tmpdir(),'hg-uninstall-'));try{await run({userHome,dir:join(userHome,'.handoffglass'),codexHome:join(userHome,'.codex'),root:join(userHome,'source'),platform:'darwin'});}finally{await rm(userHome,{recursive:true,force:true});}};
 async function workerResult(applied){
  let raw='',error='';
@@ -90,6 +91,25 @@ test('external removal finishes after the calling process has exited',()=>isolat
  `],{timeout:15000});
  const applied=JSON.parse(stdout),result=await workerResult(applied);
  assert.equal(result.complete,true,JSON.stringify(result));
+ await assert.rejects(readdir(options.dir),{code:'ENOENT'});
+ await rm(dirname(applied.resultPath),{recursive:true,force:true,maxRetries:12,retryDelay:150});
+}));
+
+test('a running plugin can uninstall itself and keeps its runtime until process exit',()=>isolated(async options=>{
+ await registerApplicationInstallation(options);
+ const installed=await installHarness('cursor',{...options,home:options.userHome,root:fileURLToPath(new URL('../',import.meta.url)),confirm:true,desktopRuntime:false});
+ const source=join(installed.output,'runtime/src/integration-lifecycle.mjs');
+ const {stdout}=await promisify(execFile)(process.execPath,['--input-type=module','-e',`
+  const {access}=await import('node:fs/promises');
+  const {uninstallApplication}=await import(${JSON.stringify(pathToFileURL(source).href)});
+  const options=${JSON.stringify({...options,home:options.userHome,root:join(installed.output,'runtime')})};
+  const result=await uninstallApplication({...options,confirm:true});
+  await access(${JSON.stringify(source)});
+  console.log(JSON.stringify({...result,sourceExistsBeforeExit:true}));
+ `],{timeout:20000});
+ const applied=JSON.parse(stdout);assert.equal(applied.sourceExistsBeforeExit,true);assert.equal(applied.scheduled,true);
+ const result=await workerResult(applied);assert.equal(result.complete,true,JSON.stringify(result));
+ await assert.rejects(readFile(source),{code:'ENOENT'});
  await assert.rejects(readdir(options.dir),{code:'ENOENT'});
  await rm(dirname(applied.resultPath),{recursive:true,force:true,maxRetries:12,retryDelay:150});
 }));

@@ -17,7 +17,8 @@ import { quickMarkRequest, drawingScene } from './visual/quick-mark.mjs';
 import { continuationFor } from './output.mjs';
 import { TERMINAL_STATES } from './core.mjs';
 import { startDesktopTrial } from './local/desktop-trial.mjs';
-import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled, uninstallApplication } from './integration-lifecycle.mjs';
+import { integrationStatus, cleanupIntegration, lifecycleGuide, setIntegrationEnabled, uninstallApplication, installIntegration } from './integration-lifecycle.mjs';
+import {connectionState} from './connection-state.mjs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -214,7 +215,7 @@ export class LocalBridge {
       '/agent/review':'POST','/desktop/review-decision':'POST','/desktop/review-export':'POST','/desktop/mark':'POST', '/agent/mark':'POST', '/desktop/preferences':'POST', '/desktop/stream':'GET', '/desktop/control':'POST', '/desktop/permissions':'GET', '/desktop/trial':'POST', '/desktop/shutdown':'POST',
       '/agent/displays': 'GET', '/agent/inspect': 'GET', '/agent/show': 'POST', '/agent/status': 'GET',
       '/agent/wait': 'GET', '/agent/events': 'GET', '/agent/cancel': 'POST', '/agent/context': 'GET', '/agent/capabilities': 'GET',
-      '/agent/connection': 'GET', '/agent/permissions': 'GET', '/agent/integration-status': 'GET', '/agent/integration-cleanup': 'POST', '/agent/integration-enabled':'POST',
+      '/agent/connection': 'GET', '/agent/permissions': 'GET', '/agent/integration-status': 'GET', '/agent/integration-cleanup': 'POST', '/agent/integration-enabled':'POST', '/agent/integration-install':'POST',
       '/agent/plugin-hook':'POST', '/agent/integration-uninstall':'POST', '/agent/resume':'POST','/agent/control':'POST','/agent/verify': 'POST', '/agent/blueprint': 'POST', '/agent/scene': 'POST', '/agent/locate': 'POST' };
     if (Object.hasOwn(routes, pathname) && routes[pathname] !== req.method) {
       return sendJson(res, 405, { error: 'Method not allowed' });
@@ -410,7 +411,9 @@ export class LocalBridge {
       }
       if (req.method === 'GET' && pathname === '/agent/connection') {
         const preferences = await loadPreferences();
-        return sendJson(res, 200, { broker: 'running', desktop: this.connected || this.headless ? 'ready' : 'offline', enabled: preferences.enabled, continuous: preferences.continuous, host: req.headers['x-handoffglass-host'] || 'unidentified' });
+        const host=parsed.searchParams.get('host');
+        const installation=host?await connectionState(host,{root:PROJECT_ROOT,live:{connectionEvidence:[...this.connectionEvidence.values()]}}):undefined;
+        return sendJson(res, 200, { broker: 'running', desktop: this.connected || this.headless ? 'ready' : 'offline', enabled: preferences.enabled, continuous: preferences.continuous, host: req.headers['x-handoffglass-host'] || 'unidentified',...(installation?{installation}:{}) });
       }
       if (req.method === 'GET' && pathname === '/agent/permissions') {
         const preferences = await loadPreferences();
@@ -418,10 +421,17 @@ export class LocalBridge {
       }
       if (req.method === 'POST' && pathname === '/agent/integration-enabled') {
         const body=await readJson(req);
-        const result=await setIntegrationEnabled(body.enabled);
+        const result=await setIntegrationEnabled(body.enabled,{host:body.host});
+        if(body.host)return sendJson(res,200,result);
         this.presentation.configure(await loadPreferences());this.#publish();
         if(!result.enabled){this.anchors.clear();this.manager.stopActive();}
         return sendJson(res,200,result);
+      }
+      if(req.method==='POST'&&pathname==='/agent/integration-install'){
+        const body=await readJson(req);
+        if(typeof body.host!=='string'||typeof body.confirm!=='boolean')return sendJson(res,400,{error:'host and confirm are required'});
+        try{return sendJson(res,200,{result:await installIntegration(body.host,{confirm:body.confirm,root:PROJECT_ROOT})});}
+        catch(error){return sendJson(res,400,{error:error.message,code:error.code||'install_refused',nextAction:error.nextAction||'review_installation'});}
       }
       if (req.method === 'GET' && pathname === '/agent/integration-status') {
         const host = parsed.searchParams.get('host') || 'codex';

@@ -1,7 +1,7 @@
 /** Shared, factual connection progress. Unknown host states stay unknown. */
 const LABELS={
- 'zh-CN':{detect:'检测环境',write:'写入配置与技能',trust:'信任并启用',reload:'重新加载应用',tools:'工具可见',call:'首次调用',complete:'已完成',pending:'待完成',unknown:'待确认',blocked:'需处理'},
- 'en-US':{detect:'Environment',write:'Configuration and Skill',trust:'Trust and enable',reload:'Reload the app',tools:'Tools available',call:'First real call',complete:'Complete',pending:'Pending',unknown:'Not confirmed',blocked:'Needs attention'}
+ 'zh-CN':{detect:'检测环境',write:'写入配置与技能',trust:'信任并启用',reload:'重新加载应用',tools:'工具可见',approval:'绘制调用授权',call:'首次调用',complete:'已完成',pending:'待完成',unknown:'待确认',blocked:'需处理'},
+ 'en-US':{detect:'Environment',write:'Configuration and Skill',trust:'Trust and enable',reload:'Reload the app',tools:'Tools available',approval:'Drawing authorization',call:'First real call',complete:'Complete',pending:'Pending',unknown:'Not confirmed',blocked:'Needs attention'}
 };
 export function renderConnectionSteps(node,result,locale='zh-CN'){
  const labels=LABELS[locale]||LABELS['en-US'];node.replaceChildren();

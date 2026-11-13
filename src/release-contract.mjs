@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { lstat, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import {HARNESS_ORDER} from './hosts/adapter.mjs';
 
 export const PREVIEW_TARGETS = Object.freeze(['darwin-arm64', 'darwin-x64', 'win32-x64']);
 export function releaseTarget(platform = process.platform, arch = process.arch) {
@@ -50,13 +51,23 @@ export async function packagedRuntime(dist, { platform = process.platform, arch 
   if (found.length !== 1) throw new Error(`Expected one packaged ${platform}-${arch} runtime; found ${found.length}`);
   return found[0];
 }
-export function assessPublicRelease({ license, licenseText = '', evidence = {} }) {
+export function assessPublicRelease({ license, licenseText = '', evidence = {}, delivery = 'desktop', hostEvidence = {} }) {
+  if (!['desktop', 'plugin'].includes(delivery)) throw new TypeError('Unknown release delivery');
   const blockers = [];
   if (!license || license === 'UNLICENSED' || !licenseText.trim()) blockers.push('distribution_license');
   // Each item needs recorded acceptance, rather than inference from a successful build.
-  for (const id of ['macosSigning', 'windowsSigning', 'windowsDesktop', 'multiDisplay', 'codexHost', 'workbuddyHost']) {
+  const required=delivery==='desktop'
+    ?['macosSigning', 'windowsSigning', 'windowsDesktop', 'multiDisplay', 'codexHost', 'workbuddyHost']
+    :['windowsDesktop', 'multiDisplay'];
+  for (const id of required) {
     const item = evidence[id];
     if (item?.status !== 'verified' || !item.record) blockers.push(id);
+  }
+  // Local plugin distribution does not require our own signed App installer.
+  // Its host acceptance must still cover every integration we advertise.
+  if(delivery==='plugin')for(const host of HARNESS_ORDER){
+    const item=hostEvidence[host];
+    if(item?.status!=='verified'||typeof item.record!=='string'||!item.record.trim())blockers.push(`host:${host}`);
   }
   return { publicReady: blockers.length === 0, blockers };
 }

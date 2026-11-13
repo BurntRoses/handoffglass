@@ -1,4 +1,5 @@
 import {renderConnectionSteps,permissionLabel} from './connection-view.mjs';
+import {MANAGED_HOSTS,connectionHint,connectionFailure,formatHostLauncher} from './host-connections.mjs';
 import {upgradeChoices,syncChoices} from './choice-controls.mjs';
 'use strict';
 upgradeChoices();
@@ -104,15 +105,16 @@ Object.assign(translations['zh-CN'],{appearance:'权限与外观',visual:'权限
 Object.assign(translations['en-US'],{appearance:'Access and appearance',visual:'Access and appearance',ready:'Readiness',checkPermission:'Check access',permissionFallback:'The host reads the interface. Screen drawing does not need native lookup.',appearanceOptions:'Adjust appearance',defer:'Connect later',checkLoaded:'Check loaded tools',hostReady:'A real call from this installation was received.',hostPending:'Waiting for a host call. Connection is not verified.',reloadHint:'Configuration written. Restart or reload Codex, then ask “Check the HandoffGlass connection” in your chat.',done:'Settings saved',doneDesc:'Connection is still pending. Return to your host to load the tools and make the first call.',readyDone:'Ready to use',readyDesc:'Return to your connected app and describe the task.'});
 const $=id=>document.getElementById(id);
 const safeLocale=value=>Object.hasOwn(translations,value)?value:'en-US';
-let locale='zh-CN',step=0,platform='',statusReady=false,previewSerial=0,connectBusy=false;const connectResults={};
+let locale='zh-CN',step=0,platform='',statusReady=false,previewSerial=0,connectBusy=false,connectionPreviewReady=false;const connectResults={},connectionErrors={};
 const feedback=$('feedback');const connectionStates={};let lastPermission=null,deferred=false;
+function setConnectionBusy(value){connectBusy=value;$('host').disabled=value;$('copy').disabled=value||!connectionPreviewReady;$('defer').disabled=value;$('back').disabled=value||step===0;$('next').disabled=value||step===0&&!connectionStates[$('host').value]?.hostVerified;document.querySelector('[data-screen="0"]').setAttribute('aria-busy',String(value));syncChoices();connectionLabels();}
 function t(key){return translations[locale]?.[key] || translations['en-US'][key] || key;}
 function report(message,isError=false){feedback.textContent=message;feedback.classList.toggle('is-error',isError);}
 function translate(){syncChoices();
   document.documentElement.lang=locale;
   document.querySelectorAll('[data-t]').forEach(el=>{el.textContent=t(el.dataset.t)});
   $('next').querySelector('span').textContent=t(step===2?'finish':'next');
-  $('next').disabled=step===0&&!connectionStates[$('host').value]?.hostVerified;
+  $('next').disabled=connectBusy||step===0&&!connectionStates[$('host').value]?.hostVerified;
   $('defer').hidden=step!==0;
   document.querySelectorAll('[data-o]').forEach(el=>el.textContent=t(el.dataset.o));
   $('permission').hidden=platform!=='darwin';
@@ -121,35 +123,39 @@ function translate(){syncChoices();
   $('readyHeading').textContent=t(verified?'readyDone':'done');$('finishDescription').textContent=t(verified?'readyDesc':'doneDesc');$('finishConnection').textContent=t(verified?'hostReady':'hostPending');document.querySelector('.finish-icon').dataset.verified=String(verified);
 }
 function connectionLabels(){const host=$('host').value,codex=host==='codex',workbuddy=host==='workbuddy',state=connectionStates[host];
- $('copy').textContent=t(connectBusy?'connecting':state?.installed?'checkLoaded':codex?'connect':workbuddy?'prepareConnector':'copy');
+ $('copy').textContent=t(connectBusy?'connecting':state?.installed?'checkLoaded':workbuddy?'prepareConnector':MANAGED_HOSTS.includes(host)?'connect':'copy');
  document.querySelector('[data-t="hostNote"]').textContent=state?.nextAction==='review_hooks'?(locale==='zh-CN'?'工具已连接。如尚未审核，请到 Codex 的设置 → Hooks 检查 HandoffGlass 脚本。':'Tools are connected. If not reviewed yet, check HandoffGlass scripts in Codex Settings → Hooks.'):state?.hostVerified?t('hostReady'):state?.installed?t(workbuddy?'workbuddyPrepared':'reloadHint'):connectResults[host]?t(connectResults[host]):codex?'':t(workbuddy?'workbuddyConnectHint':'hostNote');
  $('revealConnector').hidden=!(workbuddy&&(state?.installed||connectResults[host]==='workbuddyPrepared'));
+ if(!codex&&!workbuddy&&state)document.querySelector('[data-t="hostNote"]').textContent=connectionHint(state,locale)||t('hostNote');
+ const command=formatHostLauncher(state,platform);$('hostLaunch').hidden=!command;$('launcherCommand').textContent=command;$('launcherLabel').textContent=locale==='zh-CN'?'在 DeepSeek Harness 目录运行：':'Run from the DeepSeek Harness directory:';$('copyLauncher').textContent=locale==='zh-CN'?'复制启动命令':'Copy launch command';
 }
-function renderConnection(){const state=connectionStates[$('host').value];renderConnectionSteps($('connectionSteps'),state,locale);$('connectionEvidence').textContent=state?t(state.hostVerified?'hostReady':'hostPending'):'';}
-async function refreshConnection(){const host=$('host').value;if(!['codex','workbuddy'].includes(host)){renderConnection();return;}
- try{const result=await window.hgSetup.connection(host);if(result?.ok)connectionStates[host]=result.status||result;}catch{report(t('error'),true);}translate();
+function renderConnection(){const state=connectionStates[$('host').value];renderConnectionSteps($('connectionSteps'),state,locale);$('connectionEvidence').textContent=connectionErrors[$('host').value]?connectionFailure(connectionErrors[$('host').value],locale):state?t(state.hostVerified?'hostReady':'hostPending'):'';}
+async function refreshConnection(){const host=$('host').value;if(!MANAGED_HOSTS.includes(host)){renderConnection();return;}
+ try{const result=await window.hgSetup.connection(host);if(result?.ok)connectionStates[host]=result.status||result;else connectionErrors[host]=result?.code||'connection_state_unavailable';}catch{connectionErrors[host]='connection_state_unavailable';}if(host===$('host').value)translate();
 }
 function renderPermission(){$('permissionStatus').textContent=permissionLabel(lastPermission,locale);}
 async function refreshPermission(){try{const result=await window.hgSetup.permissionStatus();lastPermission=result?.status||result;}catch{lastPermission=null;}renderPermission();}
 function showStep(index){step=Math.max(0,Math.min(2,index));document.querySelectorAll('[data-screen]').forEach(el=>{el.hidden=Number(el.dataset.screen)!==step});document.querySelectorAll('[data-step]').forEach(el=>{const position=Number(el.dataset.step);el.classList.toggle('is-active',position===step);el.classList.toggle('is-done',position<step);position===step?el.setAttribute('aria-current','step'):el.removeAttribute('aria-current')});$('back').disabled=step===0;report('');translate();}
 function applyTheme(value){document.documentElement.dataset.theme=value==='light'?'light':value==='dark'?'dark':'system';}
 async function updatePreview(){
- const serial=++previewSerial;const host=$('host').value;connectionLabels();$('format').textContent=host==='codex'?'TOML':'JSON';$('configPreview').textContent=t('loading');
- try{const response=await window.hgSetup.preview(host);if(serial!==previewSerial)return;$('configPreview').textContent=response?.ok?response.content:t('configUnavailable');$('copy').disabled=!response?.ok;}
+ const serial=++previewSerial;const host=$('host').value;connectionPreviewReady=false;$('copy').disabled=true;connectionLabels();$('format').textContent=host==='codex'?'TOML':'JSON';$('configPreview').textContent=t('loading');
+ try{const response=await window.hgSetup.preview(host);if(serial!==previewSerial)return;$('configPreview').textContent=response?.ok?response.content:t('configUnavailable');connectionPreviewReady=!!response?.ok;$('copy').disabled=connectBusy||!connectionPreviewReady;}
  catch{if(serial===previewSerial){$('configPreview').textContent=t('configUnavailable');$('copy').disabled=true;}}
 }
-$('host').addEventListener('change',()=>{void updatePreview();void refreshConnection();});
+$('host').addEventListener('change',()=>{report('');translate();void updatePreview();void refreshConnection();});
 $('copy').addEventListener('click',async()=>{
  const host=$('host').value;
- if(['codex','workbuddy'].includes(host)){
-  if(connectionStates[host]?.installed){await refreshConnection();return;}
-  if(connectBusy)return;connectBusy=true;$('copy').disabled=true;connectionLabels();
-  try{const result=await window.hgSetup.connect(host);connectResults[host]=result?.ok?(host==='codex'?'connectedRestart':'workbuddyPrepared'):(host==='codex'?'connectFailed':'workbuddyFailed');}catch{connectResults[host]=host==='codex'?'connectFailed':'workbuddyFailed';}
-  finally{connectBusy=false;$('copy').disabled=false;connectionLabels();await refreshConnection();}return;
+ if(MANAGED_HOSTS.includes(host)){
+  if(connectBusy)return;delete connectionErrors[host];report('');
+  if(connectionStates[host]?.installed){setConnectionBusy(true);try{await refreshConnection();}finally{setConnectionBusy(false);}return;}
+  setConnectionBusy(true);
+  try{const result=await window.hgSetup.connect(host);connectResults[host]=result?.ok?(host==='workbuddy'?'workbuddyPrepared':'connectedRestart'):'connectFailed';if(!result?.ok)connectionErrors[host]=result?.code||'install_failed';}catch{connectResults[host]='connectFailed';connectionErrors[host]='install_failed';}
+  finally{await refreshConnection();setConnectionBusy(false);}return;
  }
  try{const result=await window.hgSetup.copy($('host').value);report(result?.ok?t('copied'):t('error'),!result?.ok);}catch{report(t('error'),true);}
 });
 $('revealConnector').addEventListener('click',async()=>{try{const result=await window.hgSetup.revealConnector();if(!result?.ok)report(t('error'),true);}catch{report(t('error'),true);}});
+$('copyLauncher').addEventListener('click',async()=>{const button=$('copyLauncher');try{const r=await window.hgSetup.copyLauncher($('host').value);button.textContent=t(r?.ok?'copied':'error');}catch{button.textContent=t('error');}setTimeout(connectionLabels,2200);});
 $('copyManual').addEventListener('click',async()=>{try{const result=await window.hgSetup.copy($('host').value);report(result?.ok?t('copied'):t('error'),!result?.ok);}catch{report(t('error'),true);}});
 $('permission').addEventListener('click',async()=>{try{const response=await window.hgSetup.permission();if(!response?.ok)report(t('error'),true);}catch{report(t('error'),true);}});
 $('theme').addEventListener('change',()=>applyTheme($('theme').value));

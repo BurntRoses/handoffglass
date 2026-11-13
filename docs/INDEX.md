@@ -6,9 +6,9 @@
 
 **实机记录：** [0.22 插件与分层检查](qa/2026-11-13-plugin-layers.md) · [2026-10-19 macOS 接手与验收](qa/2026-10-19-macos.md) · [2026-10-20 视觉与 Agent 试用](qa/2026-10-20-visual.md)
 
-**最新升级：** [0.22 插件运行时、三层与核验](MUSE_IMPLEMENTATION.md) · [原生宿主包](HARNESS_PLUGINS.md) · [宿主证据](HOST_EVIDENCE.md) · [0.20 屏幕标注](SCREEN_DRAWING.md) · [0.19.1 浮窗体验](qa/2026-11-12-panel.md) · [0.19 单应用与快速响应](qa/2026-11-12-runtime.md) · [0.18 连续任务、桌面工作台与完整卸载](qa/2026-11-04-upgrade.md)
+**当前交付：** [插件运行时、三层与核验](MUSE_IMPLEMENTATION.md) · [七宿主接入与管理](HARNESS_PLUGINS.md) · [验收前检查与实机步骤](HOST_EVIDENCE.md#开始实机验收) · [插件发布检查](COMMUNITY_RELEASE.md#prepare-the-plugin-trial) · [0.20 屏幕标注](SCREEN_DRAWING.md) · [0.19.1 浮窗体验](qa/2026-11-12-panel.md) · [0.19 单应用与快速响应](qa/2026-11-12-runtime.md) · [0.18 连续任务、桌面工作台与完整卸载](qa/2026-11-04-upgrade.md)
 
-**原生插件：** [跨 Harness 升级计划](NATIVE_PLUGIN_UPGRADE.md) · [Codex 本机插件试用](CODEX_PLUGIN.md)
+**原生插件：** [跨 Harness 实现与剩余验收](NATIVE_PLUGIN_UPGRADE.md) · [Codex 本机插件试用](CODEX_PLUGIN.md)
 
 | 方向 | 文档 |
 |---|---|

@@ -8,8 +8,8 @@ import { join } from 'node:path';
 import { readManifest } from '../runtime.mjs';
 
 export const REQUIRED_TOOLS = Object.freeze([
-  'screen_displays','ui_inspect','ui_locate','session_start','session_present','session_wait','session_update','session_verify','session_stop',
-  'capability_manifest','connection_status','permission_status','integration_status','integration_cleanup','integration_set_enabled'
+  'screen_mark','review_changes','screen_displays','ui_inspect','ui_locate','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control',
+  'capability_manifest','connection_status','permission_status','integration_status','integration_install','integration_cleanup','integration_set_enabled','integration_uninstall'
 ]);
 const MAX_OUTPUT = 256 * 1024;
 const nap = ms => new Promise(resolve => setTimeout(resolve,ms));
@@ -72,7 +72,7 @@ export async function checkLocalMcp({command,entry,env=process.env,timeoutMs=160
   let child,parser,phase='launch',timer;
   try {
     const childEnv={...env,HANDOFFGLASS_RUNTIME_DIR:dir,HANDOFFGLASS_HEADLESS:'1',
-      HANDOFFGLASS_EXTRAS:'0',HANDOFFGLASS_ENABLE_ACCESSIBILITY:'0'};
+      HANDOFFGLASS_EXTRAS:'0',HANDOFFGLASS_ENABLE_ACCESSIBILITY:'0',HANDOFFGLASS_TOOL_PROFILE:'full'};
     child=spawnProcess(command,[entry],{env:childEnv,stdio:['pipe','pipe','ignore'],windowsHide:true});
     parser=new RpcLines(line=>{if(!child.stdin.writable)throw Error('launch_failed');child.stdin.write(line);});
     child.stdout.on('data',data=>parser.receive(data));

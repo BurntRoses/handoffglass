@@ -4,12 +4,7 @@ Use Node.js 22+ and the committed npm lockfile. Start with [the code map](../AGE
 
 ```sh
 npm ci --omit=optional --no-audit --no-fund
-npm run handoff:check
-npm run test:integration
-npm run test:extras
-npm run test:legacy
-npm run connection:check
-npm run release:check -- --preview
+npm run test:preacceptance
 ```
 
 These checks use isolated headless runtimes. Do not point a test at a contributor's real host configuration, home directory or normal Broker. Use temporary fixtures for installation, rollback and cleanup. Preserve modified and unrecorded files. Never commit credentials, local connector bundles, personal paths or generated packages.

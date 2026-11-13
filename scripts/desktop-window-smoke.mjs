@@ -54,13 +54,19 @@ void app.whenReady().then(async () => {
       assert.equal(panel.isVisible(), false, 'Guide must not show the decision panel');
     }
     await verify();
-    // Exercise the production display rebuild path without claiming a physical
-    // multi-monitor/hotplug test on a machine with only one display attached.
+    // An unchanged layout must reuse its renderer, avoiding flicker and a new
+    // load/animation. Observe /hello to wait for the actual debounced sync.
+    // Physical layout changes and hotplug remain separate device acceptance.
     const old = overlays();
+    let displaySyncs=0;
+    const observeSync=req=>{if(req.method==='POST'&&req.url==='/hello')displaySyncs++;};
+    bridge.server.on('request',observeSync);
     screen.emit('display-metrics-changed', {}, screen.getPrimaryDisplay(), ['bounds']);
-    await until(() => old.every(w => w.isDestroyed()), 'Display change did not rebuild overlays');
+    await until(() => displaySyncs>0, 'Display metrics event did not synchronize');
+    bridge.server.off('request',observeSync);
+    assert.deepEqual(overlays().map(w=>w.id).sort(),old.map(w=>w.id).sort(),'Unchanged display layout should reuse overlays');
     await verify();
-    console.log(`PASS window geometry: ${bridge.displays.length} display(s), exact global-DIP bounds, focus retained, display rebuild`);
+    console.log(`PASS window geometry: ${bridge.displays.length} display(s), exact global-DIP bounds, focus retained, unchanged-layout reuse`);
     const { showControlCenter } = await import('../src/desktop/center.mjs');
     const center = await showControlCenter();
     // Verify the rendered readout uses the package version even when Electron

@@ -28,7 +28,7 @@ test('native hosts reuse all host-profile MCP schemas and never share ownership 
  await b.start();await writeManifest(dir,{pid:process.pid,port:b.port,token:b.agentToken});
  const tools=nativeTools('opencode',{clientFactory:()=>new BrokerClient({env:{...process.env,HANDOFFGLASS_RUNTIME_DIR:dir,HANDOFFGLASS_HOST_ID:'opencode'}})});
  try{
-  assert.deepEqual(tools.definitions.map(x=>x.name),[...toolCatalog(undefined).keys()]);assert.equal(tools.definitions.length,18);
+  assert.deepEqual(tools.definitions.map(x=>x.name),[...toolCatalog(undefined).keys()]);assert.equal(tools.definitions.length,19);
   await assert.rejects(tools.execute('session_start',{title:'a',message:'b'}),/identity/);
   const s=await tools.execute('session_start',{title:'Open settings',message:'In the original app',requestId:'native-step-1'},{identity:'chat-A'});
   assert.equal(s.session.execution,'parked');
@@ -43,6 +43,6 @@ test('native hosts reuse all host-profile MCP schemas and never share ownership 
   await assert.rejects(tools.execute('session_start',{...declinedArgs,requestId:'native-refusal-two'},{identity:'chat-A'}),e=>e.code==='declined_by_user'&&e.nextAction==='respect_refusal');
   const retried=await tools.execute('session_start',{...declinedArgs,requestId:'native-refusal-three',retryDeclined:true},{identity:'chat-A'});
   assert.equal(retried.session.status,'awaiting_user');await tools.execute('session_stop',{sessionId:retried.session.id},{identity:'chat-A'});
-  tools.close();await assert.rejects(tools.execute('screen_displays',{}, {identity:'chat-A'}),/disposed/);
+  await tools.close();await assert.rejects(tools.execute('screen_displays',{}, {identity:'chat-A'}),/disposed/);
  }finally{m.close();await b.stop();if(previous===undefined)delete process.env.HANDOFFGLASS_RUNTIME_DIR;else process.env.HANDOFFGLASS_RUNTIME_DIR=previous;await rm(dir,{recursive:true,force:true});}
 });

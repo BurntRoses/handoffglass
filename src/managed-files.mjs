@@ -1,7 +1,12 @@
 /** Fixed-path file operations with compare-before-write and rollback. */
 import { dirname, join, parse, sep, isAbsolute } from 'node:path';
-import { lstat, readFile, readlink, symlink, mkdir, writeFile, rename, rm, rmdir } from 'node:fs/promises';
+import * as filePromises from 'node:fs/promises';
+import {createRequire} from 'node:module';
 import { randomUUID, createHash } from 'node:crypto';
+// Owned paths are real files, including copied .asar archives. Electron's
+// patched fs would otherwise interpret a not-yet-written archive as a folder.
+const {lstat,readFile,readlink,symlink,mkdir,writeFile,rename,rm,rmdir}=process.versions.electron
+  ?createRequire(import.meta.url)('original-fs').promises:filePromises;
 export const digest = text => createHash('sha256').update(text).digest('hex');
 export async function assertPrivatePath(path) {
   if(!isAbsolute(path))throw new Error('Managed paths must be absolute');
@@ -53,6 +58,21 @@ export async function applyFileTransaction(changes) {
     }
     throw error;
   }
+}
+/** Full uninstall leaves loaded plugin files for the external, post-exit worker. */
+export function deferManagedRemovals(changes,entries,roots) {
+  if(!entries)return changes;
+  const immediate=[],directories=new Set();
+  for(const file of changes){
+    const boundary=roots.find(root=>root&&(file.path===root||file.path.startsWith(root+sep)));
+    if(file.next!==null||!boundary){immediate.push(file);continue;}
+    entries.push(file.kind==='symlink'?{path:file.path,kind:'link',value:file.prior}:{path:file.path,kind:'file',digest:digest(file.prior)});
+    for(let dir=dirname(file.path);dir===boundary||dir.startsWith(boundary+sep);dir=dirname(dir)){
+      directories.add(dir);if(dir===boundary)break;
+    }
+  }
+  for(const path of [...directories].sort((a,b)=>b.length-a.length))entries.push({path,kind:'directory'});
+  return immediate;
 }
 export async function removeEmptyParents(file, boundary) {
   for (let dir = dirname(file); dir !== boundary && dir.startsWith(boundary + sep); dir = dirname(dir)) {
