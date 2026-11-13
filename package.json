@@ -83,7 +83,8 @@
     "build:notices": "node scripts/build-notices.mjs",
     "uninstall:app": "node scripts/uninstall-host.mjs all",
     "plugin:harness": "node scripts/harness-plugin.mjs",
-    "test:plugin-runtime": "node scripts/plugin-runtime-smoke.mjs"
+    "test:plugin-runtime": "node scripts/plugin-runtime-smoke.mjs",
+    "test:plugin-runtime:packaged": "node scripts/plugin-runtime-smoke.mjs --packaged"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

@@ -12,6 +12,10 @@ import { runtimeDir, secureRuntimeDir, readManifest, writeManifest, writeDesktop
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = await secureRuntimeDir(runtimeDir());
+if(process.env.HANDOFFGLASS_RUNTIME_MODE==='app-linked'){
+  const linked=await installedDesktop();
+  if(linked?.nativeResourceDir)process.env.HANDOFFGLASS_NATIVE_RESOURCE_DIR=linked.nativeResourceDir;
+}
 const manager = new HandoffManager();
 const checkpoint=await attachSessionCheckpoint(manager,dir);
 let desktop = null, starting = null, ending = false;
@@ -26,6 +30,7 @@ async function launchDesktop(bridge) {
     if (!desktop || desktop.exitCode !== null || desktop.signalCode !== null) {
       bridge.lastPoll = 0; // Require a fresh /hello from the replacement renderer.
       const installed=process.env.HANDOFFGLASS_EMBEDDED_RENDERER==='1'?null:await installedDesktop();
+      if(!installed&&process.env.HANDOFFGLASS_RUNTIME_MODE==='app-linked')throw Object.assign(new Error('The linked HandoffGlass App is unavailable. Open the App and reconnect this host.'),{code:'app_runtime_unavailable'});
       let executable = installed?.executable;
       if (!executable) {
         try { executable = process.versions.electron ? process.execPath : (await import('electron')).default; }

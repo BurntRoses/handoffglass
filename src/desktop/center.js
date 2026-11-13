@@ -1,7 +1,7 @@
 'use strict';
 import { upgradeChoices, syncChoices } from './choice-controls.mjs';
 import { renderConnectionSteps, permissionLabel } from './connection-view.mjs';
-import {MANAGED_HOSTS,connectionHint,connectionFailure,formatHostLauncher} from './host-connections.mjs';
+import {MANAGED_HOSTS,connectionHint,connectionFailure,formatHostLauncher,connectionRuntimeHint} from './host-connections.mjs';
 import { createMarkPicker } from './mark-picker.mjs';
 import { renderOverlay } from './overlay-renderer.mjs';
 const lex = {
@@ -422,7 +422,7 @@ function connectionLabels(){
  const command=formatHostLauncher(state,hostPlatform);$('hostLaunch').hidden=!command;value('launcherCommand',command);value('launcherLabel',prefs?.locale==='zh-CN'?'在 DeepSeek Harness 目录运行：':'Run from the DeepSeek Harness directory:');$('copyLauncher').textContent=prefs?.locale==='zh-CN'?'复制启动命令':'Copy launch command';
  $('revealConnector').hidden=!(workbuddy&&(state?.installed||connectResults[host]==='workbuddyPrepared'));
 }
-function renderConnection(){const state=connectionStates[$('host').value];renderConnectionSteps($('connectionSteps'),state,prefs?.locale);value('connectionEvidence',connectionErrors[$('host').value]?connectionFailure(connectionErrors[$('host').value],prefs?.locale):state?translateKey(state.hostVerified?'hostReady':'hostPending'):'');connectionLabels();}
+function renderConnection(){const state=connectionStates[$('host').value];renderConnectionSteps($('connectionSteps'),state,prefs?.locale);value('connectionEvidence',connectionErrors[$('host').value]?connectionFailure(connectionErrors[$('host').value],prefs?.locale):state?[translateKey(state.hostVerified?'hostReady':'hostPending'),connectionRuntimeHint(state,prefs?.locale)].filter(Boolean).join(' '):'');connectionLabels();}
 async function refreshConnection(){const host=$('host').value;if(!MANAGED_HOSTS.includes(host)){renderConnection();return;}
  try{const r=await window.hgCenter.connection(host);if(r?.ok)connectionStates[host]=r.status||r;else connectionErrors[host]=r?.code||'connection_state_unavailable';if(host===$('host').value)renderConnection();}catch{if(host===$('host').value)value('connectionEvidence',translateKey('unavailable'));}
 }

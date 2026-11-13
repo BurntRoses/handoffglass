@@ -22,7 +22,13 @@ const script = `
    'assets/ui/tokens.css', 'assets/ui/controls.css', 'src/desktop/ui-tokens.css',
    'skills/visual-handoff/SKILL.md', 'skills/visual-handoff/references/tool-contracts.md',
    'integrations/workbuddy/connector-meta.json', 'integrations/workbuddy/icon.svg',
+   'integrations/codex-plugin/plugin.json', 'integrations/codex-plugin/skills/handoffglass-setup/SKILL.md',
+   'integrations/claude-code/plugin.json', 'integrations/deepseek-harness/src/plugin.ts', 'integrations/opencode/index.ts',
+   'scripts/claude-hook.mjs', 'scripts/remove-owned-files.mjs', 'scripts/remove-owned-files.ps1',
    'node_modules/@modelcontextprotocol/server/package.json', 'node_modules/zod/package.json', 'node_modules/smol-toml/package.json']) fs.accessSync(path.join(base,name));
+ const pluginLock = JSON.parse(fs.readFileSync(path.join(resources, 'plugin-package-lock.json'), 'utf8'));
+ if (!pluginLock.packages || typeof pluginLock.packages !== 'object' || Array.isArray(pluginLock.packages) || Object.keys(pluginLock.packages).length === 0)
+   throw new Error('Plugin runtime dependency lock is missing or empty');
  for (const name of ['THIRD_PARTY_NOTICES.txt', 'Electron-LICENSE', 'Electron-LICENSES.chromium.html'])
    if (fs.statSync(path.join(resources,'notices',name)).size === 0) throw new Error('Empty license notice');
  for (const name of ['.env', '.git', 'dist', '.tmp', 'handoffglass-install.json', 'node_modules/electron', 'node_modules/electron-builder'])

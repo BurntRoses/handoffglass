@@ -17,10 +17,13 @@ export async function planHarnessPlugin({host,output,root=rootDefault,command=pr
  if(!hosts.includes(host)||!output)throw Error('Expected a supported local harness and an output folder');
  output=resolve(output);const {path,raw,receipt}=await receiptAt(output);check(receipt,host);
  const pkg=JSON.parse(await readFile(join(root,'package.json'),'utf8')),snapshot=await pluginSnapshot(root,{desktop:desktopRuntime}),files=new Map(snapshot.files);
+ desktopRuntime=snapshot.desktop;
  files.set('skills/visual-handoff/SKILL.md',await readFile(join(root,'skills/visual-handoff/SKILL.md')));
  files.set('skills/visual-handoff/references/tool-contracts.md',await readFile(join(root,'skills/visual-handoff/references/tool-contracts.md')));
  files.set('LICENSE',await readFile(join(root,'LICENSE')));files.set('NOTICE',await readFile(join(root,'NOTICE')));
  const env={HANDOFFGLASS_HOST_ID:host,HANDOFFGLASS_OUTPUT:'compact',HANDOFFGLASS_TOOL_PROFILE:'host',...(desktopRuntime?{HANDOFFGLASS_EMBEDDED_RENDERER:'1'}:{}),...envOverrides};
+ env.HANDOFFGLASS_RUNTIME_MODE=snapshot.runtimeMode;
+ if(!desktopRuntime)delete env.HANDOFFGLASS_EMBEDDED_RENDERER;
  if(Object.entries(env).some(([key,value])=>typeof key!=='string'||typeof value!=='string'))throw Error('Plugin environment values must be strings');
  files.set('connection.json',json({env}));
  if(host==='claude-code'){
@@ -43,7 +46,7 @@ export async function planHarnessPlugin({host,output,root=rootDefault,command=pr
  }else{
   files.set('.mcp.json',json({mcpServers:{handoffglass:{command,args:[join(output,'runtime/src/mcp.mjs')],env}}}));
  }
- files.set('runtime-evidence.json',json({version:pkg.version,host,checkoutRequired:false,desktopRuntime,nodeRequired:true,platform:process.platform,arch:process.arch,endToEnd:'unverified'}));
+ files.set('runtime-evidence.json',json({version:pkg.version,host,checkoutRequired:false,desktopRuntime,runtimeMode:snapshot.runtimeMode,appRequired:snapshot.runtimeMode==='app-linked',nodeRequired:snapshot.runtimeMode!=='app-linked',platform:process.platform,arch:process.arch,endToEnd:'unverified'}));
  const changes=[];
  for(const name of new Set([...Object.keys(receipt?.files??{}),...files.keys()])){
   const file=join(output,name),kind=snapshot.links[name]||receipt?.links?.[name]?'symlink':undefined;
@@ -53,7 +56,7 @@ export async function planHarnessPlugin({host,output,root=rootDefault,command=pr
  }
  const next=json({schemaVersion:1,host,files:Object.fromEntries([...files].map(([name,data])=>[name,digest(data)])),links:snapshot.links});
  if(raw!==next)changes.push({path,prior:raw,next});
- return {host,output,version:pkg.version,checkoutRequired:false,installed:false,endToEnd:'unverified',changes};
+ return {host,output,version:pkg.version,checkoutRequired:false,desktopRuntime,runtimeMode:snapshot.runtimeMode,installed:false,endToEnd:'unverified',changes};
 }
 export async function buildHarnessPlugin(options={}){
  const {changes,...result}=await planHarnessPlugin(options);await applyFileTransaction(changes);return result;

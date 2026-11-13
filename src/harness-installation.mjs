@@ -9,6 +9,7 @@ import {planHarnessPlugin,planHarnessRemoval} from './harness-plugin.mjs';
 import {readManagedFile,applyFileTransaction,digest,removeEmptyParents,deferManagedRemovals} from './managed-files.mjs';
 import {editJsoncMember,editJsoncArrayReference,jsoncValue} from './local/jsonc-edit.mjs';
 import {runtimeDir} from './runtime.mjs';
+import {pluginRuntimeMode} from './plugin-snapshot.mjs';
 export const HARNESS_HOSTS=Object.freeze(['claude-code','deepseek','opencode','cursor','trae']);
 const run=promisify(execFile),marketplace='handoffglass-local',plugin='handoffglass@'+marketplace;
 const activeMutations=new Set();
@@ -40,7 +41,7 @@ async function targetPath(host,options,paths){
  return null;
 }
 function nextAction(host){return host==='claude-code'?'reload_claude_plugins':host==='deepseek'?'launch_deepseek_with_patch':host==='trae'?'enable_project_mcp_and_reload':'reload_host';}
-const common=(host,paths)=>({host,installationId:paths.record?.installationId??null,installed:!!paths.record,configured:!!paths.record,enabled:paths.record?.enabled??false,hostState:'not_observed',endToEnd:'unverified',reloadRequired:false,items:[],retained:[],scope:'managed_host_integration',cleanupAvailable:!!paths.record,hostAction:nextAction(host)});
+const common=(host,paths)=>({host,installationId:paths.record?.installationId??null,installed:!!paths.record,managed:!!paths.record,configured:!!paths.record,enabled:paths.record?.enabled??false,runtimeMode:paths.record?.runtimeMode??null,hostState:'not_observed',endToEnd:'unverified',reloadRequired:false,items:[],retained:[],scope:'managed_host_integration',cleanupAvailable:!!paths.record,hostAction:nextAction(host)});
 async function configEvidence(host,paths){
  const record=paths.record;if(!record)return false;
  if(host==='claude-code'){
@@ -66,8 +67,10 @@ export async function harnessStatus(host,options={}){
   nextAction:paths.record?nextAction(host):'install',...(host==='deepseek'&&paths.record?{launchCommand:paths.record.launchCommand,launchEnv:launchEnvironment(paths.record)}:{})};
 }
 function entryFor(host,paths,options,installationId){
- return {command:options.command||process.execPath,args:[join(paths.output,'runtime/src/mcp.mjs')],env:{...(options.configOptions?.envOverrides||{}),...(options.envOverrides||{}),HANDOFFGLASS_HOST_ID:host,HANDOFFGLASS_CONNECTION_ID:installationId,HANDOFFGLASS_OUTPUT:'compact',HANDOFFGLASS_TOOL_PROFILE:'host',HANDOFFGLASS_RUNTIME_DIR:paths.dir,
+ const entry={command:options.command||process.execPath,args:[join(paths.output,'runtime/src/mcp.mjs')],env:{...(options.configOptions?.envOverrides||{}),...(options.envOverrides||{}),HANDOFFGLASS_HOST_ID:host,HANDOFFGLASS_CONNECTION_ID:installationId,HANDOFFGLASS_OUTPUT:'compact',HANDOFFGLASS_TOOL_PROFILE:'host',HANDOFFGLASS_RUNTIME_DIR:paths.dir,HANDOFFGLASS_RUNTIME_MODE:options.runtimeMode,
   ...(options.desktopRuntime!==false?{HANDOFFGLASS_EMBEDDED_RENDERER:'1'}:{})}};
+ if(options.desktopRuntime===false)delete entry.env.HANDOFFGLASS_EMBEDDED_RENDERER;
+ return entry;
 }
 async function editConfig(host,paths,options,record,enabled){
  const path=await targetPath(host,options,paths);if(!path)throw Object.assign(Error('Choose the TRAE MCP configuration file or project folder'),{code:'configuration_path_required',nextAction:'open_trae_mcp_config'});
@@ -101,11 +104,13 @@ function patchContents(output,enabled){return '- insert:\n    - id: handoffglass
 function launchEnvironment(record){return record.entry?.env?.ELECTRON_RUN_AS_NODE==='1'?{ELECTRON_RUN_AS_NODE:'1'}:{};}
 function launchContents(record){return `// HandoffGlass-owned launcher. Uses the official per-run Cordis patch.\nimport {spawn} from 'node:child_process';\nconst env={...process.env};\nfor(const key of Object.keys(env))if(key.toLowerCase()==='electron_run_as_node')delete env[key];\nconst child=spawn(${JSON.stringify(record.harnessCommand)},${JSON.stringify([...record.harnessArgs,'--patch',join(record.output,'cordis.yml')])},{stdio:'inherit',shell:false,env${record.workspace?',cwd:'+JSON.stringify(record.workspace):''}});\nchild.on('error',error=>{console.error(error.message);process.exitCode=1;});\nchild.on('exit',code=>{process.exitCode=code??1;});\n`;}
 async function installHarnessInternal(host,{confirm=false,...options}={}){
+ const mode=await pluginRuntimeMode(options.root,options.desktopRuntime??true);
+ options={...options,desktopRuntime:mode.desktop,runtimeMode:mode.runtimeMode};
  const paths=await recordAt(host,options),installationId=paths.record?.installationId||randomUUID(),enabled=paths.record?.enabled??true;
  const entry=entryFor(host,paths,options,installationId),record={schemaVersion:1,host,installationId,output:paths.output,enabled,entry,
   ...(paths.record||{}),updatedAt:new Date().toISOString()};
  // Retain the stable identity, but refresh this release's executable and environment.
- record.entry=entry;
+ record.entry=entry;record.runtimeMode=mode.runtimeMode;
  const config=!['claude-code','deepseek'].includes(host)?await editConfig(host,paths,options,record,enabled):null;
  if(config){record.configPath=config.path;if(!paths.record)record.parentCreated=jsoncValue(config.prior??'{}',host==='opencode'?['plugins']:['mcpServers'])===undefined;}
  if(host==='claude-code'){
@@ -162,7 +167,7 @@ async function installHarnessInternal(host,{confirm=false,...options}={}){
   if(rollbackComplete)try{await applyFileTransaction(changes.slice().reverse().map(c=>({...c,prior:c.next,next:c.prior})));}catch{rollbackComplete=false;}
   throw Object.assign(Error('Host installation did not complete; '+(rollbackComplete?'owned changes rolled back':'recorded files retained for cleanup'),{cause:error}),{code:'host_install_failed',rollbackComplete});
  }
- return {...result,installationId,version:bundle.version,confirmationRequired:false,applied:true,installed:true,configured:true,enabled,reloadRequired:true,state:'installed',cleanupAvailable:true,hostState:'not_observed',...(host==='deepseek'?{launchCommand:record.launchCommand,launchEnv:record.launchEnv}:{})};
+ return {...result,installationId,version:bundle.version,runtimeMode:mode.runtimeMode,confirmationRequired:false,applied:true,installed:true,configured:true,enabled,reloadRequired:true,state:'installed',cleanupAvailable:true,hostState:'not_observed',...(host==='deepseek'?{launchCommand:record.launchCommand,launchEnv:record.launchEnv}:{})};
 }
 async function setHarnessEnabledInternal(host,enabled,options={}){
  if(typeof enabled!=='boolean')throw TypeError('enabled must be boolean');
