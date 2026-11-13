@@ -103,7 +103,10 @@ try{
       delete item.result;delete item.metadata;
     }
     process.stdout.write(JSON.stringify(results));
-  `],{env:nativeEnv,timeout:60000,maxBuffer:1024*1024});
+  // Intel macOS can cold-start the packaged Electron Node runtime several
+  // times while building six bundles. Keep a bounded but platform-neutral
+  // process budget; each MCP handshake below retains its 15s liveness bound.
+  `],{env:nativeEnv,timeout:180000,maxBuffer:1024*1024});
   const connections=JSON.parse(connectionsJSON);
   assert.deepEqual(connections.map(item=>item.host),['codex','claude-code','deepseek','opencode','cursor','trae']);
   for(const item of connections){
