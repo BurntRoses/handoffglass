@@ -43,6 +43,28 @@ macOS 执行 `npm run test:native:macos`：编译独立 AppKit 测试窗口，�
 
 ## 验收记录
 
+`docs/release-status.json` 中的 `windowsDesktop`、`multiDisplay` 保持 `pending`，直到完成对应实机检查。通过后，`record` 指向仓库内的 JSON 记录，再将该项设为 `verified`。`npm run release:check:plugin` 会检查记录内容；仅创建文件或写入“通过”无法通过检查。
+
+记录格式如下。字段值必须来自实际设备与观察，下面是字段说明，不是验收结果：
+
+| 字段 | 内容 |
+|---|---|
+| `schemaVersion` / `kind` | `1`；`windowsDesktop` 或 `multiDisplay`，与发布矩阵项目一致 |
+| `observedAt` | 实际验收时间，UTC ISO 格式，如 `2026-11-13T15:00:00Z` |
+| `build` | `{ "version": "被测版本", "commit": "完整 Git 提交哈希" }` |
+| `platform` | `{ "os": "win32 或 darwin", "arch": "x64 或 arm64", "version": "实际系统版本" }`；Windows 项只接受 `win32-x64` |
+| `environment` | `physical-desktop`；无头测试、虚拟布局事件不能替代实机 |
+| `displays` | 实际显示器数组，每项包括 `id`（本次记录的简短代号）、`physical: true`、`primary`、`bounds: { x, y, width, height }`（DIP）及 `scaleFactor`；恰有一个主屏 |
+| `checks` | 下表列出的每项都包含 `{ "result": "passed", "observed": "具体观察结果" }` |
+| `limitations` | 可选的简短限制列表；影响必需检查的问题修复后再标记通过 |
+
+| 记录类型 | 必需检查 |
+|---|---|
+| `windowsDesktop` | `launch`：启动与连接；`overlay`：标注显示；`input_passthrough`：鼠标穿透与焦点；`handoff`：用户操作、独立核验及任务继续；`restart_cleanup`：重启恢复与卸载清理 |
+| `multiDisplay` | `cross_display`：跨屏移动与跟随；`negative_coordinates`：外屏位于主屏左侧或上侧；`scale_change`：缩放变化后的复核；`hotplug`：外屏断开与重接。至少两台物理显示器，布局须包含负坐标 |
+
+观察摘要写明操作和结果，不收录截图、账户、窗口标题、原始会话或凭据。校验器检查记录完整性；实机结果仍需实际观察。Codex 及其他宿主任务另记入 [宿主验收矩阵](HOST_EVIDENCE.md)。
+
 ```text
 Commit / version:
 System / display:
