@@ -6,18 +6,30 @@ import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { planApplicationFiles } from './application-installation.mjs';
 import { uninstallCodex } from './codex-install.mjs';
-import { codexPluginPlan, removeCodexPlugin } from './codex-plugin-lifecycle.mjs';
-import { readManagedFile, applyFileTransaction, removeEmptyParents, digest } from './managed-files.mjs';
+import { codexPluginPlan, removeCodexPlugin, installCodexPlugin, setCodexPluginEnabled,codexPluginEvidence } from './codex-plugin-lifecycle.mjs';
+import { readManagedFile, applyFileTransaction, removeEmptyParents, digest, managedDirectoryExists } from './managed-files.mjs';
 import { loadPreferences, savePreferences } from './local/preferences.mjs';
-import { WORKBUDDY_FILES as BUNDLE_FILES, readWorkbuddyRecord } from './workbuddy-bundle.mjs';
+import { WORKBUDDY_FILES as BUNDLE_FILES, readWorkbuddyRecord,prepareWorkbuddyBundle } from './workbuddy-bundle.mjs';
 import { runtimeDir, readManifest, readDesktopManifest, probe } from './runtime.mjs';
-export const INTEGRATION_HOSTS = Object.freeze(['codex','workbuddy']);
-export async function setIntegrationEnabled(enabled, {dir}={}) {
+import {HARNESS_HOSTS,harnessStatus,installHarness,setHarnessEnabled,cleanupHarness} from './harness-installation.mjs';
+export const INTEGRATION_HOSTS = Object.freeze(['codex','workbuddy',...HARNESS_HOSTS]);
+export async function setIntegrationEnabled(enabled, {dir,host,...options}={}) {
   if(typeof enabled!=='boolean') throw new TypeError('enabled must be boolean');
+  if(host){
+    if(host==='codex')return setCodexPluginEnabled(enabled,{dir,...options});
+    if(host==='workbuddy')return {host,applied:false,enabled:null,reloadRequired:false,code:'host_action_required',nextAction:enabled?'enable_in_workbuddy':'disable_in_workbuddy'};
+    if(!HARNESS_HOSTS.includes(host))throw new TypeError('Use the host plugin settings for this integration');
+    return setHarnessEnabled(host,enabled,{dir,...options});
+  }
   const preferences=await savePreferences({enabled},dir);
   return {enabled:preferences.enabled,code:enabled?'enabled':'disabled_by_user',nextAction:enabled?'ready':'stop',settingsPreserved:true};
 }
 export function appWorkbuddyDirectory(dir=runtimeDir()) { return join(dir,'connectors','workbuddy-local'); }
+export async function workbuddyBundleDirectories({root,dir}={}) {
+  // A packaged app.asar is a file, not a checkout containing dist/. Never
+  // address its virtual children through the ownership-aware raw filesystem.
+  return [...new Set([appWorkbuddyDirectory(dir),...(root&&await managedDirectoryExists(root)?[join(root,'dist','workbuddy-local')]:[])])];
+}
 async function workbuddyBundlePlan(bundle) {
   const {path:recordPath,raw,record}=await readWorkbuddyRecord(bundle);
   if(raw===null){
@@ -44,7 +56,7 @@ async function workbuddyBundlePlan(bundle) {
     hostAction:'remove_connector_in_workbuddy',hostState:'not_observed',changes,bundle};
 }
 async function workbuddyPlan({root=join(homedir(),'HandoffGlass'),dir}={}) {
-  const bundles=[...new Set([appWorkbuddyDirectory(dir),join(root,'dist','workbuddy-local')])];
+  const bundles=await workbuddyBundleDirectories({root,dir});
   const plans=await Promise.all(bundles.map(workbuddyBundlePlan));
   const retained=plans.flatMap(p=>p.retained);
   return {changed:plans.some(p=>p.changed),state:plans.every(p=>!p.changed)&&plans.some(p=>p.state==='unmanaged')?'unmanaged':retained.length?'modified':plans.some(p=>p.changed)?'bundle_ready':'not_installed',
@@ -53,6 +65,7 @@ async function workbuddyPlan({root=join(homedir(),'HandoffGlass'),dir}={}) {
 }
 async function planFor(host,options){
   if(!INTEGRATION_HOSTS.includes(host))throw new TypeError('Unsupported integration lifecycle host');
+  if(HARNESS_HOSTS.includes(host))return harnessStatus(host,options);
   if(host!=='codex')return workbuddyPlan(options);
   const legacy=await uninstallCodex({...options,apply:false}),plugin=await codexPluginPlan(options);
   return {...legacy,state:plugin.changed?plugin.state:legacy.state,changed:legacy.changed||plugin.changed,
@@ -64,9 +77,12 @@ function publicPlan(host,plan){
     reloadRequired:plan.changed};
 }
 export async function integrationStatus(host,options={}) {
-  return {...publicPlan(host,await planFor(host,options)),enabled:(await loadPreferences(options.dir)).enabled};
+  if(HARNESS_HOSTS.includes(host))return {...await harnessStatus(host,options),globalEnabled:(await loadPreferences(options.dir)).enabled};
+  const plan=await planFor(host,options),plugin=host==='codex'?await codexPluginEvidence(options):null;
+  return {...publicPlan(host,plan),enabled:(await loadPreferences(options.dir)).enabled,...(plugin?.nativePlugin?{installed:plugin.installed,hostEnabled:plugin.enabled}:{})};
 }
 export async function cleanupIntegration(host,{confirm=false,...options}={}) {
+  if(HARNESS_HOSTS.includes(host))return cleanupHarness(host,{confirm,...options});
   const plan=await planFor(host,options),result={...publicPlan(host,plan),confirmationRequired:!confirm,applied:false};
   if(!confirm||!plan.changed)return result;
   if(host==='codex'){
@@ -83,8 +99,23 @@ export async function cleanupIntegration(host,{confirm=false,...options}={}) {
   return {...result,applied:true,removed:plan.changes.map(f=>f.path),complete:false};
 }
 export function lifecycleGuide(host){
+  if(HARNESS_HOSTS.includes(host))return ['preview_owned_files','install_or_enable_in_host','reload_host','call_connection_status','remove_or_restore'];
   return host==='codex'?['preview_owned_files','remove_or_restore','restart_codex']:
     host==='workbuddy'?['disable_and_remove_in_workbuddy','preview_owned_files','remove_local_bundle']:[];
+}
+export async function installIntegration(host,options={}){
+  if(host==='codex'){
+    if(!options.confirm)return {host,applied:false,confirmationRequired:true,items:[{kind:'native_plugin',action:'install'}],nextAction:'install_native_plugin'};
+    const result=await installCodexPlugin({...options,userHome:options.userHome,nodeCommand:options.command});
+    return {host,applied:true,installed:true,reloadRequired:true,hostState:'not_observed',nextAction:'reload_and_call',lifecycle:result.build.lifecycle};
+  }
+  if(host==='workbuddy'){
+    if(!options.confirm)return {host,applied:false,confirmationRequired:true,items:[{kind:'connector',action:'prepare'}],nextAction:'prepare_connector'};
+    const result=await prepareWorkbuddyBundle(appWorkbuddyDirectory(options.dir),options.configOptions);
+    return {host,...result,applied:true,installed:true,hostState:'not_observed',nextAction:'import_trust_enable_reload_and_call'};
+  }
+  if(!HARNESS_HOSTS.includes(host))throw new TypeError('Unsupported integration');
+  return installHarness(host,options);
 }
 
 /** Preview/apply the same full removal plan from desktop, CLI or MCP. */
@@ -98,17 +129,22 @@ export async function uninstallApplication({confirm=false,waitPids=[process.pid]
     hostActions:integrations.filter(p=>p.items.length).map(p=>({host:p.host,action:p.hostAction}))};
   if(!confirm)return result;
   if(!waitPids.every(pid=>Number.isInteger(pid)&&pid>0))throw new TypeError('Invalid shutdown process list');
+  // This module may itself be running inside a plugin that is about to be
+  // removed. Prepare the independent remover before touching any host bundle.
+  const stage=await mkdtemp(join(tmpdir(),'handoffglass-uninstall-'));
+  const windows=process.platform==='win32',script=join(stage,windows?'remove.ps1':'remove.mjs');
+  await copyFile(new URL(windows?'../scripts/remove-owned-files.ps1':'../scripts/remove-owned-files.mjs',import.meta.url),script);
+  const deferredRemovals=[];
   const applied=[];
-  for(const host of INTEGRATION_HOSTS)applied.push(await cleanupIntegration(host,{...options,confirm:true}));
+  for(const host of INTEGRATION_HOSTS)applied.push(await cleanupIntegration(host,{...options,confirm:true,deferredRemovals}));
   const finalFiles=await planApplicationFiles(options),dir=options.dir||runtimeDir();
   const broker=await readManifest(dir),desktop=await readDesktopManifest(dir);
   const liveBroker=broker && desktop?.pid===broker.pid && desktop.port===broker.port && await probe(broker) ? broker : null;
   const shutdownPids=[...new Set([...waitPids,...(liveBroker?[liveBroker.pid]:[])])];
   // Remove only empty container directories left by owned connector removal.
-  const entries=[...finalFiles.entries.filter(e=>e.path!==dir),{path:join(dir,'connectors'),kind:'directory'},{path:dir,kind:'directory'}];
-  const stage=await mkdtemp(join(tmpdir(),'handoffglass-uninstall-'));
-  const windows=process.platform==='win32',script=join(stage,windows?'remove.ps1':'remove.mjs');
-  await copyFile(new URL(windows?'../scripts/remove-owned-files.ps1':'../scripts/remove-owned-files.mjs',import.meta.url),script);
+  const allEntries=[...deferredRemovals,...finalFiles.entries,{path:join(dir,'harnesses'),kind:'directory'},{path:join(dir,'connectors'),kind:'directory'},{path:dir,kind:'directory'}];
+  const uniqueEntries=[...new Map(allEntries.map(entry=>[entry.path,entry])).values()];
+  const entries=[...uniqueEntries.filter(e=>e.kind!=='directory'),...uniqueEntries.filter(e=>e.kind==='directory').sort((a,b)=>b.path.length-a.path.length)];
   const resultPath=join(stage,'result.json'),planPath=join(stage,'plan.json'),readyPath=join(stage,'ready');
   await writeFile(planPath,JSON.stringify({entries,waitPids:shutdownPids,resultPath,readyPath,
     priorRetained:[...applied.flatMap(p=>p.retained),...finalFiles.retained],hostActions:result.hostActions}),{mode:0o600,flag:'wx'});

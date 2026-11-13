@@ -38,7 +38,11 @@ test('DeepSeek installer generates valid source-root patch with no magic user pa
     assert.equal(cmd.status,0,cmd.stderr);
     const patch=await readFile(join(folder,'scratch-handoffglass/cordis.yml'),'utf8');
     const plugin=await readFile(join(folder,'scratch-handoffglass/src/plugin.ts'),'utf8');
-    assert.match(patch,/insert:/);assert.match(patch,/scratch-handoffglass\/src\/plugin\.ts/);assert.doesNotMatch(plugin,/file:\/\//);
+    assert.match(patch,/insert:/);
+    const name=patch.match(/^\s+name: (".*")$/m);
+    assert.ok(name,'The Cordis patch must contain a quoted absolute plugin path');
+    assert.equal(JSON.parse(name[1]),join(folder,'scratch-handoffglass','src','plugin.ts'));
+    assert.doesNotMatch(plugin,/file:\/\//);
     assert.doesNotMatch(plugin,/__HANDOFFGLASS_RUNTIME__/);
     assert.match(plugin,/ctx\.tools\.register/);
     assert.match(plugin,/nativeTools/);

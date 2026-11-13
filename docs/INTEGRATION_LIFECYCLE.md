@@ -1,6 +1,6 @@
 # 停用与移除连接
 
-应用、MCP 和 CLI 共用 `src/integration-lifecycle.mjs`。这里的“移除连接”清理宿主配置、引导技能或本地连接器包，不删除 HandoffGlass 应用程序。
+应用、MCP 和 CLI 共用 `src/integration-lifecycle.mjs`，覆盖 Codex、Claude Code、DeepSeek Harness、WorkBuddy、Cursor、Trae、OpenCode。这里的“移除连接”清理宿主配置、引导技能或本地连接器包，不删除 HandoffGlass 应用程序。
 
 ## 用户入口
 
@@ -8,12 +8,14 @@
 - 恢复使用：连接页打开开关，或告诉 Agent“重新启用 HandoffGlass”。不改变辅助功能授权。
 - 移除连接：连接页选择应用 →“查看移除内容”→“移除连接”。也可告诉 Agent“从 Codex 移除 HandoffGlass 连接”。
 
-Agent 调用 `integration_set_enabled({enabled:false|true})` 管理总开关。移除时先读 `integration_status({host})`，再调用 `integration_cleanup({host,confirm:false})` 查看范围。用户明确要求移除后可直接传 `confirm:true` 执行，无需再次询问同一个意图。停用状态下，这些管理工具仍可调用。
+Agent 调用 `integration_set_enabled({enabled:false|true})` 管理总开关；指定 `host` 只启停对应的自有接入。WorkBuddy 的宿主开关返回明确的人工操作提示。安装使用 `integration_install({host,confirm:false})` 预览，用户已经要求接入后可传 `confirm:true` 执行。移除时先读 `integration_status({host})`，再调用 `integration_cleanup({host,confirm:false})` 查看范围。用户明确要求移除后可直接传 `confirm:true` 执行，无需再次询问同一个意图。停用状态下，这些管理工具仍可调用。
 
 ```sh
 npm run uninstall:host -- codex          # 预览
 npm run uninstall:host -- codex --apply  # 执行
 npm run uninstall:host -- workbuddy --apply
+npm run uninstall:host -- claude-code --apply
+npm run uninstall:host -- opencode --apply
 npm run uninstall:host -- disable --apply
 npm run uninstall:host -- enable --apply
 ```
@@ -47,8 +49,16 @@ App 的“生成连接器”将 MCP、Skill、参考文件和图标写入本地�
 
 连接移除保留外观偏好、只读控件定位选择和其他宿主配置。完整应用卸载使用下方安装清单与外部移除器。macOS Accessibility 权限由系统管理；不清空宿主历史或其他技能。平台实机验收状态见发布记录。
 
+## Claude Code、DeepSeek、OpenCode、Cursor、Trae
+
+五种宿主共用 `src/harness-installation.mjs`，安装与状态命令见[宿主插件与连接](HARNESS_PLUGINS.md)。每次安装保留稳定的安装 ID、运行包摘要、自有配置引用和原配置备份；更新先核对归属，同一安装的并发写入返回 `already_running`。
+
+Claude Code 通过原生插件命令安装、启停、移除自有 user scope 插件与 marketplace，不编辑信任数据库。DeepSeek 只管理自己的 Cordis patch、运行包和启动器；停用需重新加载该 patch。OpenCode 只增删自有 `plugins` 路径，Cursor/Trae 只增删自有 MCP 项；JSONC 的注释、其他插件和其他配置保留。Trae 必须使用已记录的配置路径、用户选择的配置或明确的项目目录。
+
+清理先移除宿主引用，再按摘要删除运行包；若用户改动引用，运行包一并保留，避免留下一条失效配置。`retained` 列出的修改和额外文件不删除；`complete:false` 表示还有保留项或宿主内步骤。安装/卸载失败保留可诊断的状态，不把文件写入成功当作宿主已加载。手工添加、没有安装记录的接入仍需按宿主配置核对后处理。
+
 ## 0.18 完整卸载
 
 完整卸载与移除单个连接是两个动作。应用内“卸载 HandoffGlass”、Agent 的 `integration_uninstall` 和 `npm run uninstall:app -- --apply` 共用同一个实现；不带确认参数先返回清单。用户已经明确要求卸载时，Agent 可以直接在预览后执行。
 
-打包应用首次运行记录应用标识、文件摘要和自有数据路径。卸载先合并清理宿主接入，再由外部移除器等待应用退出，逐项核对并删除未改动的自有文件。新增或改动的文件返回 `retained`；开发仓库不属于应用删除范围。结果中的 `scheduled:true` 表示已安排，最终结果写入 `resultPath`，不能提前称作全部删除完毕。macOS 系统权限记录和 WorkBuddy 内部导入状态仍由对应系统/宿主管理。
+打包应用首次运行记录应用标识、文件摘要和自有数据路径。完整卸载先准备独立的外部移除器，清理宿主引用；当前插件运行包和应用文件等到相关进程退出后才按摘要删除，避免卸载器先删掉自己的执行代码。新增或改动的文件返回 `retained`；开发仓库不属于应用删除范围。结果中的 `scheduled:true` 表示已安排，最终结果写入 `resultPath`，不能提前称作全部删除完毕。macOS 系统权限记录和 WorkBuddy 内部导入状态仍由对应系统/宿主管理。

@@ -14,6 +14,7 @@ import {fileURLToPath} from 'node:url';
 import {realpathSync} from 'node:fs';
 import {resolve} from 'node:path';
 import { capabilityInstructions } from './capabilities.mjs';
+import {INTEGRATION_HOSTS} from './integration-lifecycle.mjs';
 
 const annotation = z.object({
   x: z.number().finite().min(-100000).max(100000),
@@ -100,7 +101,7 @@ const safe = fn => async args => {
   catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error', ...(error.nextAction?{nextAction:error.nextAction}:{}) }) }; }
 };
 export function makeServer({broker=new BrokerClient(),env=process.env,server,exitOnUninstall=false}={}) {
-  server ??= new McpServer({ name: 'handoffglass', version: '0.22.1' }, { instructions: SERVER_INSTRUCTIONS });
+  server ??= new McpServer({ name: 'handoffglass', version: '0.23.0' }, { instructions: SERVER_INSTRUCTIONS });
   const legacy=env.HANDOFFGLASS_LEGACY_TOOLS==='1';
   const profile=env.HANDOFFGLASS_TOOL_PROFILE||'full';
   if(!['host','full'].includes(profile))throw new TypeError('HANDOFFGLASS_TOOL_PROFILE must be host or full');
@@ -111,6 +112,10 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   const replacements={visual_scene_update:'session_update',handoff_cancel:'session_stop'};
   const register=(name,spec,handler)=>{
     if(host&&['ui_inspect','ui_locate'].includes(name))return;
+    // Annotation/session writes affect only our local presentation state.
+    // Do not let omitted risk hints classify drawing as file destruction.
+    if(['screen_mark','session_start','session_present','visual_show','handoff_request','visual_scene_update','review_changes','session_verify','session_resume','session_control','handoff_cancel'].includes(name))
+      spec={...spec,annotations:{destructiveHint:false,openWorldHint:false,...spec.annotations}};
     if(replacements[name])server.registerTool(replacements[name],spec,handler);
     if(!legacyNames.has(name)||legacy)server.registerTool(name,spec,handler);
   };
@@ -166,7 +171,8 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
       displayId:z.string().max(80).optional(),durationSeconds:z.number().int().min(10).max(120).optional(),
       requestId:z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()
     }),
-    annotations:{readOnlyHint:false}
+    // Reversible local annotations; never operates the underlying application.
+    annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false,idempotentHint:false}
   },safe(args=>broker.mark(args)));
   register('capability_manifest', {
     title: 'Read the local capability manifest',
@@ -261,8 +267,8 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   register('connection_status', {
     title: 'Read host connection status',
     description: 'Return local broker, desktop, continuous-session and user enablement status without changing host configuration.',
-    inputSchema: z.object({}), annotations: { readOnlyHint: true }
-  }, safe(() => broker.connection()));
+    inputSchema: z.object({host:z.enum(INTEGRATION_HOSTS).optional()}), annotations: { readOnlyHint: true }
+  }, safe(({host}) => broker.connection(host)));
   register('permission_status', {
     title: 'Read local permission status',
     description: 'Return whether HandoffGlass is enabled and whether native control lookup has user consent. Includes a status-only native permission probe without reading controls. Does not grant permission.',
@@ -270,22 +276,27 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   }, safe(() => broker.permissions()));
   register('integration_status', {
     title: 'Inspect an integration lifecycle',
-    description: 'Read whether the Codex or WorkBuddy integration is installed, changed, or ready to clean up. This is local metadata only and never edits host files.',
-    inputSchema: z.object({ host: z.enum(['codex', 'workbuddy']).default('codex') }), annotations: { readOnlyHint: true }
+    description: 'Read installation, enablement and owned cleanup state for a supported local host. Metadata only; does not prove host loading or model acceptance.',
+    inputSchema: z.object({ host: z.enum(INTEGRATION_HOSTS).default('codex') }), annotations: { readOnlyHint: true }
   }, safe(({ host }) => broker.integrationStatus(host)));
+  register('integration_install',{
+    title:'Prepare or install a local host integration',
+    description:'Preview by default. confirm:true applies an explicit user connection request. Installs only HandoffGlass files and its own host reference; preserves unrelated settings and never grants tool approval, Hook trust or OS access. Reload and first call remain host steps.',
+    inputSchema:z.object({host:z.enum(INTEGRATION_HOSTS),confirm:z.boolean().default(false)}),annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
+  },safe(({host,confirm})=>broker.installIntegration(host,confirm)));
   register('integration_set_enabled', {
     title:'Enable or pause HandoffGlass',
-    description:'Set the global user switch only when the user asks to enable or pause HandoffGlass. Disabling immediately cancels active guidance and target tracking; keeps configuration and settings. Does not grant Accessibility consent.',
-    inputSchema:z.object({enabled:z.boolean()}),annotations:{readOnlyHint:false}
-  },safe(({enabled})=>broker.setEnabled(enabled)));
+    description:'Enable or pause only on user request. Omit host for the global switch, which immediately cancels guidance. With host, change only that managed integration and reload the host. WorkBuddy enablement remains in WorkBuddy. Never grants tool or OS permissions.',
+    inputSchema:z.object({enabled:z.boolean(),host:z.enum(INTEGRATION_HOSTS).optional()}),annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:false}
+  },safe(({enabled,host})=>broker.setEnabled(enabled,host)));
   register('integration_uninstall',{
     title:'Uninstall owned HandoffGlass files',description:'Preview the complete owned removal by default. confirm:true applies an explicit user uninstall request, removes host integrations and schedules app/runtime removal after exit. Report retained files and resultPath; scheduled is not completed.',
-    inputSchema:z.object({confirm:z.boolean().default(false)}),annotations:{readOnlyHint:false}
+    inputSchema:z.object({confirm:z.boolean().default(false)}),annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:false}
   },safe(async({confirm})=>{const result=await broker.uninstall(confirm);if(exitOnUninstall&&result.result?.scheduled)setTimeout(()=>process.exit(0),250);return result;}));
   register('integration_cleanup', {
     title: 'Remove an owned local integration',
     description: 'Prepare a cleanup plan by default. Set confirm=true only when the user explicitly asked to remove the named integration; only recorded, unchanged local files are removed/restored. Edited or unrecorded content is retained. WorkBuddy host removal remains manual; the desktop app is not deleted.',
-    inputSchema: z.object({ host: z.enum(['codex', 'workbuddy']), confirm: z.boolean().default(false) }), annotations: { readOnlyHint: false }
+    inputSchema: z.object({ host: z.enum(INTEGRATION_HOSTS), confirm: z.boolean().default(false) }), annotations: { readOnlyHint: false,destructiveHint:true,openWorldHint:false }
   }, safe(({ host, confirm }) => broker.cleanupIntegration(host, confirm)));
   register('handoff_cancel', {
     title: 'Cancel only your handoff',

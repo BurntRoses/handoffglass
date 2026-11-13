@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { expectedDownloads, validateDownloadNames, assessPublicRelease, hashFile, packagedRuntime, assertStageContents } from '../src/release-contract.mjs';
+import {HARNESS_ORDER} from '../src/hosts/adapter.mjs';
 test('release downloads distinguish platform, architecture and installer type', () => {
   assert.deepEqual(expectedDownloads('0.17.0', 'darwin', 'arm64'), ['HandoffGlass-0.17.0-mac-arm64.zip']);
   assert.deepEqual(expectedDownloads('0.17.0', 'win32', 'x64'), ['HandoffGlass-0.17.0-windows-x64-setup.exe', 'HandoffGlass-0.17.0-windows-x64-portable.exe']);
@@ -27,6 +28,19 @@ test('a build or a license alone does not establish public release acceptance', 
   assert.equal(assessPublicRelease({license:'MIT',licenseText:'License text',evidence}).publicReady,true);
   delete evidence.codexHost.record;
   assert.ok(assessPublicRelease({license:'MIT',licenseText:'License text',evidence}).blockers.includes('codexHost'));
+});
+test('plugin acceptance excludes App signing and requires every advertised host loop',()=>{
+  const options={license:'PolyForm-Noncommercial-1.0.0',licenseText:'License',delivery:'plugin'};
+  const pending=assessPublicRelease(options);
+  assert.equal(pending.publicReady,false);
+  assert.ok(!pending.blockers.some(id=>/Signing/.test(id)));
+  assert.deepEqual(pending.blockers.filter(id=>id.startsWith('host:')),HARNESS_ORDER.map(host=>'host:'+host));
+  const evidence=Object.fromEntries(['windowsDesktop','multiDisplay'].map(id=>[id,{status:'verified',record:'docs/qa/fixture.md'}]));
+  const hostEvidence=Object.fromEntries(HARNESS_ORDER.map(host=>[host,{status:'verified',record:'docs/qa/fixture.md'}]));
+  assert.equal(assessPublicRelease({...options,evidence,hostEvidence}).publicReady,true);
+  hostEvidence.deepseek.status='unverified';
+  assert.deepEqual(assessPublicRelease({...options,evidence,hostEvidence}).blockers,['host:deepseek']);
+  assert.throws(()=>assessPublicRelease({...options,delivery:'unknown'}),/delivery/);
 });
 test('release staging preserves unexpected files and rejects symlinks and directories', async () => {
   const dir = await mkdtemp(join(tmpdir(),'hg-release-'));

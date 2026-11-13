@@ -20,7 +20,7 @@ function fakeProcess({ mode='success', collect=[] } = {}) {
         if(req.id===undefined)continue;
         let result;
         if(req.method==='initialize')result={protocolVersion:'2025-06-18',serverInfo:{name:'HandoffGlass',version:'test'},capabilities:{}};
-        else if(req.method==='tools/list')result={tools:(mode==='missing_tools'?['screen_displays']:REQUIRED_TOOLS).map(name=>({name}))};
+        else if(req.method==='tools/list')result={tools:(mode==='missing_tools'?['screen_displays']:mode==='missing_mark'?REQUIRED_TOOLS.filter(name=>name!=='screen_mark'):REQUIRED_TOOLS).map(name=>({name}))};
         else if(req.method==='tools/call')result={content:[{type:'text',text:'{"headless":true}'}]};
         if(result)setImmediate(()=>child.stdout.write(JSON.stringify({jsonrpc:'2.0',id:req.id,result})+'\n'));
       }
@@ -43,18 +43,19 @@ test('stdio parser handles fragmented responses, notifications, missing response
 
 test('isolated MCP selftest verifies tools without user sessions or host registration',async()=>{
   const collected=[];
-  const result=await checkLocalMcp({command:'node',entry:'/test/mcp.mjs',spawnProcess:fakeProcess({collect:collected})});
+  const result=await checkLocalMcp({command:'node',entry:'/test/mcp.mjs',env:{HANDOFFGLASS_TOOL_PROFILE:'host'},spawnProcess:fakeProcess({collect:collected})});
   assert.deepEqual(result,{ok:true,code:'passed',phase:'complete',toolCount:REQUIRED_TOOLS.length,headless:true,hostVerified:false});
   assert.equal(collected[0].env.HANDOFFGLASS_HEADLESS,'1');
   assert.equal(collected[0].env.HANDOFFGLASS_ENABLE_ACCESSIBILITY,'0');
   assert.equal(collected[0].env.HANDOFFGLASS_EXTRAS,'0');
+  assert.equal(collected[0].env.HANDOFFGLASS_TOOL_PROFILE,'full');
   assert.ok(collected[0].env.HANDOFFGLASS_RUNTIME_DIR.includes('hg-selftest-'));
   assert.deepEqual(collected.filter(x=>x.method?.startsWith('tools/')).map(x=>x.method),['tools/list','tools/call']);
   assert.ok(!collected.some(x=>x.method==='tools/call'&&x.params?.name!=='screen_displays'));
 });
 
 test('MCP selftest fails closed on timeout, incomplete tool list, and malformed stdout',async()=>{
-  for(const [mode,code] of [['timeout','timeout'],['missing_tools','missing_tools'],['bad_response','protocol_mismatch']]){
+  for(const [mode,code] of [['timeout','timeout'],['missing_tools','missing_tools'],['missing_mark','missing_tools'],['bad_response','protocol_mismatch']]){
     const result=await checkLocalMcp({command:'node',entry:'fake',timeoutMs:170,spawnProcess:fakeProcess({mode})});
     assert.equal(result.ok,false,mode);assert.equal(result.code,code,mode);assert.equal(result.hostVerified,false);
   }

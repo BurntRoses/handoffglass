@@ -26,7 +26,7 @@ export async function pluginSnapshot(root,{desktop=false}={}) {
     }else throw Error('Unsupported runtime file: '+relative);
   }
   for(const dir of ['src','assets','skills/visual-handoff','integrations'])await add(dir);
-  for(const file of ['package.json','package-lock.json','LICENSE','NOTICE','scripts/remove-owned-files.mjs','scripts/remove-owned-files.ps1'])await add(file);
+  for(const file of ['package.json','package-lock.json','LICENSE','NOTICE','scripts/remove-owned-files.mjs','scripts/remove-owned-files.ps1','scripts/claude-hook.mjs'])await add(file);
   const lock=JSON.parse(await readFile(join(root,'package-lock.json'),'utf8'));
   // Only production dependencies. Electron's downloader/build chain is never shipped.
   for(const [path,info]of Object.entries(lock.packages)){

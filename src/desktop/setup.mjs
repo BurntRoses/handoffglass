@@ -1,17 +1,17 @@
 /** One-time local setup: zero network requests, no arbitrary filesystem access from renderer. */
-import { app, BrowserWindow, ipcMain, clipboard, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, shell, dialog } from 'electron';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hostConfig, HOSTS } from '../config.mjs';
 import { loadPreferences, hasUserPreferences } from '../local/preferences.mjs';
 import { getAccessibilityConsent } from '../native/preferences.mjs';
 import { updateDesktopSettings } from './settings-client.mjs';
-import { installCodex } from '../codex-install.mjs';
 import { prepareWorkbuddyBundle, readWorkbuddyRecord } from '../workbuddy-bundle.mjs';
-import { appWorkbuddyDirectory } from '../integration-lifecycle.mjs';
+import { appWorkbuddyDirectory,installIntegration,INTEGRATION_HOSTS } from '../integration-lifecycle.mjs';
 import { connectionState } from '../connection-state.mjs';
-import { codexPluginEvidence } from '../codex-plugin-lifecycle.mjs';
+import { codexPluginEvidence,installCodexPlugin } from '../codex-plugin-lifecycle.mjs';
 import { nativePermissionStatus } from '../native/locator.mjs';
+import {formatHostLauncher} from './host-connections.mjs';
 const here=dirname(fileURLToPath(import.meta.url));
 const HOST_ALLOWLIST=new Set(Object.keys(HOSTS));
 let window=null;
@@ -28,15 +28,27 @@ export async function connectCodex() {
   try {
     const userHome=app.getPath('home'),plugin=await codexPluginEvidence({userHome});
     if(plugin.installed)return {ok:true,nativePlugin:true,nextAction:plugin.enabled?'reload_and_call':'enable_in_host'};
-    const result=await installCodex({apply:true,replace:true,userHome,configOptions:configOptions()});
-    return {ok:true,installationId:result.installationId,nextAction:'reload_and_call'};
+    await installCodexPlugin({userHome,root:join(here,'../..'),nodeCommand:process.execPath,mcpEnv:{ELECTRON_RUN_AS_NODE:'1'},lifecycle:'light',toolProfile:'host'});
+    return {ok:true,nativePlugin:true,nextAction:'reload_and_call'};
   }
   catch {return {ok:false,code:'install_failed'};}
   finally {connecting=false;}
 }
 export async function connectHost(host='codex') {
   if(host==='codex')return connectCodex();
-  if(host!=='workbuddy')return {ok:false,code:'unsupported_host'};
+  if(!INTEGRATION_HOSTS.includes(host))return {ok:false,code:'unsupported_host'};
+  if(host!=='workbuddy'){
+    try{
+      const options={confirm:true,root:join(here,'../..'),userHome:app.getPath('home'),home:app.getPath('home'),command:process.execPath,envOverrides:{ELECTRON_RUN_AS_NODE:'1'}};
+      if(host==='trae'){
+        const chosen=await dialog.showOpenDialog({title:'TRAE · MCP configuration',properties:['openFile'],filters:[{name:'MCP configuration',extensions:['json','jsonc']}]});
+        if(chosen.canceled||chosen.filePaths.length!==1)return {ok:false,code:'cancelled'};
+        options.configPath=chosen.filePaths[0];
+      }
+      const result=await installIntegration(host,options);
+      return {ok:result.applied===true,...result};
+    }catch(error){return {ok:false,code:error.code||'install_failed'};}
+  }
   try{return {ok:true,...await prepareWorkbuddyBundle(appWorkbuddyDirectory(),configOptions()),nextAction:'import_trust_enable_reload_in_workbuddy'};}
   catch{return {ok:false,code:'bundle_refused'};}
 }
@@ -65,8 +77,13 @@ export async function showSetup({firstRun=false}={}){
   return window;
 }
 export function registerSetupIPC(){
+  ipcMain.handle('hg:setup:copy-launcher',async(event,host)=>{
+    if(!fromWindow(event)||host!=='deepseek')return {ok:false,code:'unsupported_host'};
+    try{const command=formatHostLauncher(await connectionState(host,{root:join(here,'../..'),userHome:app.getPath('home')}),process.platform);if(!command)return {ok:false,code:'not_prepared'};clipboard.writeText(command);return {ok:true};}
+    catch{return {ok:false,code:'not_prepared'};}
+  });
   ipcMain.handle('hg:setup:connection',async(event,host)=>{
-    if(!fromWindow(event)||!['codex','workbuddy'].includes(host))return {ok:false,code:'unsupported_host'};
+    if(!fromWindow(event)||!INTEGRATION_HOSTS.includes(host))return {ok:false,code:'unsupported_host'};
     try{
       const r=await fetch(`http://127.0.0.1:${process.env.HANDOFFGLASS_PORT}/desktop/diagnostics`,{headers:{authorization:`Bearer ${process.env.HANDOFFGLASS_SECRET}`},signal:AbortSignal.timeout(3000)});
       return {ok:true,...await connectionState(host,{root:join(here,'../..'),userHome:app.getPath('home'),live:r.ok?await r.json():{}})};

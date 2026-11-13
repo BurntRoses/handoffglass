@@ -39,7 +39,7 @@ try {
   assert.match(a.getInstructions() || '', /host observes/);
   assert.match(a.getInstructions() || '', /never ask the user to name a tool/);
   const { tools } = await a.listTools();
-  const names=['review_changes','screen_mark','screen_displays',...(!hostProfile?['ui_inspect','ui_locate']:[]),'capability_manifest','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control','integration_uninstall','connection_status','permission_status','integration_status','integration_cleanup','integration_set_enabled'];
+  const names=['review_changes','screen_mark','screen_displays',...(!hostProfile?['ui_inspect','ui_locate']:[]),'capability_manifest','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control','integration_uninstall','connection_status','permission_status','integration_status','integration_install','integration_cleanup','integration_set_enabled'];
   if(legacy)names.push('visual_show','handoff_request','visual_scene_update','handoff_status','handoff_events','handoff_wait','handoff_cancel');
   if (extras) names.push('handoff_context', 'handoff_blueprint', 'handoff_assess');
   assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());

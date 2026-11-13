@@ -6,9 +6,10 @@ import {homedir} from 'node:os';
 import {readdir,rmdir,access} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {randomUUID} from 'node:crypto';
+import {isDeepStrictEqual} from 'node:util';
 import {parse} from 'smol-toml';
 import {buildCodexPlugin,CODEX_PLUGIN,CODEX_MARKETPLACE} from './codex-plugin.mjs';
-import {readManagedFile,readManagedBytes,readManagedLink,compareWrite,digest,removeEmptyParents} from './managed-files.mjs';
+import {readManagedFile,readManagedBytes,readManagedLink,compareWrite,digest,removeEmptyParents,deferManagedRemovals} from './managed-files.mjs';
 import {codexHookDirectory,requestCodexHook} from './hosts/codex-hooks.mjs';
 import {runtimeDir} from './runtime.mjs';
 const run=promisify(execFile);
@@ -30,11 +31,13 @@ export async function nativeCodexPlugin(args,{codexCommand=process.env.HANDOFFGL
   return JSON.parse(stdout);
 }
 export async function installCodexPlugin(options={}) {
-  options={...options,codexCommand:await executable(options.codexCommand||process.env.HANDOFFGLASS_CODEX_COMMAND||'codex')};
+  const path=recordPath(options),prior=await readManagedFile(path),old=prior?JSON.parse(prior):null;
+  // A desktop installation may have a bundled CLI without a PATH entry.
+  // Keep using the explicit executable recorded by its successful install.
+  options={...options,codexCommand:await executable(options.codexCommand||process.env.HANDOFFGLASS_CODEX_COMMAND||old?.command||'codex')};
   const configRaw=await readManagedFile(join(home(options),'config.toml')),config=configRaw?parse(configRaw):{};
   if(config.mcp_servers?.handoffglass && config.mcp_servers.handoffglass.enabled!==false)
     throw Error('A standalone handoffglass MCP entry exists. Remove that connection before installing the plugin to avoid duplicate tools.');
-  const path=recordPath(options),prior=await readManagedFile(path),old=prior?JSON.parse(prior):null;
   const output=options.output||old?.marketplaceRoot||join(home(options),'handoffglass-local');
   if(old && output && resolve(output)!==old.marketplaceRoot)throw Error('Remove the previous local plugin bundle before changing its location.');
   const installationId=old?.installationId||randomUUID();
@@ -56,6 +59,31 @@ export async function codexPluginEvidence(options={}) {
     configurationMatches=content!==null&&digest(content)===receipt?.files?.['plugins/handoffglass/.mcp.json']&&JSON.parse(content).mcpServers?.handoffglass?.env?.HANDOFFGLASS_CONNECTION_ID===record.installationId;
   }
   return {nativePlugin:!!entry,installed:!!entry,managed:!!record,enabled:entry?entry.enabled!==false:null,installationId:record?.installationId||null,configurationMatches,hookMode};
+}
+/** Change only this plugin's enablement; approvals and Hook trust stay host-owned. */
+export async function setCodexPluginEnabled(enabled,options={}){
+  if(typeof enabled!=='boolean')throw new TypeError('enabled must be boolean');
+  const evidence=await codexPluginEvidence(options);
+  if(!evidence.installed||!evidence.managed)throw Error('No managed Codex plugin is installed');
+  const path=join(home(options),'config.toml'),prior=await readManagedFile(path),expected=parse(prior);
+  expected.plugins[CODEX_PLUGIN].enabled=enabled;
+  const header='[plugins."'+CODEX_PLUGIN+'"]';
+  let inside=false,found=false;
+  const lines=prior.split(/(?<=\n)/),nextLines=[];
+  for(const line of lines){
+    if(/^\s*\[/.test(line)){
+      if(inside&&!found){nextLines.push('enabled = '+enabled+'\n');found=true;}
+      inside=line.trim()===header;
+    }
+    if(inside&&/^\s*enabled\s*=/.test(line)){
+      nextLines.push(line.replace(/^(\s*enabled\s*=\s*)(true|false)/,'$1'+enabled));found=true;
+    }else nextLines.push(line);
+  }
+  if(inside&&!found)nextLines.push((prior.endsWith('\n')?'':'\n')+'enabled = '+enabled+'\n');
+  const next=nextLines.join('');
+  if(!isDeepStrictEqual(parse(next),expected))throw Error('Nonstandard Codex plugin config; change enablement in Codex settings');
+  if(prior!==next)await compareWrite({path,prior,next});
+  return {host:'codex',enabled,applied:prior!==next,reloadRequired:true,hostAction:'reload_codex',nextAction:'reload_and_call'};
 }
 export async function codexPluginPlan(options={}) {
   const path=recordPath(options),raw=await readManagedFile(path),items=[],retained=[],changes=[];
@@ -108,7 +136,8 @@ export async function removeCodexPlugin({confirm=false,...options}={}) {
   const result=await nativeCodexPlugin(['remove',CODEX_PLUGIN],nativeOptions);
   const markets=await nativeCodexPlugin(['marketplace','list'],nativeOptions);
   if(markets.marketplaces.some(m=>m.name===CODEX_MARKETPLACE))await nativeCodexPlugin(['marketplace','remove',CODEX_MARKETPLACE],nativeOptions);
-  for(const change of plan.changes){
+  const immediate=deferManagedRemovals(plan.changes,options.deferredRemovals,[plan.record.marketplaceRoot]);
+  for(const change of immediate){
     if(change.hookState){
       // Use the stored proof directly; its original host session text is not retained.
       await requestCodexHook(hookEnv(options),change.hookState,'end').catch(()=>{});
@@ -118,5 +147,5 @@ export async function removeCodexPlugin({confirm=false,...options}={}) {
   }
   if(!plan.retained.length)await compareWrite({path:plan.path,prior:plan.raw,next:null});
   try{await rmdir(plan.record.marketplaceRoot);}catch{/* Unrecorded additions remain. */}
-  return {applied:true,result,removed:plan.items,retained:plan.retained,complete:!plan.retained.length,hostAction:'new_chat'};
+  return {applied:true,result,removed:immediate.map(change=>({path:change.path,kind:'plugin_file',action:'remove'})),retained:plan.retained,complete:!plan.retained.length&&!options.deferredRemovals,hostAction:'new_chat'};
 }

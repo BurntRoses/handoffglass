@@ -5,7 +5,7 @@ import { BrokerClient } from '../src/runtime.mjs';
 import { cleanupIntegration, uninstallApplication, INTEGRATION_HOSTS } from '../src/integration-lifecycle.mjs';
 const args=process.argv.slice(2),host=args[0],apply=args.includes('--apply');
 if(![...INTEGRATION_HOSTS,'disable','enable','all'].includes(host)||args.slice(1).some(x=>x!=='--apply')){
-  console.error('Usage: node scripts/uninstall-host.mjs codex|workbuddy|disable|enable|all [--apply]');process.exit(2);
+  console.error('Usage: node scripts/uninstall-host.mjs '+INTEGRATION_HOSTS.join('|')+'|disable|enable|all [--apply]');process.exit(2);
 }
 try{
   const result=['enable','disable'].includes(host)

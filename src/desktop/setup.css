@@ -46,3 +46,6 @@ h1 { font-size:var(--text-title); font-weight:600; letter-spacing:-.025em; line-
 .workspace-footer { flex:none; display:flex; justify-content:space-between; gap:var(--space-2); padding-top:var(--space-4); border-top:1px solid var(--edge); }
 .workspace-footer #defer { margin-left:auto; color:var(--sub); background:transparent; }
 @media(max-width:520px) { .setup { padding:var(--space-4) var(--space-5); } .step { padding-inline:var(--space-2); } .step-track { gap:var(--space-2); } .connection-steps { grid-template-columns:1fr; } }
+
+.host-launch { margin-top:var(--space-4); }
+.host-launch p { color:var(--sub); margin:0 0 var(--space-2); }

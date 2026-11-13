@@ -26,7 +26,7 @@ npm run plugin:codex:install
 
 ## 停用与移除
 
-临时关闭桌面引导：说“暂时停用 HandoffGlass”，或关闭 App 的桌面引导开关。会话和目标跟随停止，管理工具仍可用。若要连 Hooks/Skills 一起停用，在 Codex 插件设置中停用整个插件。
+临时关闭桌面引导：说“暂时停用 HandoffGlass”，或关闭 App 的桌面引导开关。会话和目标跟随停止，管理工具仍可用。若要连 Hooks/Skills 一起停用，在 Codex 插件设置中停用整个插件，或让 Agent 使用 `integration_set_enabled({host:"codex",enabled:false})`。宿主需要重载后更新工具目录。
 
 移除本插件与本机生成文件：
 
@@ -40,13 +40,15 @@ npm run plugin:codex:remove
 
 ## 验证
 
-`npm run test:codex-plugin` 在临时 Codex 配置中验证原生安装与重装、18 个 MCP 工具、两个 Skill、light 模式无命令 Hook、首次调用及卸载清理。测试不调用模型或修改用户 Hook 信任。可用 `HANDOFFGLASS_CODEX_COMMAND` 指定 Codex CLI。
+`npm run test:codex-plugin` 在临时 Codex 配置中验证原生安装与重装、19 个 MCP 工具、两个 Skill、light 模式无命令 Hook、首次调用及卸载清理。测试不调用模型或修改用户 Hook 信任。可用 `HANDOFFGLASS_CODEX_COMMAND` 指定 Codex CLI。
+
+`npm run codex:readiness` 默认只读取本地安装和启用证据，分开显示工具加载、绘制授权和首次调用。加 `-- --probe-host` 才启动独立的无模型探测会话；它不能证明当前聊天已加载或允许绘制。实际调用时遇到宿主审批，由用户决定，见[审批诊断](CONNECTION_DIAGNOSTICS.md#codex-tool-approval)。
 
 试用包采用已实测的 `.codex-plugin/plugin.json` 与 `.mcp.json`；通用根 manifest 在此前宿主版本中遗漏 Hooks，后续切换需重新验证。
 
 ## 接续范围
 
-后台 Hooks 不能启动已空闲的模型轮次。当前版本改善初始化、执行反馈与轮次结束时的接续；任意时刻自动唤醒、确定步骤的本地执行和跨 Harness 事件接续按[升级计划](NATIVE_PLUGIN_UPGRADE.md)推进。
+后台 Hooks 不能启动已空闲的模型轮次。增强模式同步执行阶段并提供有界的轮次结束接续提醒；挂起后回到原聊天继续。跨 Harness 的实现、版本边界和待验项目见[升级进度](NATIVE_PLUGIN_UPGRADE.md)。
 
 
 ## 0.19 快速绘制与挂起

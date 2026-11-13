@@ -170,3 +170,6 @@ p { overflow-wrap:anywhere; }
 .drawing-actions>[role=status] { margin-right:auto; flex:1 1 180px; color:var(--sub); font-size:var(--text-body); line-height:1.6; }
 .drawing-actions>[data-error=true] { color:var(--danger); }
 @media(max-width:780px){.drawing-grid { grid-template-columns:minmax(0,1fr); }}
+
+.host-launch { margin-top:var(--space-4); }
+.host-launch p { color:var(--sub); margin:0 0 var(--space-2); }

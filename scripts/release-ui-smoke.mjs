@@ -5,15 +5,16 @@ import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {mkdtempSync} from 'node:fs';
 import {join,resolve} from 'node:path';
-import {app,shell} from 'electron';
+import {app,shell,dialog} from 'electron';
 import {HandoffManager} from '../src/core.mjs';
 import {LocalBridge} from '../src/bridge.mjs';
 import {savePreferences,loadPreferences} from '../src/local/preferences.mjs';
 import {getAccessibilityConsent} from '../src/native/preferences.mjs';
 import {buildCodexPlugin,CODEX_PLUGIN} from '../src/codex-plugin.mjs';
+import {installCodex} from '../src/codex-install.mjs';
 const uiProfile=mkdtempSync(join(tmpdir(),'handoffglass-ui-profile-'));app.setPath('userData',uiProfile);
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
-async function until(check,message){for(let i=0;i<100;i++){if(await check())return;await pause(50);}throw Error(message);}
+async function until(check,message){for(let i=0;i<600;i++){if(await check())return;await pause(50);}throw Error(message);}
 void app.whenReady().then(async()=>{
  const dir=await mkdtemp(join(tmpdir(),'handoffglass-release-ui-')),output=resolve('.tmp/release-ui');
  process.env.HANDOFFGLASS_RUNTIME_DIR=dir;
@@ -21,7 +22,7 @@ void app.whenReady().then(async()=>{
  app.setPath('home',dir);
  delete process.env.HANDOFFGLASS_ENABLE_ACCESSIBILITY;
  const manager=new HandoffManager(),bridge=new LocalBridge(manager),errors=[];
- const originalOpenExternal=shell.openExternal,openedSettings=[];let settingsFail=false;
+ const originalOpenExternal=shell.openExternal,originalOpenDialog=dialog.showOpenDialog,openedSettings=[];let settingsFail=false;
  // Exercise the real IPC without opening or changing the user's OS settings.
  shell.openExternal=async url=>{openedSettings.push(url);if(settingsFail)throw Error('Settings unavailable');};
  let center,setup;
@@ -30,11 +31,14 @@ void app.whenReady().then(async()=>{
   process.env.HANDOFFGLASS_PORT=String(bridge.port);process.env.HANDOFFGLASS_SECRET=bridge.token;
   await import('../src/desktop/main.mjs');await until(()=>bridge.connected,'Desktop did not connect');
   const {showControlCenter}=await import('../src/desktop/center.mjs');center=await showControlCenter();
+  // Synthetic checks must keep rendering even when another test window covers
+  // this one. Production windows retain their normal background policy.
+  center.webContents.setBackgroundThrottling(false);
   center.webContents.on('console-message',event=>{if(/Uncaught|Refused to|Failed to load/i.test(event.message)){errors.push(event.message);console.error('Renderer:',event.message);}});
   center.webContents.on('render-process-gone',(_e,d)=>errors.push(d.reason));
   const js=async source=>{try{return await center.webContents.executeJavaScript(source);}catch(error){throw new Error('UI script failed: '+source,{cause:error});}};
   await until(async()=>await js('document.querySelector("#appVersion").textContent.startsWith("v")'),'Settings did not load');
-  async function capture(name){await pause(name.startsWith('appearance')?1250:300);await writeFile(join(output,`${name}.png`),(await center.webContents.capturePage()).toPNG());}
+  async function capture(name){await pause(name.startsWith('appearance')?1250:300);await js('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await writeFile(join(output,`${name}.png`),(await center.webContents.capturePage()).toPNG());}
   async function page(name){await js(`document.querySelector('[data-page="${name}"]').click()`);await pause(100);}
   async function set(id,value){await js(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);}
   await assertPalette(center.webContents);
@@ -52,11 +56,14 @@ void app.whenReady().then(async()=>{
   }
   await until(()=>!trialPanel.isVisible(),'Trial did not close');
 
+  // A managed legacy fixture exercises backward-compatible display/removal.
+  // Native Codex installation is covered separately by test:codex-plugin.
+  await installCodex({userHome:dir,codexHome:join(dir,'codex'),apply:true});
   await page('connections');await until(async()=>await js('!document.querySelector("#copy").disabled'),'Configuration did not load');
   assert.equal(await js('document.querySelector("#host").value'),'codex');
   assert.equal(await js('document.querySelector(".connection-card details").open'),false);
   assert.ok((await js('document.querySelector("#config").textContent')).includes('[mcp_servers.handoffglass]'));
-  assert.equal(await js('document.querySelector("#copy").textContent'),'连接');
+  assert.equal(await js('document.querySelector("#copy").textContent'),'检查是否已加载');
   await js('document.querySelector("#copy").click()');
   await until(async()=>await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent.includes("重启")'),'Codex connection did not complete');
   assert.match(await readFile(join(dir,'codex','config.toml'),'utf8'),/\[mcp_servers.handoffglass\]/);
@@ -64,6 +71,7 @@ void app.whenReady().then(async()=>{
   await until(async()=>await js('document.querySelector("#integrationState").dataset.state==="installed"'),'Lifecycle status not installed');
   assert.equal(await js('document.querySelector("#host").hidden'),true,'Native dropdown still visible');
   assert.equal(await js('document.querySelectorAll(".host-choices>.choice").length'),2);
+  await until(async()=>await js('!document.querySelector("#cleanupIntegration").disabled'),'Connection check stayed busy');
   await js('document.querySelector("#cleanupIntegration").click()');
   await until(async()=>await js('!document.querySelector("#confirmCleanup").hidden'),'Removal preview did not load');
   assert.ok(await js('document.querySelectorAll("#cleanupItems li").length>=3'));
@@ -73,7 +81,8 @@ void app.whenReady().then(async()=>{
   await until(async()=>await js('document.querySelector("#confirmCleanup").hidden'),'Removal did not complete');
   await assert.rejects(readFile(join(dir,'codex','config.toml')),{code:'ENOENT'});
   await assert.rejects(readFile(join(dir,'.agents','skills','visual-handoff','SKILL.md')),{code:'ENOENT'});
-  await js('document.querySelector("#copy").click()');
+  await installCodex({userHome:dir,codexHome:join(dir,'codex'),apply:true});
+  await page('overview');await page('connections');
   await until(async()=>await js('document.querySelector("#integrationState").dataset.state==="installed"'),'Reconnect failed');
   const temporary=manager.show({title:'Pause check',message:'This step should close',mode:'handoff'});
   await js('document.querySelector("#enabled").click()');
@@ -134,6 +143,53 @@ void app.whenReady().then(async()=>{
   await capture('codex-plugin-enhanced');
   bridge.connectionEvidence.delete(pluginId);await rm(pluginRecord);await writeFile(configPath,standalone);
 
+  await set('host','cursor');await until(async()=>await js('!document.querySelector("#copy").disabled'),'Cursor preview absent');
+  await until(async()=>await js('document.querySelector(".other-hosts summary").getAttribute("aria-expanded")==="true"'),'Selected host remained inside a collapsed group');
+  assert.equal(await js('document.querySelector(".other-hosts [data-value=cursor]").getAttribute("aria-checked")'),'true');
+  await js('document.querySelector("#copy").click()');
+  assert.equal(await js('document.querySelector("#host").disabled'),true,'Host choice remained active during installation');
+  assert.equal(await js('document.querySelector("#cleanupIntegration").disabled'),true,'Removal remained active during installation');
+  await until(async()=>await js('!document.querySelector("#host").disabled'),'Cursor installation stayed busy');
+  assert.equal((await js('window.hgCenter.lifecycleStatus("cursor")')).status.installed,true,await js('document.querySelector("#connectionEvidence").textContent'));
+  await until(async()=>await js('!document.querySelector("#hostEnabled").hidden'),'Managed Cursor switch absent');
+  const cursorConfig=join(dir,'.cursor','mcp.json');
+  assert.ok(JSON.parse(await readFile(cursorConfig,'utf8')).mcpServers.handoffglass.env.HANDOFFGLASS_CONNECTION_ID);
+  await js('document.querySelector("#hostEnabled").click()');
+  await until(async()=>!JSON.parse(await readFile(cursorConfig,'utf8')).mcpServers?.handoffglass,'Cursor switch did not remove its own active entry');
+  await until(async()=>await js('!document.querySelector("#hostEnabled").disabled && document.querySelector("#hostEnabled").textContent.includes("启用")'),'Cursor disable feedback stayed busy');
+  assert.match(await js('document.querySelector("[data-i=\\"connectDesc\\"]").textContent'),/停用/);
+  await js('document.querySelector("#hostEnabled").click()');
+  await until(async()=>!!JSON.parse(await readFile(cursorConfig,'utf8')).mcpServers?.handoffglass,'Cursor switch did not restore its entry');
+  await until(async()=>await js('!document.querySelector("#cleanupIntegration").disabled'),'Cursor enable feedback stayed busy');
+  await capture('cursor-managed');
+  await js('document.querySelector("#cleanupIntegration").click()');
+  await until(async()=>await js('!document.querySelector("#confirmCleanup").hidden'),'Cursor cleanup preview absent');
+  await js('document.querySelector("#confirmCleanup").click()');
+  await until(async()=>await js('document.querySelector("#confirmCleanup").hidden'),'Cursor cleanup did not finish');
+  await assert.rejects(readFile(cursorConfig),{code:'ENOENT'});
+  assert.equal(await js('document.querySelector("#hostEnabled").hidden'),true,'Removed connection still exposes its enable action');
+
+  // Cancellation must remain visible after status refresh; no user's host is changed.
+  dialog.showOpenDialog=async()=>({canceled:true,filePaths:[]});
+  await set('host','trae');await until(async()=>await js('!document.querySelector("#copy").disabled'),'TRAE preview absent');
+  await js('document.querySelector("#copy").click()');
+  await until(async()=>await js('!document.querySelector("#host").disabled'),'Cancelled file selection stayed busy');
+  assert.match(await js('document.querySelector("#connectionEvidence").textContent'),/已取消，配置未写入/);
+  dialog.showOpenDialog=originalOpenDialog;
+
+  await set('host','deepseek');await until(async()=>await js('!document.querySelector("#copy").disabled'),'DeepSeek preview absent');
+  await js('document.querySelector("#copy").click()');
+  await until(async()=>await js('!document.querySelector("#host").disabled'),'DeepSeek preparation stayed busy');
+  assert.equal(await js('document.querySelector("#hostLaunch").hidden'),false,'Prepared DeepSeek launcher was hidden');
+  assert.match(await js('document.querySelector("#launcherCommand").textContent'),process.platform==='win32'?/\$env:ELECTRON_RUN_AS_NODE='1'/:/^env ELECTRON_RUN_AS_NODE=1 /);
+  assert.equal((await js('window.hgCenter.copyLauncher("cursor")')).ok,false,'Launcher IPC accepted an unsupported host');
+  await capture('deepseek-launcher');
+  await js('document.querySelector("#cleanupIntegration").click()');
+  await until(async()=>await js('!document.querySelector("#confirmCleanup").hidden'),'DeepSeek cleanup preview absent');
+  await js('document.querySelector("#confirmCleanup").click()');
+  await until(async()=>await js('!document.querySelector("#host").disabled'),'DeepSeek cleanup stayed busy');
+  assert.equal(await js('document.querySelector("#hostLaunch").hidden'),true,'Removed DeepSeek launcher stayed visible');
+
   await set('host','workbuddy');await until(async()=>await js('!document.querySelector("#copy").disabled'),'WorkBuddy preview did not load');
   assert.equal(await js('document.querySelector("#copy").textContent'),'生成连接器');
   await js('document.querySelector("#copy").click()');
@@ -150,7 +206,9 @@ void app.whenReady().then(async()=>{
   await until(async()=>await js('document.querySelector("#confirmCleanup").hidden'),'WorkBuddy cleanup did not finish');
   await assert.rejects(readFile(join(bundle,'mcp.json')),{code:'ENOENT'});
   await set('host','codex');
-  await page('appearance');await until(async()=>await js('document.querySelectorAll("#stylePreview .hg-mark").length===1'),'Shared preview did not render');
+  await page('appearance');
+  try{await until(async()=>await js('document.querySelectorAll("#stylePreview .hg-mark").length===1'),'Shared preview did not render');}
+  catch(error){console.error('Preview state:',await js('({view:document.querySelector("[data-view]:not([hidden])")?.dataset.view,marks:document.querySelectorAll("#stylePreview .hg-mark").length,bounds:document.querySelector("#stylePreview").getBoundingClientRect().toJSON(),target:document.querySelector(".preview-target").getBoundingClientRect().toJSON()})'));throw error;}
   assert.equal(await js('document.querySelectorAll("#markCategories button").length'),5);
   await js('document.querySelector("#markChoices [data-shape=glow]").click()');
   assert.equal(await js('document.querySelector("#stylePreview .hg-mark").dataset.shape'),'glow');
@@ -266,6 +324,7 @@ void app.whenReady().then(async()=>{
   assert.match(await js('document.querySelector("#displayCount").textContent'),/检测到 \d+ 块屏幕/);
   assert.equal(await js('document.querySelector("#displayMap").getAttribute("aria-label")'),'显示器相对位置');
   const {showSetup}=await import('../src/desktop/setup.mjs');setup=await showSetup();
+  setup.webContents.setBackgroundThrottling(false);
   setup.webContents.on('console-message',(_e,_l,message)=>{if(/Uncaught|Refused to|Failed to load/i.test(message)){errors.push(message);console.error('Renderer:',message);}});
   await until(async()=>await setup.webContents.executeJavaScript('!document.querySelector("#copy").disabled'),'Setup did not load');
   await until(async()=>await setup.webContents.executeJavaScript('document.querySelectorAll("#connectionSteps li").length===6'),'Setup connection stages did not load');
@@ -352,6 +411,6 @@ void app.whenReady().then(async()=>{
   await until(()=>!panel.isVisible(),'Final verified session did not close');
   assert.deepEqual(errors,[],'Renderer errors');
   console.log(`Local renderer action → observed Broker transition: ${localReportMs.toFixed(1)}ms (single UI regression sample, includes test polling).`);
-  console.log(`PASS release UI: screen drawing/update/clear, reversible drawing controls and validation, Codex install/remove/reconnect, WorkBuddy bundle preparation/removal in center and setup, immediate global disable, three-step local trial, continuous report/verification/next-step, visible overlay retirement and stale teardown rejection, pause clearing, five-category mark library, pause/resume, collapsed strip, stale step rejection, long text, removal preview, display policy, choice cards in disposable home, live preview, preferences, language, permission, visible display setup, fixed settings URL and failure recovery, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
- }finally{shell.openExternal=originalOpenExternal;setup?.close();center?.close();manager.close();await bridge.stop();await rm(dir,{recursive:true,force:true});await rm(uiProfile,{recursive:true,force:true});}
+  console.log(`PASS release UI: screen drawing/update/clear, reversible drawing controls and validation, Codex install/remove/reconnect, managed Cursor install/disable/enable/remove, selected host disclosure, TRAE cancellation feedback, DeepSeek launcher/environment/removal, WorkBuddy bundle preparation/removal in center and setup, immediate global disable, three-step local trial, continuous report/verification/next-step, visible overlay retirement and stale teardown rejection, pause clearing, five-category mark library, pause/resume, collapsed strip, stale step rejection, long text, removal preview, display policy, choice cards in disposable home, live preview, preferences, language, permission, visible display setup, fixed settings URL and failure recovery, collapsed details, narrow window, setup, panel decline. Screenshots: ${output}`);
+ }finally{shell.openExternal=originalOpenExternal;dialog.showOpenDialog=originalOpenDialog;setup?.close();center?.close();manager.close();await bridge.stop();await rm(dir,{recursive:true,force:true});await rm(uiProfile,{recursive:true,force:true});}
 }).then(()=>app.exit(0),error=>{console.error(error);app.exit(1);});

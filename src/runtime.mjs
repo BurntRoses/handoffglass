@@ -145,8 +145,9 @@ export class BrokerClient {
   }
   async context() { return this.request('/agent/context'); }
   async capabilities() { return this.request('/agent/capabilities'); }
-  async connection() { return this.request('/agent/connection'); }
-  async setEnabled(enabled) { return this.request('/agent/integration-enabled',{method:'POST',body:{enabled}}); }
+  async connection(host) { return this.request('/agent/connection'+(host?'?host='+encodeURIComponent(host):'')); }
+  async setEnabled(enabled,host) { return this.request('/agent/integration-enabled',{method:'POST',body:{enabled,...(host?{host}:{})}}); }
+  async installIntegration(host,confirm=false){return this.request('/agent/integration-install',{method:'POST',body:{host,confirm},timeoutMs:180000});}
   async permissions() { return this.request('/agent/permissions'); }
   async integrationStatus(host = 'codex') { return this.request(`/agent/integration-status?host=${encodeURIComponent(host)}`); }
   async uninstall(confirm=false){return this.request('/agent/integration-uninstall',{method:'POST',body:{confirm}});}

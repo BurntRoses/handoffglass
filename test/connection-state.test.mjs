@@ -15,7 +15,7 @@ test('only successful calls matching the installed connection id satisfy verific
  assert.equal((await connectionState('codex',{...options,now,live:{hostActivity}})).hostVerified,false);
  const proof={host:'codex',connectionId:installed.installationId,lastSuccessAt:now,lastTool:'connection'};
  const connected=await connectionState('codex',{...options,now,live:{connectionEvidence:[proof]}});
- assert.equal(connected.hostVerified,true);assert.equal(connected.hostIdentity,'caller_declared');assert.equal(connected.nextAction,'ready');
+ assert.equal(connected.hostVerified,true);assert.equal(connected.readiness,undefined);assert.equal(connected.steps.length,6);assert.equal(connected.hostIdentity,'caller_declared');assert.equal(connected.nextAction,'ready');
  assert.equal((await connectionState('codex',{...options,now:now+900001,live:{connectionEvidence:[proof]}})).hostVerified,false);
  assert.equal((await installCodex({...options,apply:true,replace:true})).installationId,installed.installationId);
 }));

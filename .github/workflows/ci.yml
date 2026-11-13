@@ -40,6 +40,8 @@ jobs:
         run: npm run test:legacy
       - name: Preview release policy (reports outstanding public release blockers)
         run: npm run release:check -- --preview
+      - name: Plugin delivery policy (separate from signed App installers)
+        run: npm run release:check:plugin
       - name: Host configuration and lightweight broker benchmark
         run: |
           node scripts/configure.mjs all --compact

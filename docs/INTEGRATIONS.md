@@ -4,7 +4,7 @@ Ask your agent: `Please install https://github.com/BurntRoses/handoffglass`. It 
 
 HandoffGlass exposes a **local MCP server**. Skills provide invocation guidance; compatible hosts start the server using Node.js.
 
-For the Codex lifecycle plugin trial, use [Codex native plugin](CODEX_PLUGIN.md) instead of adding another MCP entry. The [cross-Harness upgrade plan](NATIVE_PLUGIN_UPGRADE.md) separates tested Codex support from upcoming DeepSeek Harness, Claude Code and OpenCode adapters.
+For Codex, use the [native plugin](CODEX_PLUGIN.md) instead of adding another MCP entry. Claude Code, DeepSeek Harness and OpenCode v2 also have native local bundles; Cursor and Trae use managed MCP packages, and WorkBuddy uses a local connector. See [host plugins and lifecycle commands](HARNESS_PLUGINS.md). Actual loading and model/human task acceptance remain separate for every host.
 
 ## Print the configuration for your machine
 
@@ -24,11 +24,11 @@ Merge the `mcpServers.handoffglass` member into your existing JSON config. Do **
 
 ## Codex
 
-Run `node scripts/install-host.mjs codex --compact --apply` to merge the MCP entry and install the implicitly discoverable guidance skill. It honors `CODEX_HOME` and preserves other settings. Inspect an existing integration before using `--replace` to upgrade it. Restart Codex to load the tools and skill. See [Codex usage](USE_WITH_CODEX.zh-CN.md).
+The default is `npm run plugin:codex:install`, followed by a new chat. Only for an explicitly chosen standalone MCP setup, run `node scripts/install-host.mjs codex --compact --apply` to merge the MCP entry and install the guidance skill. It honors `CODEX_HOME` and preserves other settings. Inspect an existing integration before using `--replace` to upgrade it. Keep a single HandoffGlass entry. See [Codex usage](USE_WITH_CODEX.zh-CN.md).
 
 ## Agent Skill
 
-Codex's installer includes the skill. For other hosts, copy `skills/visual-handoff/SKILL.md` into the host's supported implicitly discoverable Skill directory, or use its supported persistent rules mechanism. MCP initialization also supplies the shared workflow. The agent chooses when to guide, grounds screen marks in fresh evidence and verifies the original app after a user's completion report.
+Managed bundles include the skill and MCP/native initialization supplies the shared workflow. Skill discovery still depends on the host: when a package is not a recognized Skill location, copy the bundled Skill into its documented discoverable directory or merge its equivalent persistent rules. Preserve other skills and rules. The agent chooses when to guide, grounds screen marks in fresh evidence and verifies the original app after a user's completion report.
 
 ## Smoke tests
 

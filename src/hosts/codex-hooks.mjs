@@ -14,6 +14,7 @@ const hash = text => createHash('sha256').update(text).digest('hex');
 const id = value => typeof value === 'string' && value.length > 0 && value.length <= 200;
 const context = (hook, text) => ({hookSpecificOutput:{hookEventName:hook,additionalContext:text}});
 export const codexHookDirectory = (env=process.env) => join(runtimeDir(env),'plugins','codex',hash(env.CODEX_HOME||join(homedir(),'.codex')));
+export const hostHookDirectory = (host,env=process.env) => host==='codex'?codexHookDirectory(env):join(runtimeDir(env),'plugins','claude-code',hash(env.CLAUDE_CONFIG_DIR||join(homedir(),'.claude')));
 
 function toolResult(value) {
   if (!value || typeof value !== 'object' || value.isError) return null;
@@ -29,7 +30,7 @@ export async function requestCodexHook(env, state, event, phase) {
   const live=await readManifest(runtimeDir(env));if(!live)return null;
   const response=await fetch(`http://127.0.0.1:${live.port}/agent/plugin-hook`,{
     method:'POST',headers:{authorization:`Bearer ${live.token}`,'content-type':'application/json',
-      'x-handoffglass-owner':randomUUID(),'x-handoffglass-host':'codex'},
+      'x-handoffglass-owner':randomUUID(),'x-handoffglass-host':env.HANDOFFGLASS_HOST_ID==='claude-code'?'claude-code':'codex'},
     body:JSON.stringify({sessionId:state.id,resumeToken:state.resumeToken,hostSession:state.hostSession,event,phase,expectedStep:state.step}),
     signal:AbortSignal.timeout(650)
   });
@@ -37,14 +38,15 @@ export async function requestCodexHook(env, state, event, phase) {
   return response.json();
 }
 
-export async function handleCodexHook(input, {env=process.env, request=requestCodexHook}={}) {
+export async function handleCodexHook(input, {env=process.env, request=requestCodexHook,host='codex'}={}) {
+  if(!['codex','claude-code'].includes(host))return {};
   const event=input?.hook_event_name;
   if(!id(input?.session_id))return {};
   if(event==='SessionStart')return context(event,capabilityInstructions()+
     ' Plugin hooks sync phases and offer one bounded continuation reminder; an idle turn cannot be awakened. Use the bundled visual-handoff Skill; do not install another MCP entry.');
   const events=['PostToolUse','PreToolUse','PreModelRequest','Stop','Interrupt','SessionEnd'];
   if(!events.includes(event))return {};
-  const root=codexHookDirectory(env),hostSession=hash(input.session_id),path=join(root,hostSession+'.json');
+  const root=hostHookDirectory(host,env),hostSession=hash(input.session_id),path=join(root,hostSession+'.json');
   let prior=await readManagedFile(path),state;
   if(prior)try{state=JSON.parse(prior);}catch{return {};}
   if(state && (state.hostSession!==hostSession || !uuid.test(state.id)||!token.test(state.resumeToken)))return {};

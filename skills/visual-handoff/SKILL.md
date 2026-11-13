@@ -18,6 +18,7 @@ The host observes and verifies. HandoffGlass maps coordinates, draws, animates a
 | Continue a parked task | `session_control(action:"attach")` → host observe → `session_verify` → `session_present` |
 | Review changes | `review_changes(action:"present",changes)` → `wait`/`status`; summaries + hashes only; decline/timeout stops continuation |
 | Connection / optional native lookup problem | `connection_status` / `permission_status`, only for that problem |
+| Connect another supported local host | `integration_install(host)` preview → `confirm:true` for the requested connection → reload/trust in the host → first real call |
 | Disable / enable | `integration_set_enabled`, only on the user's request |
 | Remove a connection / the application | `integration_cleanup` / `integration_uninstall`: preview then apply the requested removal |
 
@@ -32,7 +33,7 @@ Choose shape, label and style in one call; never animate by calling tools repeat
 ## Guided tasks
 
 1. Present one action with `title`, `message` and observed `bounds` (optional frame); omit bounds for text guidance. Keep sensitive choices with the user using `sensitive:true` and `completion:{kind:"user_report"}`.
-2. Default `execution:"parked"` keeps the local card and events alive while chat returns. On `yield_to_user`, end the turn with one short status; no wait loop. `pause` hides marks; `park` retains them. An idle model cannot be awakened by this plugin.
+2. Default `execution:"parked"` keeps the local card and events alive while chat returns. On `yield_to_user`, end the turn with one short status; no wait loop. `pause` hides marks; `park` retains them. Parked guidance never wakes a model. Codex/Claude Hooks cannot create an idle turn; DeepSeek/OpenCode native adapters can queue decision events only for their bound attached session.
 3. For an active multi-step task use `execution:"attached"`, `session_wait(cursor)` and the same session. Empty waits need no narration or re-inspection. On user action, independently observe the original app and `session_verify` with `expectedStep`. A user report is never verification.
 4. Only final confirmed success uses `result:"verified",finish:true`. Use `result:"mismatch"` for a failed check and `result:"inconclusive"` when the result cannot be inspected; never repeat the user action to fill missing evidence. After a conclusive check, `session_present` advances the same session with fresh evidence and a new `requestId`. `session_update(bounds,expectedRevision)` only moves/revises the current mark; it does not verify or advance.
 
@@ -47,5 +48,6 @@ Save session ID, recovery token and cursor privately in task context. After proc
 - `verification_due`/`step_not_verified`: check the original app. `revision_conflict`/`stale_step`: use the returned revision or current snapshot; do not blindly repeat edits.
 - Invalid recovery token: do not claim ownership. `truncated:true`: continue from the current snapshot and next cursor.
 - “移除 Codex 接入” uses integration cleanup; “卸载 HandoffGlass” uses full uninstall. The user's removal request authorizes applying the preview. Preserve unrelated settings, edits and unmanaged files; report retained items, scheduled cleanup and required host reload.
+- Name a host in `integration_set_enabled` to change that managed connection; omit it for the global guidance switch. Tool approval, Hook trust and WorkBuddy's imported connector switch remain with the host. `connection_status(host)` distinguishes written configuration from a real call; never report installed as verified.
 
 Read [tool contracts](references/tool-contracts.md) only for coordinate examples, native following or recovery details. Live tool schemas are authoritative; do not reread this reference each step.
