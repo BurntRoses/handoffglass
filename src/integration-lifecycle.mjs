@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { planApplicationFiles } from './application-installation.mjs';
 import { uninstallCodex } from './codex-install.mjs';
 import { codexPluginPlan, removeCodexPlugin, installCodexPlugin, setCodexPluginEnabled,codexPluginEvidence } from './codex-plugin-lifecycle.mjs';
-import { readManagedFile, applyFileTransaction, removeEmptyParents, digest } from './managed-files.mjs';
+import { readManagedFile, applyFileTransaction, removeEmptyParents, digest, managedDirectoryExists } from './managed-files.mjs';
 import { loadPreferences, savePreferences } from './local/preferences.mjs';
 import { WORKBUDDY_FILES as BUNDLE_FILES, readWorkbuddyRecord,prepareWorkbuddyBundle } from './workbuddy-bundle.mjs';
 import { runtimeDir, readManifest, readDesktopManifest, probe } from './runtime.mjs';
@@ -25,6 +25,11 @@ export async function setIntegrationEnabled(enabled, {dir,host,...options}={}) {
   return {enabled:preferences.enabled,code:enabled?'enabled':'disabled_by_user',nextAction:enabled?'ready':'stop',settingsPreserved:true};
 }
 export function appWorkbuddyDirectory(dir=runtimeDir()) { return join(dir,'connectors','workbuddy-local'); }
+export async function workbuddyBundleDirectories({root,dir}={}) {
+  // A packaged app.asar is a file, not a checkout containing dist/. Never
+  // address its virtual children through the ownership-aware raw filesystem.
+  return [...new Set([appWorkbuddyDirectory(dir),...(root&&await managedDirectoryExists(root)?[join(root,'dist','workbuddy-local')]:[])])];
+}
 async function workbuddyBundlePlan(bundle) {
   const {path:recordPath,raw,record}=await readWorkbuddyRecord(bundle);
   if(raw===null){
@@ -51,7 +56,7 @@ async function workbuddyBundlePlan(bundle) {
     hostAction:'remove_connector_in_workbuddy',hostState:'not_observed',changes,bundle};
 }
 async function workbuddyPlan({root=join(homedir(),'HandoffGlass'),dir}={}) {
-  const bundles=[...new Set([appWorkbuddyDirectory(dir),join(root,'dist','workbuddy-local')])];
+  const bundles=await workbuddyBundleDirectories({root,dir});
   const plans=await Promise.all(bundles.map(workbuddyBundlePlan));
   const retained=plans.flatMap(p=>p.retained);
   return {changed:plans.some(p=>p.changed),state:plans.every(p=>!p.changed)&&plans.some(p=>p.state==='unmanaged')?'unmanaged':retained.length?'modified':plans.some(p=>p.changed)?'bundle_ready':'not_installed',

@@ -4,7 +4,7 @@ import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {parse} from 'smol-toml';
-import {INTEGRATION_HOSTS,installIntegration,setIntegrationEnabled,integrationStatus} from '../src/integration-lifecycle.mjs';
+import {INTEGRATION_HOSTS,installIntegration,setIntegrationEnabled,integrationStatus,cleanupIntegration} from '../src/integration-lifecycle.mjs';
 import {connectionState} from '../src/connection-state.mjs';
 import {MANAGED_HOSTS} from '../src/desktop/host-connections.mjs';
 test('UI and MCP management cover the same seven integrations without installing during preview',async()=>{
@@ -37,4 +37,16 @@ test('Codex connection switch preserves approval policy, personal settings and d
 test('WorkBuddy imported connection enablement stays with its host',async()=>{
  const state=await setIntegrationEnabled(false,{host:'workbuddy'});
  assert.equal(state.applied,false);assert.equal(state.nextAction,'disable_in_workbuddy');
+});
+test('packaged archive roots are never treated as checkout connector directories',async()=>{
+ const home=await mkdtemp(join(tmpdir(),'hg-archive-root-'));
+ try{
+  const root=join(home,'app.asar');await writeFile(root,'archive fixture');
+  const options={root,dir:join(home,'runtime')};
+  assert.equal((await integrationStatus('workbuddy',options)).state,'not_installed');
+  assert.equal((await connectionState('workbuddy',options)).installed,false);
+  const cleanup=await cleanupIntegration('workbuddy',{...options,confirm:true});
+  assert.equal(cleanup.applied,false);
+  assert.equal(await readFile(root,'utf8'),'archive fixture');
+ }finally{await rm(home,{recursive:true,force:true});}
 });

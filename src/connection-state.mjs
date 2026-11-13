@@ -2,7 +2,7 @@
 import { join } from 'node:path';
 import { codexInstallationEvidence } from './codex-install.mjs';
 import { codexPluginEvidence } from './codex-plugin-lifecycle.mjs';
-import { appWorkbuddyDirectory } from './integration-lifecycle.mjs';
+import { workbuddyBundleDirectories } from './integration-lifecycle.mjs';
 import { readWorkbuddyRecord } from './workbuddy-bundle.mjs';
 import { readManagedFile, digest } from './managed-files.mjs';
 import {HARNESS_HOSTS,harnessStatus} from './harness-installation.mjs';
@@ -20,7 +20,7 @@ export async function connectionState(host,{dir,userHome,codexHome,root,live={},
     ({installed,managed,enabled,configurationMatches}=evidence);
     if(evidence.installationId)ids.push(evidence.installationId);
   } else if(host==='workbuddy') {
-    const bundles=[appWorkbuddyDirectory(dir),...(root?[join(root,'dist','workbuddy-local')]:[])];
+    const bundles=await workbuddyBundleDirectories({root,dir});
     for(const bundle of bundles){const saved=await readWorkbuddyRecord(bundle);if(saved.record){installed=true;managed=true;
       const config=await readManagedFile(join(bundle,'mcp.json'));
       if(config!==null && digest(config)===saved.record.files['mcp.json']){configurationMatches=true;if(saved.record.installationId)ids.push(saved.record.installationId);}

@@ -31,11 +31,13 @@ export async function nativeCodexPlugin(args,{codexCommand=process.env.HANDOFFGL
   return JSON.parse(stdout);
 }
 export async function installCodexPlugin(options={}) {
-  options={...options,codexCommand:await executable(options.codexCommand||process.env.HANDOFFGLASS_CODEX_COMMAND||'codex')};
+  const path=recordPath(options),prior=await readManagedFile(path),old=prior?JSON.parse(prior):null;
+  // A desktop installation may have a bundled CLI without a PATH entry.
+  // Keep using the explicit executable recorded by its successful install.
+  options={...options,codexCommand:await executable(options.codexCommand||process.env.HANDOFFGLASS_CODEX_COMMAND||old?.command||'codex')};
   const configRaw=await readManagedFile(join(home(options),'config.toml')),config=configRaw?parse(configRaw):{};
   if(config.mcp_servers?.handoffglass && config.mcp_servers.handoffglass.enabled!==false)
     throw Error('A standalone handoffglass MCP entry exists. Remove that connection before installing the plugin to avoid duplicate tools.');
-  const path=recordPath(options),prior=await readManagedFile(path),old=prior?JSON.parse(prior):null;
   const output=options.output||old?.marketplaceRoot||join(home(options),'handoffglass-local');
   if(old && output && resolve(output)!==old.marketplaceRoot)throw Error('Remove the previous local plugin bundle before changing its location.');
   const installationId=old?.installationId||randomUUID();

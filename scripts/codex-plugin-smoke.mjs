@@ -20,7 +20,11 @@ let child;
 try{
   const installed=await installCodexPlugin({...options,codexCommand:cli});
   assert.ok(installed.result);
-  const updated=await installCodexPlugin({...options,codexCommand:cli,mcpEnv:{...options.mcpEnv,HANDOFFGLASS_PLUGIN_TEST:'updated'}});
+  const explicitCommand=process.env.HANDOFFGLASS_CODEX_COMMAND;
+  delete process.env.HANDOFFGLASS_CODEX_COMMAND;
+  let updated;
+  try{updated=await installCodexPlugin({...options,mcpEnv:{...options.mcpEnv,HANDOFFGLASS_PLUGIN_TEST:'updated'}});}
+  finally{if(explicitCommand!==undefined)process.env.HANDOFFGLASS_CODEX_COMMAND=explicitCommand;}
   const cached=JSON.parse(await readFile(join(updated.result.installedPath,'.mcp.json'),'utf8'));
   assert.equal(cached.mcpServers.handoffglass.env.HANDOFFGLASS_PLUGIN_TEST,'updated','Reinstall must refresh the same-version local trial');
   child=spawn(cli,['app-server'],{env:{...process.env,CODEX_HOME:options.codexHome,HANDOFFGLASS_RUNTIME_DIR:options.dir},stdio:['pipe','pipe','pipe']});

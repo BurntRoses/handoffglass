@@ -24,7 +24,8 @@
 
 2026-11-13 的自动化结果：
 
-- `npm run test:preacceptance` 通过：294 项测试、完整/host/extras/legacy 四种 MCP 目录、场景校验、连接自检和插件预览门槛。host 目录为 19 个工具。
+- `npm run test:preacceptance` 及后续受影响检查通过：295 项测试、完整/host/extras/legacy 四种 MCP 目录、场景校验、连接自检和插件预览门槛。host 目录为 19 个工具。
+- `npm run test:codex-plugin` 通过：隔离 Codex 配置中的原生加载、19 工具/两个 Skill、无模型首次只读调用、更新及卸载；更新复用已记录的 CLI，不依赖 PATH。没有验证模型的绘制审批。
 - `npm run test:release-ui` 通过：真实 Electron 的连接管理、安装/启停/清理、取消、引导、外观及展开状态；全部使用隔离目录。
 - `npm run test:desktop` 通过：Node Broker、独立 App、Electron Node MCP 三条启动路径，双客户端共用、窗口 DIP 边界、焦点和无变化布局的窗口复用。
 - `npm run test:plugin-runtime` 通过：插件目录迁移后，使用复制的 Electron 绘制并清除标记，不依赖源码位置。

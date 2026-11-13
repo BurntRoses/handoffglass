@@ -15,6 +15,11 @@ export async function assertPrivatePath(path) {
     catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
 }
+export async function managedDirectoryExists(path) {
+  await assertPrivatePath(path);
+  try{return (await lstat(path)).isDirectory();}
+  catch(error){if(error.code==='ENOENT')return false;throw error;}
+}
 export async function readManagedFile(path) {
   const bytes=await readManagedBytes(path);
   return bytes===null?null:bytes.toString('utf8');

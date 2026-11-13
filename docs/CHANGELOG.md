@@ -4,6 +4,7 @@
 - DeepSeek / OpenCode 原生入口按绑定会话交付决策事件；挂起不唤醒模型，拒绝、旧步骤和失败交付不自动重试。
 - Claude Code 加入独立 marketplace 生命周期及可选 Hooks；Codex 绘制审批与安装状态分开检查，不改宿主审批策略。
 - App 安装正确复制 Electron ASAR 资源；DeepSeek 启动命令携带所需环境，并在启动 Harness 前清除 Electron 模式。
+- 打包归档不再被当作开发目录扫描；Codex 更新复用已记录的 CLI，支持未加入 PATH 的桌面内置命令。
 - 完整卸载先准备外部移除器，运行包在退出后核对摘要删除，保留用户改动。
 - 新增 `test:preacceptance` 和插件发布检查；本地插件不以独立 App 签名为前提，真实宿主、Windows 和物理多屏继续单独验收。
 
