@@ -9,6 +9,10 @@ test('verified evidence cannot be promoted from an inconclusive check',()=>{
  const bad=structuredClone(record);bad.stages.independent_verification.result='inconclusive';
  assert.ok(validateHostEvidenceRecord(bad).some(error=>error.toLowerCase().includes('inconclusive')));
 });
+test('resume evidence must record the continuation action',()=>{
+ const bad=structuredClone(record);delete bad.stages.resume.nextAction;
+ assert.ok(validateHostEvidenceRecord(bad).some(error=>error.includes('resume.nextAction')));
+});
 test('sensitive fields are rejected even when a record otherwise looks complete',()=>{
  const bad=structuredClone(record);bad.stages.guidance.screenshot='data:image/png;base64,abc';
  assert.ok(validateHostEvidenceRecord(bad).some(error=>error.includes('not allowed')));

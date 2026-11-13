@@ -14,7 +14,7 @@ const FORBIDDEN_KEY = /token|secret|password|credential|screenshot|account|windo
 function bounded(value,name,max=240){
   if(typeof value!=='string'||!value.trim()||value.length>max)return `${name} must be a bounded non-empty string`;
   const safe=redact(value,max);
-  if(safe.redacted)return `${name} contains sensitive material; store only its redacted summary`;
+  if(safe.redacted)return `${name} contains sensitive content/material; store only its redacted summary`;
   return null;
 }
 function walkKeys(value,path,errors){
@@ -53,7 +53,7 @@ export function validateHostEvidenceRecord(value,{host}={}){
   const result=value.stages.independent_verification?.result;
   if(!VERIFICATIONS.has(result))errors.push('Independent verification result is invalid');
   if(result&&result!=='verified')errors.push(`Inconclusive or mismatched verification is ${result}; it cannot establish a verified host record`);
-  if(value.stages.resume?.nextAction!==undefined){const error=bounded(value.stages.resume.nextAction,'stages.resume.nextAction');if(error)errors.push(error);}
+  const resumeActionError=bounded(value.stages.resume?.nextAction,'stages.resume.nextAction');if(resumeActionError)errors.push(resumeActionError);
   if(value.result!=='completed')errors.push('A verified host record must have a completed result');
   if(value.limitations!==undefined){
     if(!Array.isArray(value.limitations)||value.limitations.length>8)errors.push('limitations must be a short list');
