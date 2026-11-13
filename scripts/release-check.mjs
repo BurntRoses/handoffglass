@@ -4,6 +4,7 @@ import { readFile, access } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve, join } from 'node:path';
 import { assessPublicRelease, PREVIEW_TARGETS } from '../src/release-contract.mjs';
+import { validateHostEvidenceMatrix, validateHostEvidenceRecord } from '../src/host-evidence.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const args = process.argv.slice(2);
 if (args.some(arg => !['--public', '--preview', '--plugin'].includes(arg)) || args.includes('--public') && args.includes('--preview')) {
@@ -15,7 +16,10 @@ if (status.schemaVersion !== 1 || status.channel !== 'engineering-preview') thro
 const licenseText = await readFile(join(root, 'LICENSE'), 'utf8').catch(error => { if (error.code === 'ENOENT') return ''; throw error; });
 const delivery=args.includes('--plugin')?'plugin':'desktop';
 const hostStatus=delivery==='plugin'?JSON.parse(await readFile(join(root,'docs/host-evidence.json'),'utf8')):null;
-if(hostStatus&&hostStatus.schemaVersion!==1)throw new Error('Unsupported host evidence schema');
+if(hostStatus){
+  const hostErrors=validateHostEvidenceMatrix(hostStatus);
+  if(hostErrors.length)throw new Error('Invalid host evidence matrix:\n'+hostErrors.join('\n'));
+}
 for (const item of Object.values(status.evidence)) {
   if (!['pending', 'verified'].includes(item.status)) throw new Error('Invalid release evidence');
   if (item.record) {
@@ -24,13 +28,15 @@ for (const item of Object.values(status.evidence)) {
     await access(path);
   }
 }
-for(const item of Object.values(hostStatus?.hosts||{})){
+for(const [host,item] of Object.entries(hostStatus?.hosts||{})){
   if(!['unverified','verified'].includes(item.status))throw new Error('Invalid host acceptance status');
   if(item.record){
     if(typeof item.record!=='string')throw new Error('Host evidence must reference a repository record');
     const path=resolve(root,item.record);
     if(!path.startsWith(resolve(root)+'/')&&!path.startsWith(resolve(root)+'\\'))throw new Error('Host evidence must be inside the repository');
     await access(path);
+    const record=JSON.parse(await readFile(path,'utf8')),errors=validateHostEvidenceRecord(record,{host,status:item.status});
+    if(errors.length)throw new Error(`Invalid host evidence record ${host}:\n${errors.join('\n')}`);
   }
 }
 const lock = JSON.parse(await readFile(join(root, 'package-lock.json'), 'utf8'));

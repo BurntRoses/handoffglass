@@ -45,6 +45,29 @@ Windows、物理多屏与混合 DPI 另按[桌面验收](DESKTOP_QA.md)在对应
 
 状态源为 [host-evidence.json](host-evidence.json)。每条完成记录须包含：版本与平台、真实任务、引导事件、人类决定、宿主独立核验、任务恢复和失败情况。不得包含账号 ID、凭证、截图、文件正文或同意历史；公开记录只记测试事实与脱敏摘要。
 
+记录完成后先运行 `npm run host:evidence:check`。验证器要求四个阶段全部有事实摘要：`guidance`、`human_decision`、`independent_verification`、`resume`；核验必须由宿主独立完成并返回 `verified`，人类决定必须明确，且记录只能包含短摘要和风险等级。凭证、令牌、账号标识、截图、窗口标题、聊天记录、文件正文和同意历史字段会被拒绝。只有把记录路径写入对应 host 且验证器通过，`status: verified` 才能进入发布检查；当前七个 host 均保持 `unverified`。
+
+单条记录使用以下最小结构，保存为仓库内的脱敏 JSON 后再引用：
+
+```json
+{
+  "schemaVersion": 1,
+  "host": "codex",
+  "platform": "macos-arm64",
+  "hostVersion": "宿主版本",
+  "handoffglassVersion": "0.23.0",
+  "task": {"kind": "settings", "summary": "短任务摘要", "risk": "low"},
+  "stages": {
+    "guidance": {"status": "verified", "evidence": "已显示目标并等待用户操作"},
+    "human_decision": {"status": "verified", "decision": "completed", "evidence": "用户完成操作"},
+    "independent_verification": {"status": "verified", "result": "verified", "evidence": "宿主重新观察原应用并确认结果"},
+    "resume": {"status": "verified", "nextAction": "resumed", "evidence": "任务在核验后继续"}
+  },
+  "result": "completed",
+  "limitations": []
+}
+```
+
 云端 Jules、Codex Cloud 不进行本地屏幕适配。后台 Hooks 不能启动空闲模型轮次，用户需要回到原会话继续。
 
 官方接口参考：[Codex 本地插件](https://developers.openai.com/plugins/deploy/desktop-only)、[Claude Code manifest](https://code.claude.com/docs/en/plugins-reference)、[DeepSeek defineTool](https://deepseek-harness.github.io/deepseek-harness/en/develop/basic/tool)、[OpenCode 插件](https://opencode.ai/docs/build/plugins/)。OpenCode 当前文档已区分新版插件 API，旧版配置测试不能当作新版原生插件验收。

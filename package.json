@@ -52,6 +52,7 @@
     "blueprints": "node scripts/blueprints.mjs",
     "test:local": "node --test test/local-*.test.mjs",
     "host:matrix": "node scripts/host-matrix.mjs",
+    "host:evidence:check": "node scripts/host-evidence.mjs",
     "harness:deepseek": "node scripts/prepare-deepseek.mjs",
     "plugin:codex": "node scripts/codex-plugin.mjs build",
     "plugin:codex:install": "node scripts/codex-plugin.mjs install",
