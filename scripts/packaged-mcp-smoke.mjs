@@ -129,6 +129,8 @@ try{
   // acceptance and must never be called by this isolated packaging fixture.
   const codexLifecycleURL=pathToFileURL(join(dirname(entry),'codex-plugin-lifecycle.mjs')).href;
   const managedFilesURL=pathToFileURL(join(dirname(entry),'managed-files.mjs')).href;
+  // Six owned trees require path checks and compare-before-delete I/O, just
+  // like generation above. This batch budget is separate from MCP liveness.
   await promisify(execFile)(appBinary,['--input-type=module','-e',`
     import assert from 'node:assert/strict';
     import {mkdir,readFile,writeFile,access} from 'node:fs/promises';
@@ -153,7 +155,7 @@ try{
       assert.equal(await readFile(note,'utf8'),'Keep my connection notes.');
       await assert.rejects(access(join(item.pluginPath,'runtime/src/mcp.mjs')),{code:'ENOENT'});
     }
-  `],{env:nativeEnv,timeout:60000,maxBuffer:1024*1024});
+  `],{env:nativeEnv,timeout:180000,maxBuffer:1024*1024});
   console.log('Packaged App builds, loads and cleans six App-linked connection bundles without nested Electron or host commands');
   const applicationURL=pathToFileURL(join(dirname(entry),'application-installation.mjs')).href;
   const uninstallOptions={dir:join(dir,'uninstall-runtime'),userHome:join(dir,'uninstall-home'),codexHome:join(dir,'uninstall-codex'),root:dirname(dirname(entry))};

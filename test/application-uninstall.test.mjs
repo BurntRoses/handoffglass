@@ -99,6 +99,8 @@ test('a running plugin can uninstall itself and keeps its runtime until process 
  await registerApplicationInstallation(options);
  const installed=await installHarness('cursor',{...options,home:options.userHome,root:fileURLToPath(new URL('../',import.meta.url)),confirm:true,desktopRuntime:false});
  const source=join(installed.output,'runtime/src/integration-lifecycle.mjs');
+ // A runtime snapshot contains over a thousand files. Allow its ownership
+ // scan to finish on slower CI disks; the production worker keeps its bounds.
  const {stdout}=await promisify(execFile)(process.execPath,['--input-type=module','-e',`
   const {access}=await import('node:fs/promises');
   const {uninstallApplication}=await import(${JSON.stringify(pathToFileURL(source).href)});
@@ -106,7 +108,7 @@ test('a running plugin can uninstall itself and keeps its runtime until process 
   const result=await uninstallApplication({...options,confirm:true});
   await access(${JSON.stringify(source)});
   console.log(JSON.stringify({...result,sourceExistsBeforeExit:true}));
- `],{timeout:20000});
+ `],{timeout:60000});
  const applied=JSON.parse(stdout);assert.equal(applied.sourceExistsBeforeExit,true);assert.equal(applied.scheduled,true);
  const result=await workerResult(applied);assert.equal(result.complete,true,JSON.stringify(result));
  await assert.rejects(readFile(source),{code:'ENOENT'});

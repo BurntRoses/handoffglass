@@ -1,11 +1,18 @@
 #!/usr/bin/env node
 /** Offline publication gate; never installs or reads a user's host configuration. */
-import { readFile, access } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { resolve, join } from 'node:path';
+import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import { assessPublicRelease, PREVIEW_TARGETS } from '../src/release-contract.mjs';
 import { validateHostEvidenceMatrix, validateHostEvidenceRecord } from '../src/host-evidence.mjs';
-const root = fileURLToPath(new URL('../', import.meta.url));
+import { DESKTOP_EVIDENCE_CHECKS, validateDesktopEvidenceRecord } from '../src/desktop-evidence.mjs';
+const root = await realpath(fileURLToPath(new URL('../', import.meta.url)));
+async function recordPath(record) {
+  if(typeof record!=='string')throw new Error('Evidence must reference a repository record');
+  const path=await realpath(resolve(root,record)),local=relative(root,path);
+  if(!local||local==='..'||local.startsWith('..'+sep)||isAbsolute(local))throw new Error('Evidence must be inside the repository');
+  return path;
+}
 const args = process.argv.slice(2);
 if (args.some(arg => !['--public', '--preview', '--plugin'].includes(arg)) || args.includes('--public') && args.includes('--preview')) {
   console.error('Usage: npm run release:check -- [--preview|--public] [--plugin]'); process.exit(2);
@@ -20,22 +27,21 @@ if(hostStatus){
   const hostErrors=validateHostEvidenceMatrix(hostStatus);
   if(hostErrors.length)throw new Error('Invalid host evidence matrix:\n'+hostErrors.join('\n'));
 }
-for (const item of Object.values(status.evidence)) {
+for (const [kind,item] of Object.entries(status.evidence)) {
   if (!['pending', 'verified'].includes(item.status)) throw new Error('Invalid release evidence');
   if (item.record) {
-    const path = resolve(root, item.record);
-    if (!path.startsWith(resolve(root) + '/') && !path.startsWith(resolve(root) + '\\')) throw new Error('Evidence must be inside the repository');
-    await access(path);
+    const path = await recordPath(item.record);
+    if (Object.hasOwn(DESKTOP_EVIDENCE_CHECKS,kind)) {
+      const record=JSON.parse(await readFile(path,'utf8')),errors=validateDesktopEvidenceRecord(record,{kind});
+      if(errors.length)throw new Error(`Invalid desktop evidence record ${kind}:\n${errors.join('\n')}`);
+    }
   }
 }
 for(const [host,item] of Object.entries(hostStatus?.hosts||{})){
   if(!['unverified','verified'].includes(item.status))throw new Error('Invalid host acceptance status');
   if(item.record){
-    if(typeof item.record!=='string')throw new Error('Host evidence must reference a repository record');
-    const path=resolve(root,item.record);
-    if(!path.startsWith(resolve(root)+'/')&&!path.startsWith(resolve(root)+'\\'))throw new Error('Host evidence must be inside the repository');
-    await access(path);
-    const record=JSON.parse(await readFile(path,'utf8')),errors=validateHostEvidenceRecord(record,{host,status:item.status});
+    const path=await recordPath(item.record);
+    const record=JSON.parse(await readFile(path,'utf8')),errors=validateHostEvidenceRecord(record,{host});
     if(errors.length)throw new Error(`Invalid host evidence record ${host}:\n${errors.join('\n')}`);
   }
 }
