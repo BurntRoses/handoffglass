@@ -43,11 +43,12 @@ export async function buildCodexPlugin({output=join(projectRoot,'dist','codex-lo
   if(!desktopRuntime)delete server.env.HANDOFFGLASS_EMBEDDED_RENDERER;
   files.set('.mcp.json',json({mcpServers:{handoffglass:server}}));
   files.set('local-runtime.json',json({schemaVersion:2,command,runtimeLink,entry:'runtime/src/mcp.mjs',desktopRuntime,runtimeMode:snapshot.runtimeMode,appRequired:snapshot.runtimeMode==='app-linked',platform:desktopRuntime?process.platform:null,arch:desktopRuntime?process.arch:null,checkoutRequired:false,nodeRequired:snapshot.runtimeMode!=='app-linked'}));
-  if(lifecycle==='enhanced')files.set('hooks/run.mjs',`import {runCodexHook} from '../runtime/src/hosts/codex-hooks.mjs';\nawait runCodexHook();\n`);
+  if(lifecycle==='enhanced')files.set('hooks/run.mjs',`import {readFile} from 'node:fs/promises';\nimport {runCodexHook} from '../runtime/src/hosts/codex-hooks.mjs';\nconst {mcpServers}=JSON.parse(await readFile(new URL('../.mcp.json',import.meta.url),'utf8'));\nawait runCodexHook({env:{...process.env,...mcpServers.handoffglass.env}});\n`);
   const hooks={};
   for(const event of ['PreToolUse','PostToolUse','Stop','Interrupt','SessionEnd']) {
-    const settings={type:'command',command:`${shell(command)} "\${PLUGIN_ROOT}/hooks/run.mjs"`,
-      commandWindows:`"${command}" "%PLUGIN_ROOT%\\hooks\\run.mjs"`,timeout:['Interrupt','SessionEnd'].includes(event)?2:3};
+    const electronNode=server.env.ELECTRON_RUN_AS_NODE==='1';
+    const settings={type:'command',command:`${electronNode?'ELECTRON_RUN_AS_NODE=1 ':''}${shell(command)} "\${PLUGIN_ROOT}/hooks/run.mjs"`,
+      commandWindows:`${electronNode?'set "ELECTRON_RUN_AS_NODE=1" && ':''}"${command}" "%PLUGIN_ROOT%\\hooks\\run.mjs"`,timeout:['Interrupt','SessionEnd'].includes(event)?2:3};
     const matcher=['PreToolUse','PostToolUse'].includes(event)?{matcher:'mcp__.*handoffglass.*__session_(start|present|resume|wait|verify|stop|control|update)$'}:{};
     hooks[event]=[{...matcher,hooks:[settings]}];
   }

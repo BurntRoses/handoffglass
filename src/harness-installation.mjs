@@ -41,7 +41,7 @@ async function targetPath(host,options,paths){
  return null;
 }
 function nextAction(host){return host==='claude-code'?'reload_claude_plugins':host==='deepseek'?'launch_deepseek_with_patch':host==='trae'?'enable_project_mcp_and_reload':'reload_host';}
-const common=(host,paths)=>({host,installationId:paths.record?.installationId??null,installed:!!paths.record,configured:!!paths.record,enabled:paths.record?.enabled??false,runtimeMode:paths.record?.runtimeMode??null,hostState:'not_observed',endToEnd:'unverified',reloadRequired:false,items:[],retained:[],scope:'managed_host_integration',cleanupAvailable:!!paths.record,hostAction:nextAction(host)});
+const common=(host,paths)=>({host,installationId:paths.record?.installationId??null,installed:!!paths.record,managed:!!paths.record,configured:!!paths.record,enabled:paths.record?.enabled??false,runtimeMode:paths.record?.runtimeMode??null,hostState:'not_observed',endToEnd:'unverified',reloadRequired:false,items:[],retained:[],scope:'managed_host_integration',cleanupAvailable:!!paths.record,hostAction:nextAction(host)});
 async function configEvidence(host,paths){
  const record=paths.record;if(!record)return false;
  if(host==='claude-code'){

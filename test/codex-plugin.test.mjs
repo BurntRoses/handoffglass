@@ -4,6 +4,7 @@ import {mkdtemp,readFile,writeFile,rm,readdir} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
+import {spawnSync} from 'node:child_process';
 import {buildCodexPlugin} from '../src/codex-plugin.mjs';
 import {handleCodexHook,codexHookDirectory} from '../src/hosts/codex-hooks.mjs';
 import {HandoffManager} from '../src/core.mjs';
@@ -30,7 +31,8 @@ const envelope=(event,extra={})=>({hook_event_name:event,session_id:'host-A',...
 const tool=(name,result)=>envelope('PostToolUse',{tool_name:'mcp__handoffglass__'+name,tool_response:{content:[{type:'text',text:JSON.stringify(result)}]}});
 
 test('local plugin declares the tested Codex format, one MCP, hooks and bundled skills without trust edits',()=>isolated(async({dir})=>{
-  const output=join(dir,'bundle'),built=await buildCodexPlugin({output,lifecycle:'enhanced'}),read=path=>readFile(join(built.pluginPath,path),'utf8').then(JSON.parse);
+  const connectionEnv={HANDOFFGLASS_RUNTIME_DIR:join(dir,'connection'),CODEX_HOME:join(dir,'profile')};
+  const output=join(dir,'bundle'),built=await buildCodexPlugin({output,lifecycle:'enhanced',envOverrides:connectionEnv}),read=path=>readFile(join(built.pluginPath,path),'utf8').then(JSON.parse);
   assert.equal(built.checkoutRequired,false);
   await assert.rejects(read('plugin.json'),{code:'ENOENT'});
   assert.equal((await read('.codex-plugin/plugin.json')).name,'handoffglass');
@@ -41,6 +43,10 @@ test('local plugin declares the tested Codex format, one MCP, hooks and bundled 
   assert.ok(!hooks.PermissionRequest);
   assert.match(await readFile(join(built.pluginPath,'skills/visual-handoff/references/tool-contracts.md'),'utf8'),/session_wait/);
   assert.match(await readFile(join(built.pluginPath,'hooks/run.mjs'),'utf8'),/codex-hooks\.mjs/);
+  const fallback=join(dir,'wrong-runtime');
+  const hook=spawnSync(process.execPath,[join(built.pluginPath,'hooks/run.mjs')],{encoding:'utf8',input:JSON.stringify(tool('session_start',{session:{id:owner,status:'waiting_user',step:1,execution:'attached'},resumeToken:'a'.repeat(64)})),env:{...process.env,HANDOFFGLASS_RUNTIME_DIR:fallback},timeout:5000});
+  assert.equal(hook.status,0,hook.stderr);assert.equal((await readdir(codexHookDirectory(connectionEnv))).length,1);
+  await assert.rejects(readdir(fallback),{code:'ENOENT'});
   await writeFile(join(built.pluginPath,'.codex-plugin/plugin.json'),'user edit');
   await assert.rejects(buildCodexPlugin({output}),/local edits/);
   assert.equal(await readFile(join(built.pluginPath,'.codex-plugin/plugin.json'),'utf8'),'user edit');

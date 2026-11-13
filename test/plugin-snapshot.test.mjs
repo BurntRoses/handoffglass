@@ -27,15 +27,18 @@ test('App snapshots retain their runtime dependency across generated bundles and
  await writeFile(join(app,'package.json'),JSON.stringify({version:'1.0.0',handoffglassBuild:{schemaVersion:1}}));
  await writeFile(join(app,'package-lock.json'),JSON.stringify({packages:{}}));
  assert.deepEqual(await pluginRuntimeMode(app,true),{desktop:false,runtimeMode:'app-linked'});
- const plugin=await buildCodexPlugin({root:app,output:join(dir,'codex'),desktopRuntime:true,envOverrides:{HANDOFFGLASS_EMBEDDED_RENDERER:'1'}});
+ const plugin=await buildCodexPlugin({root:app,output:join(dir,'codex'),desktopRuntime:true,lifecycle:'enhanced',envOverrides:{HANDOFFGLASS_EMBEDDED_RENDERER:'1',ELECTRON_RUN_AS_NODE:'1',HANDOFFGLASS_RUNTIME_DIR:state}});
  assert.equal(plugin.runtimeMode,'app-linked');assert.equal(plugin.desktopRuntime,false);
  const codexEnv=JSON.parse(await readFile(join(plugin.pluginPath,'.mcp.json'))).mcpServers.handoffglass.env;
  assert.equal(codexEnv.HANDOFFGLASS_RUNTIME_MODE,'app-linked');assert.equal(codexEnv.HANDOFFGLASS_EMBEDDED_RENDERER,undefined);
+ const hook=JSON.parse(await readFile(join(plugin.pluginPath,'hooks/hooks.json'))).hooks.Stop[0].hooks[0];
+ assert.match(hook.command,/^ELECTRON_RUN_AS_NODE=1 /);assert.match(hook.commandWindows,/^set "ELECTRON_RUN_AS_NODE=1" && /);
+ assert.match(await readFile(join(plugin.pluginPath,'hooks/run.mjs'),'utf8'),/mcpServers.handoffglass.env/);
  const options={root:app,dir:state,home,confirm:true,envOverrides:{HANDOFFGLASS_EMBEDDED_RENDERER:'1'}};
  const installed=await installHarness('cursor',options);assert.equal(installed.runtimeMode,'app-linked');
  const entry=JSON.parse(await readFile(join(home,'.cursor/mcp.json'))).mcpServers.handoffglass;
  assert.equal(entry.env.HANDOFFGLASS_RUNTIME_MODE,'app-linked');assert.equal(entry.env.HANDOFFGLASS_EMBEDDED_RENDERER,undefined);
- assert.equal((await harnessStatus('cursor',options)).runtimeMode,'app-linked');
+ const status=await harnessStatus('cursor',options);assert.equal(status.runtimeMode,'app-linked');assert.equal(status.managed,true);
  await cleanupHarness('cursor',options);await assert.rejects(readFile(join(home,'.cursor/mcp.json')),{code:'ENOENT'});
 }));
 test('managed writes retain binary bytes, executable mode and recorded relative links',()=>temp(async dir=>{
