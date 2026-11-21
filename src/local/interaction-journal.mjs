@@ -74,11 +74,11 @@ export class InteractionJournal extends EventEmitter {
     else if(prior && session.phase==='reconnecting' && prior.phase!=='reconnecting')this.#append(rec,'connection_changed');
     if(prior && session.recoveryRequired && session.phase==='blocked' && session.nextAction!==prior.nextAction)this.#append(rec,'recovery_requested');
     if(session.continuous && prior && session.step!==prior.step)this.#append(rec,'scene_updated');
-    if(session.continuous && prior && session.status==='user_action_reported' && !['paused','user_action_reported'].includes(prior.status))this.#append(rec,'user_action',undefined,session.completionSource==='native_observation'?'native':session.completionSource==='agent_observation'?'agent':'user');
+    if(prior && session.status==='user_action_reported' && !['paused','user_action_reported'].includes(prior.status))this.#append(rec,'user_action',undefined,session.completionSource==='native_observation'?'native':session.completionSource==='agent_observation'?'agent':'user');
     if(session.continuous && TERMINAL.has(session.status) && prior?.status!==session.status)this.#append(rec,'session_finished');
-    if(session.continuous && session.phase!==prior?.phase && prior){
-      if(session.phase==='verifying')this.#append(rec,'verification_required');
-      else if(session.phase==='next_step')this.#append(rec,'agent_ready');
+    if(prior && session.phase!==prior.phase){
+      if(session.phase==='verifying'&&session.status==='user_action_reported')this.#append(rec,'verification_required');
+      else if(session.continuous&&session.phase==='next_step')this.#append(rec,'agent_ready');
     }
     if(terminal){
       if(TERMINAL.has(session.status) && prior?.status!==session.status)

@@ -24,6 +24,20 @@ test('risk review waits, refuses stale decisions, times out to decline, and repe
   assert.equal(log.decide(review.id,1,'reviewed').review.status,'declined');
   assert.equal(log.present({changes:[change]},'A').review.id,review.id);log.close();
 });
+test('reviews stay queryable by their owner after a new review replaces the surface',async()=>{
+ const log=new PresentationLog();
+ try{
+  const first=log.present({changes:[change]},'A').review;
+  const pending=log.wait(first.id,'A',100);
+  log.decide(first.id,first.revision,'reviewed');
+  const second=log.present({changes:[{...change,summary:'另一个设置'}]},'B').review;
+  assert.equal((await pending).review.status,'reviewed');
+  assert.equal(log.owned(first.id,'A').status,'reviewed');
+  assert.equal((await log.wait(first.id,'A',0)).review.status,'reviewed');
+  assert.equal(log.owned(first.id,'B'),null);
+  assert.equal(log.owned(second.id,'B').status,'waiting_review');
+ }finally{log.close();}
+});
 test('only summaries and hashes are accepted; credentials are hashed before log and redacted again on export',()=>{
   assert.throws(()=>normalizeChange({...change,contents:'file'}));
   assert.throws(()=>normalizeChange({...change,before:{summary:'old',hash,content:'secret'}}));

@@ -321,6 +321,18 @@ Object.assign(lex['zh-CN'],{copyLaunch:'复制启动命令',unsaved:'尚未保�
 Object.assign(lex['en-US'],{copyLaunch:'Copy launch command',unsaved:'Unsaved changes',saving:'Saving…',saveFailed:'Could not save. Your changes are kept.',returnToChat:'Action recorded. Return to chat to verify.',targetUnavailable:'The target needs another check',
  overview:'Workbench',welcome:'Desktop guidance',welcomeDesc:'Start a task in a connected app. Guidance appears beside the target when a step needs you.',workspaceLabel:'Desktop workbench',trialTitle:'Try desktop guidance',trialDesc:'See target marks and try completion, pause and the next step.',tryGuidance:'Try guidance',showCurrent:'Show current guidance',desktopHint:'Target marks and step cards',hostHint:'Based on actual host requests',reviewPermission:'Check access',workspaceTip:'Pause or end guidance at any time.',checkPermissionNow:'Check access',identifyDisplays:'Identify displays',displayPolicy:'Control strip display',displayFollow:'Follow target',displayActive:'Current display',displayFixed:'Choose display',displayPolicyHint:'Target marks always stay on the target display.',uninstallTitle:'Uninstall HandoffGlass',uninstallPreview:'Review cleanup',uninstallDesc:'Remove the app, integrations and runtime data. Edited shared content is listed and kept.',uninstallConfirm:'Quit and uninstall',selfTestTitle:'Local service check',selfTestPassed:'Local service available',selfTestPassedHint:'This does not verify tools in your host. Connections shows real call evidence.',selfTestFailed:'Local service check failed',selfTestTimeout:'Local service check timed out',checkLoaded:'Check loaded tools',hostReady:'A real call from this installation was received.',hostPending:'Waiting for a host call.',reloadHint:'Configuration written. Restart or reload Codex, then ask “Check the HandoffGlass connection” in your chat.',enableHint:'Enable HandoffGlass in your host, then reload its tools.',reviewConfigHint:'Configuration was edited. Review it before continuing.',stepPaused:'Current guidance is paused',stepRecovering:'Return to chat to check the target',currentTask:'Guidance in progress',trialStarted:'Local trial started. Follow the desktop prompt.',uninstallScheduled:'Cleanup scheduled. The app will quit.',uninstallRetained:'Edited content will be kept.',uninstallNone:'No registered content to remove.'
 });
+Object.assign(lex['zh-CN'],{
+ activeTaskBadge:'当前操作',drawingActive:'正在使用屏幕标记。',
+ stepTextRequested:'已请求文字引导',stepLocationRequested:'已请求重新定位',
+ stepInconclusive:'暂时无法核验，请回到原会话。',stepMismatch:'结果与预期不符，请查看原会话。',
+ stepCardUnavailable:'当前没有可打开的步骤卡片。'
+});
+Object.assign(lex['en-US'],{
+ activeTaskBadge:'Current step',drawingActive:'Screen marking is active.',
+ stepTextRequested:'Text guidance requested',stepLocationRequested:'New location requested',
+ stepInconclusive:'Unable to verify. Return to the original chat.',stepMismatch:'The result differs from what was expected. Check the original chat.',
+ stepCardUnavailable:'There is no step card to open.'
+});
 const $=id=>document.getElementById(id);
 upgradeChoices();
 let prefs=null,currentPage='overview',busy=false,serial=0,settingsDirty=false,settingsRevision=0,settingsPending=0,testBusy=false,testLast=null;
@@ -366,11 +378,22 @@ function renderLocal(){value('enabledHint',prefs?.enabled===false?(prefs.locale=
 function showState(d){
  observedHosts=Array.isArray(d?.hosts)?d.hosts.slice(0,16):[];renderHosts();
  recentTimeline=Array.isArray(d?.timeline)?d.timeline.slice(-12):[];renderTimeline();
- const healthy=d?.broker==='running',desktop=d?.desktop==='present',hasHandoff=['awaiting_user','user_action_reported','observing','paused'].includes(d?.session?.state);
- const phaseKey=d?.session?.state==='paused'?'stepPaused':d?.session?.phase==='blocked'?'targetUnavailable':d?.session?.phase==='reconnecting'?'stepRecovering':d?.session?.phase==='verifying'&&d?.session?.execution==='parked'?'returnToChat':['verifying','next_step'].includes(d?.session?.phase)?'phase_'+d.session.phase:'waiting';
- value('taskTitle',translateKey(hasHandoff?'currentTask':'trialTitle'));value('taskDescription',translateKey(hasHandoff?phaseKey:'trialDesc'));value('taskBadge',hasHandoff?translateKey(phaseKey):(prefs?.locale==='zh-CN'?'暂无任务':'No active task'));
+ const healthy=d?.broker==='running',desktop=d?.desktop==='present',session=d?.session;
+ const hasHandoff=['awaiting_user','user_action_reported','observing','paused'].includes(session?.state);
+ const drawing=hasHandoff&&session.mode==='guide'&&session.continuous===false&&session.state!=='user_action_reported';
+ let phaseKey='waiting';
+ if(drawing)phaseKey='drawingActive';
+ else if(session?.state==='paused')phaseKey='stepPaused';
+ else if(session?.phase==='blocked')phaseKey=session.state==='observing'?
+   (session.nextAction==='present_text_step'?'stepTextRequested':'stepLocationRequested'):'targetUnavailable';
+ else if(session?.phase==='reconnecting')phaseKey='stepRecovering';
+ else if(session?.verificationResult==='inconclusive')phaseKey='stepInconclusive';
+ else if(session?.verificationResult==='mismatch')phaseKey='stepMismatch';
+ else if(session?.phase==='verifying')phaseKey=session.execution==='parked'?'returnToChat':'phase_verifying';
+ else if(session?.phase==='next_step')phaseKey='phase_next_step';
+ value('taskTitle',translateKey(hasHandoff?'currentTask':'trialTitle'));value('taskDescription',translateKey(hasHandoff?phaseKey:'trialDesc'));value('taskBadge',translateKey(hasHandoff?'activeTaskBadge':'idle'));
  value('taskStep',hasHandoff&&d.session.step?(prefs?.locale==='zh-CN'?`第 ${d.session.step}${d.session.totalSteps?' / '+d.session.totalSteps:''} 步`:`Step ${d.session.step}${d.session.totalSteps?' of '+d.session.totalSteps:''}`):'');
- $('tryGuidance').hidden=hasHandoff;$('tryGuidance').disabled=prefs?.enabled===false;$('showCurrent').hidden=!hasHandoff;
+ $('tryGuidance').hidden=hasHandoff;$('tryGuidance').disabled=prefs?.enabled===false;$('showCurrent').hidden=!hasHandoff||drawing;
 
  value('overviewTitle',translateKey(prefs?.enabled===false?'pausedTitle':!desktop?'offlineTitle':hasHandoff?'currentTask':'welcome'));
  value('overviewDescription',translateKey(prefs?.enabled===false?'pausedDesc':!desktop?'offlineDesc':hasHandoff?phaseKey:'welcomeDesc'));
@@ -600,7 +623,10 @@ for(const switchId of ['accessibility','continuous','guidanceEnabled','reviewEna
 
 $('checkPermission').addEventListener('click',refreshPermission);
 $('tryGuidance').addEventListener('click',async()=>{const button=$('tryGuidance');button.disabled=true;try{const r=await window.hgCenter.trial();value('trialResult',translateKey(r?.ok||r?.session?'trialStarted':'failed'));void refresh();}catch{value('trialResult',translateKey('failed'));}finally{button.disabled=false;}});
-$('showCurrent').addEventListener('click',async()=>{try{await window.hgCenter.showCurrent();}catch{toast(translateKey('failed'));}});
+$('showCurrent').addEventListener('click',async()=>{
+  try{const result=await window.hgCenter.showCurrent();if(!result.ok)toast(translateKey('stepCardUnavailable'));}
+  catch{toast(translateKey('failed'));}
+});
 $('identifyDisplays').addEventListener('click',async()=>{try{const r=await window.hgCenter.identifyDisplays();if(!r?.ok)toast(translateKey('failed'));}catch{toast(translateKey('failed'));}});
 function renderDisplayChoices(displays){
  const group=$('displayChoices');group.replaceChildren();group.hidden=(prefs?.displayPolicy||'target')!=='fixed';

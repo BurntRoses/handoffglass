@@ -9,9 +9,11 @@ export function summarizeDiagnostics(input, now = Date.now()) {
     ? now - input.lastAgentActivityAt < 120000 : false;
   const session = ['awaiting_user','user_action_reported','observing','paused'].includes(input.handoff?.status) ? {
     state: input.handoff.status, mode: input.handoff.mode === 'guide' ? 'guide' : 'handoff',
+    ...(typeof input.handoff.continuous==='boolean'?{continuous:input.handoff.continuous}:{}),
     execution:input.handoff.execution==='parked'?'parked':'attached',
     ...(['waiting_user','presenting','blocked','verifying','next_step','paused','reconnecting'].includes(input.handoff.phase) ? { phase: input.handoff.phase } : {}),
-    ...(['wait_for_user','observe_app','verify_in_app','present_next_step','reobserve_target','check_accessibility_permission'].includes(input.handoff.nextAction) ? { nextAction: input.handoff.nextAction } : {}),
+    ...(['wait_for_user','observe_app','verify_in_app','present_next_step','reobserve_target','present_text_step','check_accessibility_permission'].includes(input.handoff.nextAction) ? { nextAction: input.handoff.nextAction } : {}),
+    ...(['verified','mismatch','inconclusive'].includes(input.handoff.verificationResult)?{verificationResult:input.handoff.verificationResult}:{}),
     ...(Number.isInteger(input.handoff.step)?{step:input.handoff.step}:{}),
     ...(Number.isInteger(input.handoff.totalSteps)?{totalSteps:input.handoff.totalSteps}:{}),
     expiresIn: Number.isFinite(input.handoff.timeoutAt) ? Math.max(0, Math.ceil((input.handoff.timeoutAt - now) / 1000)) : null

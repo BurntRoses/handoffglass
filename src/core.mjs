@@ -208,11 +208,15 @@ export class HandoffManager extends EventEmitter {
       return {session:copySession(session)};
     }
     if(session.continuous){
-      if(verified && finish){this.#finish(session,'completed');session.phase='complete';session.nextAction='stop';}
-      else{session.status='observing';session.phase='next_step';session.nextAction=verified?'present_next_step':'observe_app';session.recoveryRequired=!verified;session.stepTimeoutAt=this.clock()+1800000;this.#arm(session);}
+      if(verified && finish){this.#finish(session,'completed');return {session:copySession(session)};}
+      session.status='observing';session.phase='next_step';session.nextAction=verified?'present_next_step':'observe_app';
+      session.recoveryRequired=!verified;session.stepTimeoutAt=this.clock()+1800000;this.#arm(session);
     }else{
-      session.phase = verified === true ? 'complete' : 'next_step';
-      session.nextAction = verified === true ? 'stop' : 'observe_app';
+      if(verified && session.status==='user_action_reported'){
+        this.#finish(session,'completed');return {session:copySession(session)};
+      }
+      session.phase=verified?'complete':session.status==='user_action_reported'?'verifying':'next_step';
+      session.nextAction=verified?'stop':'observe_app';
     }
     session.updatedAt = this.clock();
     this.emit('change', copySession(session));
@@ -234,8 +238,11 @@ export class HandoffManager extends EventEmitter {
     if(TERMINAL.has(current.status)||this.activeId!==id)return {error:'already_final'};
     if(current.status==='paused')return {error:'paused'};
     if(current.phase==='verifying')return {error:'verification_due'};
-    const layoutRecovery=current.status==='awaiting_user'&&current.targetTracking?.status==='layout_changed';
-    if(current.status!=='observing'&&!layoutRecovery)return {error:'step_not_verified'};
+    const targetRecovery=current.status==='awaiting_user'&&current.phase==='blocked';
+    if(current.status!=='observing'&&!targetRecovery)return {error:'step_not_verified'};
+    const recovering=!!session.recoveryRequired||targetRecovery;
+    const confirmationDeadline=recovering?session.confirmationTimeoutAt:null;
+    if(confirmationDeadline!==null&&current.sensitive&&!normalized.sensitive)return {error:'sensitive_confirmation_pending'};
     const fingerprint=refusalKey(owner,normalized);
     if(this.refusals.has(fingerprint)&&!normalized.retryDeclined)return refused();
     for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','purpose','intent','scrim']) session[field]=normalized[field];
@@ -245,10 +252,12 @@ export class HandoffManager extends EventEmitter {
     if(normalized.scene)session.scene=normalized.scene;
     else delete session.scene;
     delete session.targetTracking;
-    if(!session.recoveryRequired&&!layoutRecovery)session.step++;delete session.recoveryRequired;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
+    if(!recovering)session.step++;
+    delete session.recoveryRequired;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
     session.nextAction=normalized.mode==='guide'?'observe_app':'wait_for_user';session.verified=false;delete session.verification;session.completionSource=null;session.updatedAt=this.clock();
     if(key)this.requestKeys.set(key,{id,payload:JSON.stringify(normalized)});
-    session.stepTimeoutAt=this.clock()+normalized.timeoutSeconds*1000;session.confirmationTimeoutAt=normalized.sensitive?this.clock()+Math.min(300,normalized.timeoutSeconds)*1000:null;
+    if(!recovering)session.stepTimeoutAt=this.clock()+normalized.timeoutSeconds*1000;
+    session.confirmationTimeoutAt=confirmationDeadline??(normalized.sensitive?this.clock()+Math.min(300,normalized.timeoutSeconds)*1000:null);
     session.agentState={phase:'idle',at:this.clock()};this.#arm(session);
     this.refusals.delete(fingerprint);
     this.emit('show',copySession(session));return {session:copySession(session)};
@@ -298,6 +307,7 @@ export class HandoffManager extends EventEmitter {
       s.stepTimeoutAt=this.clock()+Math.max(10000,s.remainingMs||1800000);delete s.targetTracking;delete s.scene;delete s.pausedFrom;delete s.remainingMs;
     } else if(action==='retry_target' || action==='text_fallback') {
       if(s.status==='paused')return {error:'paused'};
+      if(s.status==='user_action_reported')return {error:'verification_due'};
       s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='retry_target'?'reobserve_target':'present_text_step';
       delete s.targetTracking;
     } else if(action==='park' || action==='attach') {
@@ -313,6 +323,7 @@ export class HandoffManager extends EventEmitter {
   }
   observed(id,condition) {
     const s=this.sessions.get(id);
+    if(s)this.get(id);
     if(!s || s.status!=='awaiting_user' || s.sensitive || s.completion?.kind!=='observed_condition' || s.completion.condition!==condition)return false;
     s.status='user_action_reported';s.phase='verifying';s.nextAction='verify_in_app';s.completionSource='native_observation';s.annotations=[];
     s.stepTimeoutAt=this.clock()+1800000;this.#arm(s);this.emit('change',copySession(s));return true;
@@ -397,8 +408,9 @@ export class HandoffManager extends EventEmitter {
       while(this.refusals.size>this.maxHistory)this.refusals.delete(this.refusals.keys().next().value);
     }
     session.status = status;
-    session.phase = status === 'completed' ? (session.continuous?'complete':'verifying') : 'finished';
-    session.nextAction = status === 'completed' && !session.continuous ? 'verify_in_app' : 'stop';
+    const needsVerification=status==='completed'&&!session.continuous&&!session.verified;
+    session.phase=status==='completed'?(needsVerification?'verifying':'complete'):'finished';
+    session.nextAction=needsVerification?'verify_in_app':'stop';
     session.updatedAt = this.clock();
     session.completionSource = status === 'completed' ? (session.completionSource || 'user_report') : null;
     if (this.activeId === session.id) this.activeId = null;

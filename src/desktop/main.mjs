@@ -3,6 +3,7 @@ import {desktopOwner} from './identity.mjs';
 import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage } from 'electron';
 import { registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
 import { showControlCenter, registerCenterIPC } from './center.mjs';
+import {hasStepCard} from './panel-state.mjs';
 import { loadPreferences } from '../local/preferences.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -146,7 +147,7 @@ function updateUI(next) {
   for(const {win,display} of overlays)draw(win,display,animateExit);
   if(!panel||panel.isDestroyed())return;
   // Legacy visual_show remains nonblocking; continuous guide sessions have controls.
-  if(!current||(current.mode==='guide'&&!current.continuous)){if(!panel.webContents.isLoading())panel.webContents.send('hg:render',null);panel.hide();return;}
+  if(!hasStepCard(current)){if(!panel.webContents.isLoading())panel.webContents.send('hg:render',null);panel.hide();return;}
   layoutPanel();
   if(!panel.webContents.isLoading())panel.webContents.send('hg:render',current);
   panel.showInactive();
@@ -247,7 +248,7 @@ async function startDesktop() {
   registerCenterIPC({getDiagnostics:()=>call('GET','/desktop/diagnostics'),
     drawMark:body=>call('POST','/desktop/mark',body),
     runTrial:()=>call('POST','/desktop/trial',{}),
-    showCurrent:()=>{if(current&&panel){panel.showInactive();panel.moveTop();return {ok:true};}return {ok:false,code:'no_active_session'};},
+    showCurrent:()=>{if(hasStepCard(current)&&panel){layoutPanel();panel.showInactive();panel.moveTop();return {ok:true};}return {ok:false,code:'no_active_session'};},
     identifyDisplays:async()=>{
       const windows=screen.getAllDisplays().map((d,i)=>{const w=new BrowserWindow({x:d.workArea.x+24,y:d.workArea.y+24,width:200,height:110,frame:false,show:false,alwaysOnTop:true,focusable:false,skipTaskbar:true,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
         w.setIgnoreMouseEvents(true);lockDown(w);void w.loadFile(join(here,'identify.html'),{query:{number:String(i+1)}}).then(()=>w.showInactive());return w;});

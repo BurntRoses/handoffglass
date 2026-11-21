@@ -18,8 +18,8 @@ void app.whenReady().then(async()=>{
   const m=new HandoffManager(),b=new LocalBridge(m),errors=[];
   await b.start();process.env.HANDOFFGLASS_PORT=String(b.port);process.env.HANDOFFGLASS_SECRET=b.token;
   const owner='11111111-1111-4111-8111-111111111111';
-  const post=async(path,body)=>{
-    const r=await fetch(`http://127.0.0.1:${b.port}${path}`,{method:'POST',headers:{authorization:`Bearer ${b.agentToken}`,'x-handoffglass-owner':owner,'content-type':'application/json'},body:JSON.stringify(body)});
+  const post=async(path,body,identity=owner)=>{
+    const r=await fetch(`http://127.0.0.1:${b.port}${path}`,{method:'POST',headers:{authorization:`Bearer ${b.agentToken}`,'x-handoffglass-owner':identity,'content-type':'application/json'},body:JSON.stringify(body)});
     const value=await r.json();assert.equal(r.status,200,JSON.stringify(value));return value;
   };
   try{
@@ -32,7 +32,7 @@ void app.whenReady().then(async()=>{
     // A disposable app supplies its own captured-image metadata, never Codex's protected window.
     const d=b.displays.find(d=>d.primary)||b.displays[0];
     const fixture=new BrowserWindow({x:d.x+50,y:d.y+60,width:Math.min(600,d.width-100),height:Math.min(420,d.height-120),frame:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false}});
-    await fixture.loadURL('data:text/html,'+encodeURIComponent('<style>body{margin:0;font:16px system-ui;background:#fafafa}aside{width:176px;height:100vh;background:#e8eee9;padding:20px;box-sizing:border-box}main{position:absolute;left:196px;top:20px}</style><aside id="sidebar">Test sidebar</aside><main>Host observation fixture</main>'));
+    await fixture.loadURL('data:text/html,'+encodeURIComponent('<style>body{margin:0;font:16px system-ui;background:#fafafa}aside{width:176px;height:100vh;background:#e8eee9;padding:20px;box-sizing:border-box}main{position:absolute;left:196px;top:20px}</style><aside id="sidebar"><button onclick="this.setAttribute(\'aria-pressed\',\'true\')" aria-pressed="false">Show settings</button></aside><main>Host observation fixture</main>'));
     fixture.showInactive();
     const image=await fixture.webContents.capturePage(),pixels=image.getSize(),viewport=fixture.getContentBounds();
     const target=await fixture.webContents.executeJavaScript('(()=>{const r=document.querySelector("#sidebar").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()');
@@ -55,6 +55,22 @@ void app.whenReady().then(async()=>{
     await writeFile(join(output,'host-region.png'),(await hostOverlay.webContents.capturePage()).toPNG());
     await writeFile(join(output,'host-region.json'),JSON.stringify({hostResponseMs,hostDomMs,nativeCalls,pixels,viewport,target,rendered,maxErrorDIP:.01,modelCalls:0},null,2));
     await post('/agent/mark',{action:'clear',id:hostMark.id,expectedRevision:hostMark.revision});
+    const guided=await post('/agent/show',{
+      continuous:true,execution:'attached',title:'打开测试设置',message:'在测试窗口点击 Show settings。',
+      bounds:pixelBounds,frame:{capturedAt:Date.now(),layoutSignature:layoutSignature(b.displays),provenance:'host',width:pixels.width,height:pixels.height,bounds:viewport}
+    });
+    const fixturePressed=()=>fixture.webContents.executeJavaScript('document.querySelector("button").getAttribute("aria-pressed")==="true"');
+    await until(()=>panel.webContents.executeJavaScript('document.querySelector("#title").textContent==="打开测试设置"'),'Grounded guide did not appear');
+    assert.equal(await fixturePressed(),false);
+    await fixture.webContents.executeJavaScript('document.querySelector("button").click()');
+    await panel.webContents.executeJavaScript('document.querySelector("#done").click()');
+    await until(()=>m.get(guided.session.id).status==='user_action_reported','User report did not reach Broker');
+    assert.equal(m.get(guided.session.id).verified,false);
+    const result=await fixturePressed()?'verified':'mismatch';
+    assert.equal(result,'verified','The original app did not change');
+    const finalized=await post('/agent/verify',{sessionId:guided.session.id,result,finish:true,expectedStep:1});
+    assert.equal(finalized.session.status,'completed');
+    await until(()=>!panel.isVisible(),'Verified guide did not close');
     fixture.destroy();
     const samples=[];
     for(let i=0;i<12;i++){
@@ -131,14 +147,35 @@ void app.whenReady().then(async()=>{
     let hiddenResizes=0;const onResize=event=>{if(event.sender===panel.webContents)hiddenResizes++;};
     ipcMain.on('hg:panel-size',onResize);await pause(1100);ipcMain.off('hg:panel-size',onResize);
     assert.equal(hiddenResizes,0,'Hidden panel kept refreshing');
+    const recoverable=m.show({continuous:true,execution:'parked',title:'查找保存位置',message:'选择一个文件夹，然后点打开。',x:100,y:100,totalSteps:3},owner);
+    m.setAnchorState(recoverable.id,{status:'lost',annotations:[],reason:'stale_observation'});
+    await until(()=>js("!document.querySelector('#recoveryActions').hidden && document.querySelector('#note').textContent.includes('标记已过期')"),'Expired mark has no recovery instructions');
+    assert.equal(await js("document.querySelector('#done').hidden"),false,'An expired mark must still accept a completion report');
+    await writeFile(join(output,'target-expired.png'),(await panel.webContents.capturePage()).toPNG());
+    await js("document.querySelector('#fallback').click()");
+    await until(()=>js("document.querySelector('#phase').textContent==='已请求文字引导' && document.querySelector('#recoveryActions').hidden"),'Recovery request feedback absent');
+    assert.match(await js("document.querySelector('#note').textContent"),/回到原会话/);
+    await writeFile(join(output,'text-requested.png'),(await panel.webContents.capturePage()).toPNG());
+    const recovered=await post('/agent/show',{sessionId:recoverable.id,continuous:true,title:'选择文件夹',message:'在原窗口选择文件夹，然后点打开。'});
+    assert.equal(recovered.session.step,recoverable.step);
+    assert.equal(recovered.session.timeoutAt,recoverable.timeoutAt);
+    await until(()=>js("document.querySelector('#title').textContent==='选择文件夹' && !document.querySelector('#done').hidden"),'Updated text step missing');
+    m.resolve(recoverable.id,'completed');
+    m.verify(recoverable.id,owner,'mismatch');
+    await until(()=>js("document.querySelector('#phase').textContent==='结果与预期不符'"),'Verification mismatch not shown');
+    assert.equal(await js("document.querySelector('#message').hidden && document.querySelector('#done').hidden"),true,'Old instructions still active after mismatch');
+    await writeFile(join(output,'verification-mismatch.png'),(await panel.webContents.capturePage()).toPNG());
+    m.resolve(recoverable.id,'cancelled');
     const long=m.show({continuous:true,execution:'parked',locale:'en-US',theme:'light',title:'Choose the application settings for this workspace',message:'Review the controls in the original window. '.repeat(22)},owner);
     await until(()=>js("document.querySelector('#title').textContent.startsWith('Choose')"),'Long panel absent');
     assert.equal(await js("document.querySelector('#phase').scrollWidth<=document.querySelector('#phase').clientWidth"),true,'State label was clipped');
     await js("document.querySelector('#detailsLabel').click()");await pause(250);
     await js("document.querySelector('#detailText').scrollIntoView({block:'end'})");
     assert.equal(await js("document.documentElement.scrollWidth<=innerWidth"),true);
-    assert.equal(await js("document.querySelector('#cardBody').scrollHeight>document.querySelector('#cardBody').clientHeight"),true,'Long content has no scroll path');
-    assert.equal(await js("document.querySelector('#detailText').getBoundingClientRect().bottom<=innerHeight"),true,'Continuation instructions are clipped');
+    assert.equal(await js("document.querySelector('#stepBody').scrollHeight>document.querySelector('#stepBody').clientHeight"),true,'Long content has no scroll path');
+    assert.equal(await js("document.querySelector('#detailText').getBoundingClientRect().bottom<=document.querySelector('#stepBody').getBoundingClientRect().bottom+1"),true,'Continuation instructions are clipped');
+    await js("document.querySelector('#stepBody').scrollTop=0");
+    assert.equal(await js("document.querySelector('#done').getBoundingClientRect().bottom<=innerHeight"),true,'Completion requires scrolling through instructions');
     const actualResolve=m.resolve.bind(m);m.resolve=()=>({error:'simulated_failure'});
     await js("document.querySelector('#done').click()");
     await until(()=>js("document.querySelector('#status').dataset.error==='true'"),'Failed action has no feedback');
@@ -148,7 +185,7 @@ void app.whenReady().then(async()=>{
     m.resolve(long.id,'cancelled');
     const fresh=m.show({continuous:true,title:'新的步骤',message:'本步骤从顶部开始。'},owner);
     await until(()=>js("document.querySelector('#title').textContent==='新的步骤'"),'New step absent');
-    assert.equal(await js("document.querySelector('#cardBody').scrollTop"),0);
+    assert.equal(await js("document.querySelector('#stepBody').scrollTop"),0);
     await until(async()=>!await js("document.querySelector('#stepDetails').open"),'New step retained an open disclosure');
     m.resolve(fresh.id,'cancelled');
     const change={kind:'config',risk:'high',summary:'更新当前工作区的显示选项',before:{summary:'使用默认设置',hash:'a'.repeat(64)},after:{summary:'使用自定义设置',hash:'b'.repeat(64)}};
@@ -192,6 +229,9 @@ void app.whenReady().then(async()=>{
     await preferences({reviewEnabled:true});await until(()=>reviewWindow.isVisible(),'Review did not work with both other layers disabled');
     await reviewJS("document.querySelector('#decline').click()");await until(()=>b.presentation.owned(reviewed.review.id,owner).status==='declined','Human review refusal absent');
     assert.equal((await post('/agent/review',{changes:[change]})).review.status,'declined','Refusal asked again');
+    const nextReview=await post('/agent/review',{changes:[{...change,summary:'另一条配置改动'}]},'22222222-2222-4222-8222-222222222222');
+    assert.notEqual(nextReview.review.id,reviewed.review.id);
+    assert.equal((await post('/agent/review',{action:'status',id:reviewed.review.id})).review.status,'declined');
     m.resolve(independently.id,'cancelled');
     assert.deepEqual(errors,[]);
     const stats=key=>{const sorted=samples.slice(2).map(s=>s[key]).sort((a,b)=>a-b);return {p50Ms:+sorted[5].toFixed(1),p95Ms:+sorted[9].toFixed(1)};};

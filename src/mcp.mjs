@@ -187,7 +187,7 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   }, safe(({ mode = 'handoff', execution='parked', ...args }) => broker.present(mode, {...args,execution,continuous:true})));
   register('session_present', {
     title: 'Present the next guided step',
-    description: 'Advance the same sessionId after independent host verification. New step, new requestId. Reuse bounds/frame mapping; renderer owns geometry and animation.',
+    description: 'Advance the same sessionId after verification, or restore a blocked step with fresh bounds/frame or text. Use a new requestId. Restoring keeps the step number and deadlines.',
     inputSchema: stepPresentation.extend({sessionId:z.string().uuid()}),
     annotations: { readOnlyHint: false }
   }, safe(({ mode = 'handoff', ...args }) => broker.present(mode, {...args,continuous:true})));
@@ -246,7 +246,7 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   const digestSummary=z.object({summary:z.string().max(240),hash:z.string().regex(/^[a-f0-9]{64}$/)}).strict();
   register('review_changes',{
     title:'Present a read-only change review',
-    description:'Show file/config/setting/permission/external changes as summaries and SHA256 only; never send file contents or credentials. Wait for human review, then independently check before continuing. Decline/timeout means stop. Replay is read-only; no operation is executed.',
+    description:'Show file/config/setting/permission/external changes as summaries and SHA256 only. Wait for human review, then independently check before continuing. Decline/timeout means stop. Keep the review ID to read its result while the Broker is running.',
     inputSchema:z.object({action:z.enum(['present','status','wait']).default('present'),id:z.string().uuid().optional(),retryDeclined:z.boolean().optional().describe('Only true after the user explicitly asks to review the declined changes again.'),timeoutMs:z.number().int().min(0).max(30000).optional(),timeoutSeconds:z.number().int().min(10).max(600).optional(),changes:z.array(z.object({kind:z.enum(['file','config','setting','permission','external']),risk:z.enum(['low','medium','high','irreversible']),summary:z.string().max(240),before:digestSummary,after:digestSummary}).strict()).min(1).max(24).optional()}),
     annotations:{readOnlyHint:false}
   },safe(args=>broker.review(args)));

@@ -258,7 +258,7 @@ export class LocalBridge {
         schemaVersion: 1, broker: 'running', desktopConnected: this.connected,
         lastAgentActivityAt: this.lastAgentRequestAt,
         displays: this.displays.length, pendingPolls: this.waiters.size,
-        handoff: active ? { step:active.step, totalSteps:active.totalSteps, status: active.status, mode: active.mode, execution:active.execution, phase: active.phase, nextAction: active.nextAction, timeoutAt: active.timeoutAt } : null,
+        handoff: active ? { step:active.step, totalSteps:active.totalSteps, status: active.status, mode: active.mode, continuous:active.continuous, execution:active.execution, phase: active.phase, nextAction: active.nextAction, verificationResult:active.verification?.result, timeoutAt: active.timeoutAt } : null,
         hostActivity: this.hostActivity.snapshot(),connectionEvidence:[...this.connectionEvidence.values()],
         timeline: this.journal.recent(12).map(({type,at,reason})=>({type,at,...(reason?{reason}:{})}))
       });
