@@ -37,12 +37,22 @@ void app.whenReady().then(async()=>{
     const image=await fixture.webContents.capturePage(),pixels=image.getSize(),viewport=fixture.getContentBounds();
     const target=await fixture.webContents.executeJavaScript('(()=>{const r=document.querySelector("#sidebar").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()');
     const pixelBounds={x:target.x*pixels.width/viewport.width,y:target.y*pixels.height/viewport.height,width:target.width*pixels.width/viewport.width,height:target.height*pixels.height/viewport.height};
+    const bitmap=image.toBitmap();
+    assert.equal(bitmap.length,pixels.width*pixels.height*4);
+    const colorAt=(x,y)=>{
+      const offset=(Math.floor(y)*pixels.width+Math.floor(x))*4;
+      return '#'+[bitmap[offset+2],bitmap[offset+1],bitmap[offset]].map(channel=>channel.toString(16).padStart(2,'0')).join('');
+    };
+    const backgroundColors=[colorAt(pixelBounds.width-3,80),colorAt(pixelBounds.width+7,80)];
     let nativeCalls=0;b.locator=b.inspector=b.permissions=async()=>{nativeCalls++;throw Object.assign(Error('Native access denied in fixture'),{code:'permission_denied'});};
     const hostStarted=performance.now();
-    const hostMark=await post('/agent/mark',{shape:'spotlight',effect:'still',bounds:pixelBounds,frame:{capturedAt:Date.now(),layoutSignature:layoutSignature(b.displays),provenance:'host',width:pixels.width,height:pixels.height,bounds:viewport},color:'#75b9ff'});
+    const hostMark=await post('/agent/mark',{shape:'spotlight',effect:'still',bounds:pixelBounds,frame:{capturedAt:Date.now(),layoutSignature:layoutSignature(b.displays),provenance:'host',width:pixels.width,height:pixels.height,bounds:viewport,backgroundColors}});
     const hostResponseMs=performance.now()-hostStarted;
     const hostOverlay=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/overlay.html')&&w.getBounds().x===d.x&&w.getBounds().y===d.y);
     await until(()=>hostOverlay.webContents.executeJavaScript('!!document.querySelector(".hg-mark[data-shape=spotlight]")'),'Host region did not render');
+    const stroke=await hostOverlay.webContents.executeJavaScript('document.querySelector(".hg-mark .hg-trace").getAttribute("stroke")');
+    assert.notEqual(stroke,'#52ca94','Real light-background samples did not change the default ink');
+    assert.equal(await hostOverlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark .hg-contrast-trace").length'),2);
     const rendered=await hostOverlay.webContents.executeJavaScript('(()=>{const r=document.querySelector(".hg-mark[data-shape=spotlight] rect.hg-trace");return Object.fromEntries(["x","y","width","height"].map(k=>[k,Number(r.getAttribute(k))]))})()');
     assert.ok(Math.abs(rendered.x-(viewport.x-d.x+target.x-7))<.01);
     assert.ok(Math.abs(rendered.y-(viewport.y-d.y+target.y-7))<.01);
@@ -53,7 +63,7 @@ void app.whenReady().then(async()=>{
     await mkdir(output,{recursive:true});
     await writeFile(join(output,'host-source.png'),image.toPNG());
     await writeFile(join(output,'host-region.png'),(await hostOverlay.webContents.capturePage()).toPNG());
-    await writeFile(join(output,'host-region.json'),JSON.stringify({hostResponseMs,hostDomMs,nativeCalls,pixels,viewport,target,rendered,maxErrorDIP:.01,modelCalls:0},null,2));
+    await writeFile(join(output,'host-region.json'),JSON.stringify({hostResponseMs,hostDomMs,nativeCalls,pixels,viewport,target,rendered,backgroundColors,stroke,maxErrorDIP:.01,modelCalls:0},null,2));
     await post('/agent/mark',{action:'clear',id:hostMark.id,expectedRevision:hostMark.revision});
     const guided=await post('/agent/show',{
       continuous:true,execution:'attached',title:'打开测试设置',message:'在测试窗口点击 Show settings。',

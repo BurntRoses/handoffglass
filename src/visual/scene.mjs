@@ -32,7 +32,7 @@ export function normalizeAnnotation(input) {
   if (!SHAPES.includes(shape)) throw new TypeError('Unknown annotation shape');
   const tone = input.tone ?? 'accent';
   if (!Object.hasOwn(TONES, tone)) throw new TypeError('Unknown annotation tone');
-  const color = input.color ?? TONES[tone];
+  const color = input.color === 'auto' ? TONES[tone] : input.color ?? TONES[tone];
   if (typeof color !== 'string' || !HEX.test(color)) throw new TypeError('Color must be a six-digit hex color');
   const result = {
     x: number(input.x, 'x', -100000, 100000), y: number(input.y, 'y', -100000, 100000),
@@ -51,6 +51,7 @@ export function normalizeAnnotation(input) {
     result.lineStyle=input.lineStyle;
   }
   if (input.id !== undefined) result.id = identifier(input.id, 'annotation id');
+  if (input.autoColor === true) result.autoColor = true;
   if (input.tone !== undefined) result.tone = tone;
   if (input.opacity !== undefined) result.opacity = number(input.opacity, 'opacity', 0, 1);
   if (input.effect !== undefined) {

@@ -167,6 +167,10 @@ export class LocalBridge {
       if(patch.marks!==undefined){for(const k of ['bounds','frame','position','placement','size','width','height'])if(patch[k]===undefined)delete input[k];}
       if(patch.bounds!==undefined){for(const k of ['marks','placement','position','size','width','height'])delete input[k];if(patch.frame===undefined)delete input.frame;}
       if(patch.placement!==undefined||patch.position!==undefined){delete input.bounds;delete input.frame;}
+      if((patch.bounds!==undefined||patch.marks!==undefined)&&patch.observation===undefined&&input.observation?.backgroundColors){
+        const {backgroundColors,...regionEvidence}=input.observation;
+        input.observation=regionEvidence;
+      }
       const compiled=quickMarkRequest(input,this.displays,preference,{layoutSignature:layoutSignature(this.displays)});
       const result=this.manager.updateScene(body.id,owner,body.expectedRevision,[{op:'upsert_layer',layer:drawingScene(compiled).layers[0]}],{visualStyle:compiled.visualStyle,motion:compiled.motion});
       if(result.error)return error(409,result.error);
@@ -655,7 +659,9 @@ export class LocalBridge {
         if(body.bounds!==undefined){
           if(body.operations!==undefined)return sendJson(res,400,{code:'invalid_target',error:'Choose bounds or operations'});
           await this.prepare();
-          const next=observedScene({...owned.annotations[0],...body},this.displays,{layoutSignature:layoutSignature(this.displays)});
+          const previous=owned.annotations[0];
+          const color=body.color??(previous?.autoColor?'auto':previous?.color);
+          const next=observedScene({...previous,...body,color},this.displays,{layoutSignature:layoutSignature(this.displays)});
           body.operations=[...owned.scene.layers.map(l=>({op:'remove_layer',layerId:l.id})),...next.layers.map(layer=>({op:'upsert_layer',layer}))];
         }else if(body.frame!==undefined)return sendJson(res,400,{code:'invalid_frame',error:'frame requires bounds'});
         const preview = patchScene(owned.scene, body.operations);

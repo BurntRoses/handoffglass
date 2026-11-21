@@ -16,11 +16,13 @@ import {resolve} from 'node:path';
 import { capabilityInstructions } from './capabilities.mjs';
 import {INTEGRATION_HOSTS} from './integration-lifecycle.mjs';
 
+const hexColor=z.string().regex(/^#[a-fA-F0-9]{6}$/);
+const markColor=z.union([hexColor,z.literal('auto')]).optional();
 const annotation = z.object({
   x: z.number().finite().min(-100000).max(100000),
   y: z.number().finite().min(-100000).max(100000),
   shape: z.enum(SHAPES).optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: markColor,
   label: z.string().max(64).optional(),
   direction:z.enum(DIRECTIONS).optional(),
   strokeWidth:z.number().min(1).max(8).optional(),
@@ -53,11 +55,11 @@ const sceneOp = z.discriminatedUnion('op', [
 ]);
 const uiTarget = z.object({ app: z.string().trim().min(1).max(128), role: z.string().trim().min(1).max(80), name: z.string().trim().min(1).max(256) });
 const bounds=z.object({x:z.number().finite().min(-100000).max(100000),y:z.number().finite().min(-100000).max(100000),width:z.number().positive().max(100000),height:z.number().positive().max(100000)});
-const observation=z.object({capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user'])});
-const frame=z.object({width:z.number().positive().max(100000),height:z.number().positive().max(100000),bounds,
-  capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user'])});
+const observation=z.object({capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user']),
+  backgroundColors:z.array(hexColor).min(1).max(8).optional().describe('Sample around the mark in this observation. Omit when pixel or DOM colors are unavailable.')});
+const frame=observation.extend({width:z.number().positive().max(100000),height:z.number().positive().max(100000),bounds});
 const observedUpdate=z.object({sessionId:z.string().uuid(),expectedRevision:z.number().int().positive(),bounds,frame:frame.optional(),observation:observation.optional(),
-  shape:z.enum(SHAPES).optional(),label:z.string().max(64).optional(),color:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional()});
+  shape:z.enum(SHAPES).optional(),label:z.string().max(64).optional(),color:markColor});
 const presentation = z.object({
   sessionId: z.string().uuid().optional(),
   mode: z.enum(['guide', 'handoff']).optional(),
@@ -78,7 +80,7 @@ const presentation = z.object({
   x: z.number().finite().min(-100000).max(100000).optional(),
   y: z.number().finite().min(-100000).max(100000).optional(),
   shape: z.enum(SHAPES).optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  color: markColor,
   effect: z.enum(EFFECTS).optional(),
   maskStyle: z.enum(MASK_STYLES).optional(),
   exit: z.enum(EXIT_STYLES).optional(),
@@ -163,11 +165,11 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
       shape:z.enum(SHAPES).optional(),placement:z.enum(PLACEMENTS).optional(),direction:z.enum(DIRECTIONS).optional(),
       bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),
       size:z.number().min(24).max(800).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
-      color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),label:z.string().max(64).optional(),strokeWidth:z.number().min(1).max(8).optional(),lineStyle:z.enum(['solid','dashed']).optional(),
+      color:markColor,label:z.string().max(64).optional(),strokeWidth:z.number().min(1).max(8).optional(),lineStyle:z.enum(['solid','dashed']).optional(),
       effect:z.enum(EFFECTS).optional(),exit:z.enum(EXIT_STYLES).optional(),maskStyle:z.enum(MASK_STYLES).optional(),sequence:z.boolean().optional(),
       marks:z.array(z.object({id:z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),shape:z.enum(SHAPES),placement:z.enum(PLACEMENTS).optional(),
         bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
-        label:z.string().max(64).optional(),color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),direction:z.enum(DIRECTIONS).optional()})).min(1).max(8).optional(),
+        label:z.string().max(64).optional(),color:markColor,direction:z.enum(DIRECTIONS).optional()})).min(1).max(8).optional(),
       displayId:z.string().max(80).optional(),durationSeconds:z.number().int().min(10).max(120).optional(),
       requestId:z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()
     }),

@@ -1,6 +1,7 @@
 /** Host-observed rectangles → global DIP. No capture, native lookup or permission probe. */
 import {normalizeAnnotation,composeTemplate} from './scene.mjs';
 import {layoutSignature as signatureFor} from '../native/calibration.mjs';
+import {chooseAccent} from './contrast.mjs';
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const fail=(code,message)=>{throw Object.assign(new TypeError(message),{code});};
 export function regionRect(value,name='bounds'){
@@ -48,15 +49,29 @@ export function observedRegion(bounds,frame,displays,{validateOnly=false,now=Dat
   if(!validateOnly&&evidence.layoutSignature!==layoutSignature)fail('layout_changed','Display layout changed; observe again');
   if(r.width>5000||r.height>5000||Math.abs(r.x+r.width/2)>100000||Math.abs(r.y+r.height/2)>100000)fail('invalid_bounds','Mapped region exceeds the renderer limits');
   if(!validateOnly&&!regionOnDisplays(r,displays))fail('outside_display','Observed region is outside the connected displays');
-  return {x:r.x+r.width/2,y:r.y+r.height/2,width:r.width,height:r.height};
+  const backgroundColors=evidence.backgroundColors;
+  if(backgroundColors!==undefined && (!Array.isArray(backgroundColors)||backgroundColors.length<1||
+    backgroundColors.length>8||backgroundColors.some(color=>typeof color!=='string'||!/^#[a-f0-9]{6}$/i.test(color))))
+    fail('invalid_background_colors','Provide 1–8 sampled six-digit colors from around the target');
+  return {x:r.x+r.width/2,y:r.y+r.height/2,width:r.width,height:r.height,
+    ...(backgroundColors?{backgroundColors}:{})};
 }
 export function observedScene(input,displays,context={}){
-  const hit=observedRegion(input.bounds,input.frame,displays,{...context,observation:input.observation});
+  const {backgroundColors,...hit}=observedRegion(input.bounds,input.frame,displays,{...context,observation:input.observation});
   const mark=normalizeAnnotation({...input,...hit,id:'mark_1',shape:input.shape??'spotlight'});
-  return input.template||(!input.shape&&input.intent)?composeTemplate(input.template??input.intent,[mark]):
+  const scene=input.template||(!input.shape&&input.intent)?composeTemplate(input.template??input.intent,[mark]):
     {version:1,layers:[{id:'observed',annotations:[mark]}]};
+  const autoColor=input.color===undefined||input.color==='auto';
+  for(const layer of scene.layers)for(const annotation of layer.annotations){
+    annotation.color=autoColor?chooseAccent(annotation.color,backgroundColors):mark.color;
+    if(autoColor)annotation.autoColor=true;
+    else delete annotation.autoColor;
+  }
+  return scene;
 }
 export function observedTarget(bounds,frame,displays,context={}){
   const hit=observedRegion(bounds,frame,displays,context),evidence=frame??context.observation,now=context.now??Date.now();
-  return {bounds:{x:hit.x-hit.width/2,y:hit.y-hit.height/2,width:hit.width,height:hit.height},frame:frame?structuredClone(frame):null,capturedAt:evidence.capturedAt,layoutSignature:evidence.layoutSignature,provenance:evidence.provenance,freshness:{status:'fresh',ageMs:Math.max(0,now-evidence.capturedAt),maxAgeMs:30000}};
+  return {bounds:{x:hit.x-hit.width/2,y:hit.y-hit.height/2,width:hit.width,height:hit.height},frame:frame?structuredClone(frame):null,capturedAt:evidence.capturedAt,layoutSignature:evidence.layoutSignature,provenance:evidence.provenance,
+    ...(hit.backgroundColors?{backgroundColors:[...hit.backgroundColors]}:{}),
+    freshness:{status:'fresh',ageMs:Math.max(0,now-evidence.capturedAt),maxAgeMs:30000}};
 }

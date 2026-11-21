@@ -31,6 +31,8 @@
 
 全局 DIP 的 `observation` 或图像 `frame` 必须携带真实 `capturedAt`、当前 16hex `layoutSignature` 与 `provenance`。签名复用宿主元数据，缺少时只读取一次显示器信息；不为每次绘制重复查询。证据不全时使用无坐标引导。
 
+可随同这次观察提供 `backgroundColors`，包含标记周边 1–8 个实际色样，例如 `["#f8fafc","#24303a"]`。宿主能读取像素或 DOM 实际背景色时才提交色样。绘制和步骤默认根据色样选色，显式 `color:"#75b9ff"` 保持指定色，`color:"auto"` 恢复自动模式。新位置使用新色样。
+
 固定标记默认 20 秒清除，带坐标证据的绘制最迟在观察满 30 秒时清空；窗口移动后由宿主重新观察并 update，不能声称自动跟随。显示器布局变化清除临时标记、隐藏固定任务场景；重新呈现仍是原步骤，用户报告仍须独立核验。
 
 参数示例见随包 [工具契约](../skills/visual-handoff/references/tool-contracts.md)。

@@ -48,10 +48,24 @@ test('normalized path progress, unique masks and different ink strokes are local
   ]},{width:640,height:400});
   const ids=surfaces.flatMap(svg=>walk(svg,n=>n.attrs.id).map(n=>n.attrs.id));
   assert.equal(new Set(ids).size,ids.length,'SVG resource ids must not collide between previews');
-  const paths=walk(surfaces[0],n=>n.tag==='path');
+  const paths=walk(surfaces[0],n=>n.tag==='path'&&n.attrs.class?.startsWith('hg-trace'));
   assert.equal(paths.every(n=>n.attrs.pathLength==='1'),true);
   assert.notEqual(paths[0].attrs.d,paths[1].attrs.d);
   assert.equal(walk(surfaces[0],n=>n.tag==='feGaussianBlur'&&n.attrs.stdDeviation==='4').length,1);
+});
+test('the static ink and both contrast edges share geometry across visual styles',()=>{
+  for(const visualStyle of ['minimal','luminous','handdrawn']){
+    const svg=new SvgNode('svg');
+    renderOverlay(svg,{visualStyle,annotations:[{shape:'ring',x:180,y:140,lineStyle:'dashed',color:'#ffffff'}]}, {width:400,height:320});
+    const main=walk(svg,n=>n.attrs.class==='hg-trace')[0];
+    const edges=walk(svg,n=>n.attrs.class?.includes('hg-contrast-trace')&&n.attrs.class?.endsWith('hg-contrast-trace'));
+    assert.equal(main.attrs.stroke,'#ffffff');
+    assert.deepEqual(edges.map(node=>node.attrs.stroke),['#ffffff','#101419']);
+    for(const edge of edges){
+      for(const geometry of ['d','cx','cy','rx','ry'])assert.equal(edge.attrs[geometry],main.attrs[geometry]);
+      assert.equal(edge.style.getPropertyValue('stroke-dasharray'),main.style.getPropertyValue('stroke-dasharray'));
+    }
+  }
 });
 
 test('polls preserve nodes; moving marks retain their clock; lost marks restart on restoration',async()=>{

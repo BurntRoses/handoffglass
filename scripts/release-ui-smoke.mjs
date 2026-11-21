@@ -210,6 +210,16 @@ void app.whenReady().then(async()=>{
   try{await until(async()=>await js('document.querySelectorAll("#stylePreview .hg-mark").length===1'),'Shared preview did not render');}
   catch(error){console.error('Preview state:',await js('({view:document.querySelector("[data-view]:not([hidden])")?.dataset.view,marks:document.querySelectorAll("#stylePreview .hg-mark").length,bounds:document.querySelector("#stylePreview").getBoundingClientRect().toJSON(),target:document.querySelector(".preview-target").getBoundingClientRect().toJSON()})'));throw error;}
   assert.equal(await js('document.querySelectorAll("#markCategories button").length'),5);
+  const previewInk=()=>js('document.querySelector("#stylePreview .hg-trace").getAttribute("stroke")');
+  const lightInk=await previewInk();await set('previewBackground','dark');
+  assert.notEqual(await previewInk(),lightInk,'Preview did not adapt to the dark background');
+  await set('previewBackground','mixed');
+  assert.equal(await js('document.querySelector(".style-preview").dataset.background'),'mixed');
+  assert.equal(await js('document.querySelectorAll("#stylePreview .hg-contrast-trace").length'),2);
+  await capture('appearance-adaptive-contrast-mixed');
+  await set('drawColor','#52ca94');assert.equal(await previewInk(),'#52ca94');
+  await set('drawColor','auto');assert.notEqual(await previewInk(),'#52ca94');
+  await set('previewBackground','light');
   await js('document.querySelector("#markChoices [data-shape=glow]").click()');
   assert.equal(await js('document.querySelector("#stylePreview .hg-mark").dataset.shape'),'glow');
   await js('document.querySelector("#previewDismiss").click()');await pause(240);

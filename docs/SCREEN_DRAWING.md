@@ -4,6 +4,8 @@
 
 ## Agent 调用
 
+默认自动配色。有实际背景色样时，将标记经过区域的 1–8 个颜色放入 `frame.backgroundColors` 或 `observation.backgroundColors`，运行时按最弱对比度选色。指定色值仍使用深浅双描边，无色样时也用双描边。外观页可以切换浅色、深色和多色背景预览。
+
 ```js
 // 简单画圈：无需先读取屏幕或显示器。
 screen_mark({shape:"ring"})

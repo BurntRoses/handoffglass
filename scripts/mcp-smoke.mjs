@@ -110,11 +110,12 @@ try {
   assert.notEqual(id, second.session.id);
   assert.equal((await invoke(b, 'session_stop', { sessionId: second.session.id })).session.status, 'cancelled');
   if(hostProfile){
-    const h=await invoke(a,'session_start',{mode:'guide',title:'Host region',message:'Review the highlighted region',bounds:{x:20,y:40,width:200,height:80},frame:{capturedAt:Date.now(),layoutSignature:(await invoke(a,'screen_displays',{})).layoutSignature,provenance:'host',width:1440,height:900,bounds:{x:0,y:0,width:1440,height:900}}});
+    const h=await invoke(a,'session_start',{mode:'guide',title:'Host region',message:'Review the highlighted region',bounds:{x:20,y:40,width:200,height:80},frame:{capturedAt:Date.now(),layoutSignature:(await invoke(a,'screen_displays',{})).layoutSignature,provenance:'host',width:1440,height:900,bounds:{x:0,y:0,width:1440,height:900},backgroundColors:['#FFFFFF']}});
     assert.equal(h.session.annotations[0].x,120);
-    const update=await invoke(a,'session_update',{sessionId:h.session.id,expectedRevision:1,observation:{capturedAt:Date.now(),layoutSignature:(await invoke(a,'screen_displays',{})).layoutSignature,provenance:'host'},bounds:{x:200,y:100,width:40,height:20}});
+    const update=await invoke(a,'session_update',{sessionId:h.session.id,expectedRevision:1,observation:{capturedAt:Date.now(),layoutSignature:(await invoke(a,'screen_displays',{})).layoutSignature,provenance:'host',backgroundColors:['#141414']},bounds:{x:200,y:100,width:40,height:20}});
     assert.equal(update.session.annotations[0].x,220);
     assert.equal(update.session.annotations[0].shape,'spotlight');
+    assert.notEqual(update.session.annotations[0].color,h.session.annotations[0].color);
     await invoke(a,'session_verify',{sessionId:h.session.id,verified:true,finish:true,expectedStep:1});
     assert.equal(tools.some(t=>t.name==='ui_inspect'),false);
     assert.equal(tools.find(t=>t.name==='session_start').inputSchema.properties.target,undefined);

@@ -1,5 +1,6 @@
 import {SHAPES, EFFECTS, EXIT_STYLES, MASK_STYLES, normalizeAnnotation} from './scene.mjs';
 import {observedRegion} from './observed-region.mjs';
+import {chooseAccent} from './contrast.mjs';
 
 export const PLACEMENTS=Object.freeze(['center','top','bottom','left','right','top_left','top_right','bottom_left','bottom_right']);
 export const DIRECTIONS=Object.freeze(['auto','left','right','up','down']);
@@ -23,7 +24,7 @@ export function quickMarkRequest(input, displays, preferences={}, context={}) {
   const markIds=new Set(specs.map((s,i)=>input.marks?(s?.id??`mark_${i+1}`):'mark_1'));
   for(const [i,spec] of specs.entries()){
     if(!spec||typeof spec!=='object'||Array.isArray(spec))throw new TypeError('Invalid mark');
-    const options={...input,...spec}, {shape='ring',placement='center',direction='auto',label='',color='#52ca94',effect='draw',exit='fade',maskStyle='soft',strokeWidth=2.4,lineStyle='solid'}=options;
+    const options={...input,...spec}, {shape='ring',placement='center',direction='auto',label='',color='auto',effect='draw',exit='fade',maskStyle='soft',strokeWidth=2.4,lineStyle='solid'}=options;
     if(options.frame!==undefined&&options.bounds===undefined)throw new TypeError('frame requires bounds');
     if(options.bounds!==undefined&&['position','placement','width','height','size'].some(k=>options[k]!==undefined))throw new TypeError('Choose bounds or position/placement/size');
     if(!SHAPES.includes(shape)||!PLACEMENTS.includes(placement)||!DIRECTIONS.includes(direction)||!EFFECTS.includes(effect)||!EXIT_STYLES.includes(exit)||!MASK_STYLES.includes(maskStyle))throw new TypeError('Invalid drawing style or placement');
@@ -32,10 +33,10 @@ export function quickMarkRequest(input, displays, preferences={}, context={}) {
     let width=Math.min(finite(options.width??size,24,1200,'width'),display.width-64);
     let height=Math.min(finite(options.height??size,24,1200,'height'),display.height-64);
     const [horizontal,vertical]=[placement.includes('left')?-1:placement.includes('right')?1:0,placement.includes('top')?-1:placement.includes('bottom')?1:0];
-    let x=display.x+display.width*(.5+horizontal*.28),y=display.y+display.height*(.5+vertical*.28);
+    let x=display.x+display.width*(.5+horizontal*.28),y=display.y+display.height*(.5+vertical*.28),backgroundColors;
     if(options.bounds!==undefined){
       const hit=observedRegion(options.bounds,options.frame,displayId===undefined?displays:[display],{...context,observation:options.observation});
-      ({x,y,width,height}=hit);
+      ({x,y,width,height,backgroundColors}=hit);
     }else if(options.position!==undefined){
       if(!options.position||typeof options.position!=='object')throw new TypeError('Invalid position');
       x=finite(options.position.x,-100000,100000,'position.x');y=finite(options.position.y,-100000,100000,'position.y');
@@ -46,7 +47,9 @@ export function quickMarkRequest(input, displays, preferences={}, context={}) {
     }
     const id=input.marks?(spec.id??`mark_${i+1}`):'mark_1';
     if(ids.has(id))throw new TypeError('Duplicate mark id');ids.add(id);
-    const mark=normalizeAnnotation({id,shape,x,y,width,height,label,color,effect,exit,maskStyle,direction,strokeWidth,lineStyle,durationMs:350,delayMs:sequence?i*90:0});
+    const mark=normalizeAnnotation({id,shape,x,y,width,height,label,
+      color:color==='auto'?chooseAccent('#52ca94',backgroundColors):color,
+      effect,exit,maskStyle,direction,strokeWidth,lineStyle,durationMs:350,delayMs:sequence?i*90:0});
     annotations.push(mark);
     if(sequence){
       let badgeId=`step_${i+1}`;while(markIds.has(badgeId))badgeId='n_'+badgeId;

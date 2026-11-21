@@ -10,6 +10,7 @@ const files = new Map([
   ['/examples/scene-gallery.css', ['examples/scene-gallery.css', 'text/css']],
   ['/examples/scene-gallery.js', ['examples/scene-gallery.js', 'text/javascript']],
   ['/src/visual/scene.mjs', ['src/visual/scene.mjs', 'text/javascript']],
+  ['/src/visual/contrast.mjs', ['src/visual/contrast.mjs', 'text/javascript']],
   ['/src/desktop/overlay-renderer.mjs', ['src/desktop/overlay-renderer.mjs', 'text/javascript']],
   ['/src/desktop/mark-picker.mjs', ['src/desktop/mark-picker.mjs', 'text/javascript']],
   ['/src/desktop/choice-controls.mjs', ['src/desktop/choice-controls.mjs', 'text/javascript']],

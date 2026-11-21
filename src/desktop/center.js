@@ -322,12 +322,14 @@ Object.assign(lex['en-US'],{copyLaunch:'Copy launch command',unsaved:'Unsaved ch
  overview:'Workbench',welcome:'Desktop guidance',welcomeDesc:'Start a task in a connected app. Guidance appears beside the target when a step needs you.',workspaceLabel:'Desktop workbench',trialTitle:'Try desktop guidance',trialDesc:'See target marks and try completion, pause and the next step.',tryGuidance:'Try guidance',showCurrent:'Show current guidance',desktopHint:'Target marks and step cards',hostHint:'Based on actual host requests',reviewPermission:'Check access',workspaceTip:'Pause or end guidance at any time.',checkPermissionNow:'Check access',identifyDisplays:'Identify displays',displayPolicy:'Control strip display',displayFollow:'Follow target',displayActive:'Current display',displayFixed:'Choose display',displayPolicyHint:'Target marks always stay on the target display.',uninstallTitle:'Uninstall HandoffGlass',uninstallPreview:'Review cleanup',uninstallDesc:'Remove the app, integrations and runtime data. Edited shared content is listed and kept.',uninstallConfirm:'Quit and uninstall',selfTestTitle:'Local service check',selfTestPassed:'Local service available',selfTestPassedHint:'This does not verify tools in your host. Connections shows real call evidence.',selfTestFailed:'Local service check failed',selfTestTimeout:'Local service check timed out',checkLoaded:'Check loaded tools',hostReady:'A real call from this installation was received.',hostPending:'Waiting for a host call.',reloadHint:'Configuration written. Restart or reload Codex, then ask “Check the HandoffGlass connection” in your chat.',enableHint:'Enable HandoffGlass in your host, then reload its tools.',reviewConfigHint:'Configuration was edited. Review it before continuing.',stepPaused:'Current guidance is paused',stepRecovering:'Return to chat to check the target',currentTask:'Guidance in progress',trialStarted:'Local trial started. Follow the desktop prompt.',uninstallScheduled:'Cleanup scheduled. The app will quit.',uninstallRetained:'Edited content will be kept.',uninstallNone:'No registered content to remove.'
 });
 Object.assign(lex['zh-CN'],{
+ previewBackground:'预览背景',previewMixed:'多色',colorAuto:'自动对比',
  activeTaskBadge:'当前操作',drawingActive:'正在使用屏幕标记。',
  stepTextRequested:'已请求文字引导',stepLocationRequested:'已请求重新定位',
  stepInconclusive:'暂时无法核验，请回到原会话。',stepMismatch:'结果与预期不符，请查看原会话。',
  stepCardUnavailable:'当前没有可打开的步骤卡片。'
 });
 Object.assign(lex['en-US'],{
+ previewBackground:'Preview background',previewMixed:'Mixed',colorAuto:'Automatic contrast',
  activeTaskBadge:'Current step',drawingActive:'Screen marking is active.',
  stepTextRequested:'Text guidance requested',stepLocationRequested:'New location requested',
  stepInconclusive:'Unable to verify. Return to the original chat.',stepMismatch:'The result differs from what was expected. Check the original chat.',
@@ -573,18 +575,25 @@ function renderPreview(){
  if(previewLocale!==document.documentElement.lang){previewLocale=document.documentElement.lang;markPicker.refresh();}
  const svg=$('stylePreview'),bounds=svg.getBoundingClientRect(),target=document.querySelector('.preview-target').getBoundingClientRect();
  if(!bounds.width||!target.width)return;
+ const preview=svg.parentElement;
+ preview.dataset.background=$('previewBackground').value;
+ const colors=getComputedStyle(preview);
+ const backgroundColors=['--preview-app-surface','--preview-app-alt','--preview-app-control']
+   .map(name=>colors.getPropertyValue(name).trim()).filter(Boolean);
  $('previewMaskRow').hidden=markPicker.shape!=='spotlight';
  $('drawDirectionRow').hidden=markPicker.shape!=='arrow';
  value('previewDismiss',translateKey(previewHidden?'restore':'dismiss'));
  renderOverlay(svg,{sessionId:`settings-${previewRevision}`,visualStyle:$('visualStyle').value,motion:$('motion').value,animateExit:previewHidden,
-  annotations:previewHidden?[]:[{id:'preview',x:target.x-bounds.x+target.width/2,y:target.y-bounds.y+target.height/2,width:target.width*Number($('drawWidth').value||220)/220,height:target.height*Number($('drawHeight').value||220)/220,shape:markPicker.shape,direction:$('drawDirection').value,lineStyle:$('drawLine').value,strokeWidth:Number($('drawWeight').value||2.5),effect:$('previewEffect').value,exit:$('previewExit').value,maskStyle:$('previewMask').value,label:markPicker.shape==='badge'?'2':$('drawLabel').value,color:$('drawColor').value}]},
+  annotations:previewHidden?[]:[{id:'preview',x:target.x-bounds.x+target.width/2,y:target.y-bounds.y+target.height/2,width:target.width*Number($('drawWidth').value||220)/220,height:target.height*Number($('drawHeight').value||220)/220,shape:markPicker.shape,direction:$('drawDirection').value,lineStyle:$('drawLine').value,strokeWidth:Number($('drawWeight').value||2.5),effect:$('previewEffect').value,exit:$('previewExit').value,maskStyle:$('previewMask').value,label:markPicker.shape==='badge'?'2':$('drawLabel').value,color:$('drawColor').value,backgroundColors}]},
   {width:bounds.width,height:bounds.height});
 }
 $('replay').addEventListener('click',()=>{previewRevision++;previewHidden=false;renderPreview();});
 $('previewDismiss').addEventListener('click',()=>{previewHidden=!previewHidden;if(!previewHidden)previewRevision++;renderPreview();});
-for(const id of ['previewEffect','previewExit','previewMask'])$(id).addEventListener('change',()=>{previewRevision++;previewHidden=false;renderPreview();});
+for(const id of ['previewEffect','previewExit','previewMask','drawColor','drawLine','drawDirection'])
+  $(id).addEventListener('change',()=>{previewRevision++;previewHidden=false;renderPreview();});
+$('previewBackground').addEventListener('change',()=>{previewHidden=false;renderPreview();});
 new ResizeObserver(()=>renderPreview()).observe(document.querySelector('.style-preview'));
-for(const id of ['drawWidth','drawHeight','drawLabel','drawColor','drawLine','drawWeight','drawDirection'])$(id).addEventListener('input',()=>{previewRevision++;previewHidden=false;renderPreview();});
+for(const id of ['drawWidth','drawHeight','drawLabel','drawWeight'])$(id).addEventListener('input',()=>{previewRevision++;previewHidden=false;renderPreview();});
 let drawing=null,drawingBusy=false,drawingTimer;
 function drawingControls(){
  $('drawScreen').textContent=translateKey(drawing?'updateDrawing':'drawScreen');
