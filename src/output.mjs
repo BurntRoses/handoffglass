@@ -14,7 +14,9 @@ export function continuationFor(session) {
 function compactSession(session) {
   if (!session) return null;
   const { id, status, mode, execution, phase, nextAction, continuous, step, totalSteps, epoch, completion, taskTimeoutAt, stepTimeoutAt, timeoutAt, verified, verification, completionSource, sceneRevision, targetTracking } = session;
-  return { id, status, mode, ...(execution?{execution}:{}), ...(continuous?{continuous,step,totalSteps,epoch,completion,taskTimeoutAt,stepTimeoutAt}:{}), ...(phase ? { phase } : {}), ...(nextAction ? { nextAction } : {}), timeoutAt, verified, ...(verification?{verification}:{}), completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}) };
+  const scrollDirection=session.annotations?.find(mark=>mark.scrollDirection)?.scrollDirection;
+  return { id, status, mode, ...(execution?{execution}:{}), ...(continuous?{continuous,step,totalSteps,epoch,completion,taskTimeoutAt,stepTimeoutAt}:{}), ...(phase ? { phase } : {}), ...(nextAction ? { nextAction } : {}), timeoutAt, verified, ...(verification?{verification}:{}), completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}),
+    ...(session.recoveryReason?{recoveryReason:session.recoveryReason}:{}),...(scrollDirection?{scrollDirection}:{}) };
 }
 export function formatToolResult(value, { compact = false } = {}) {
   if (!value || typeof value !== 'object') return value;

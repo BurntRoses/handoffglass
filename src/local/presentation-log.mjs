@@ -27,12 +27,32 @@ export class PresentationLog extends EventEmitter{
     for(const key of Object.keys(this.enabled))this.enabled[key]=prefs.enabled!==false&&prefs[key+'Enabled']!==false;
     this.emit('change');
   }
-  observe(session){
+  observe(session,change){
     this.append(session?.id??null,'guidance_changed','broker',session?.sensitive?'high':'low',{session});
+    if(session){clearTimeout(this.receiptTimer);this.receiptTimer=null;}
     if(session?.phase==='verifying'||session?.verification)this.append(session.id,'verification_recorded','host',session.sensitive?'high':'low',{session:{...session,annotations:[],scene:undefined}});
+    else if(!session&&change?.status==='completed'&&change.verified&&change.verification?.summary){
+      clearTimeout(this.receiptTimer);
+      const receipt={id:change.id,step:change.step,status:'completed',mode:change.mode,phase:'complete',
+        locale:change.locale,theme:change.theme,density:change.density,annotations:[],verification:change.verification,
+        timeoutAt:this.now()+6500};
+      this.append(receipt.id,'verification_recorded','host',change.sensitive?'high':'low',{session:receipt});
+      this.receiptTimer=setTimeout(()=>{
+        this.receiptTimer=null;
+        this.append(receipt.id,'verification_recorded','broker','low',{session:null});
+      },6500);
+      this.receiptTimer.unref?.();
+    }
     else this.append(session?.id??null,'verification_recorded','broker','low',{session:null});
   }
-  snapshot(){return Object.fromEntries(Object.entries(this.views).map(([k,v])=>[k,this.enabled[k]&&v?structuredClone(k==='review'?{...v,...this.appearance}:v):null]));}
+  snapshot(){
+    const view=Object.fromEntries(Object.entries(this.views).map(([k,v])=>[k,this.enabled[k]&&v?structuredClone(k==='review'?{...v,...this.appearance}:v):null]));
+    if(!this.enabled.verification&&view.guidance){
+      delete view.guidance.previousVerification;
+      if(view.guidance.verification)delete view.guidance.verification.summary;
+    }
+    return view;
+  }
   present({changes,timeoutSeconds=300,retryDeclined=false},owner){
     if(!this.enabled.review)return {error:'review_disabled'};
     if(typeof retryDeclined!=='boolean')throw new TypeError('retryDeclined must be boolean');
@@ -82,5 +102,5 @@ export class PresentationLog extends EventEmitter{
     const entries=this.events.filter(e=>e.sessionId===id&&e.type.startsWith('review_')).map(e=>({...e,payload:{review:{...e.payload.review,changes:e.payload.review.changes.map(c=>({...c,summary:redact(c.summary).text,before:{...c.before,summary:redact(c.before.summary).text},after:{...c.after,summary:redact(c.after.summary).text}}))}}}));
     return structuredClone({schemaVersion:1,readOnly:true,entries});
   }
-  close(){for(const timer of this.timers.values())clearTimeout(timer);this.emit('closing');this.removeAllListeners();this.events=[];this.reviews.clear();this.refusals.clear();}
+  close(){clearTimeout(this.receiptTimer);for(const timer of this.timers.values())clearTimeout(timer);this.emit('closing');this.removeAllListeners();this.events=[];this.reviews.clear();this.refusals.clear();}
 }

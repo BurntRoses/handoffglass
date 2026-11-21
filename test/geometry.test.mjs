@@ -26,4 +26,7 @@ test('cross-screen ring draws on both adjoining displays without assuming the ce
   assert.equal(localAnnotations(left, [a]).length, 1);
   assert.equal(localAnnotations(right, [a])[0].x, -8);
   assert.equal(canLocateAll([left,right],[a]), true);
+  const hint={...a,shape:'arrow',scrollDirection:'right'};
+  assert.equal(localAnnotations(left,[hint]).length,1);
+  assert.equal(localAnnotations(right,[hint]).length,0);
 });

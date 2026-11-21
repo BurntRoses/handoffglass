@@ -6,7 +6,7 @@ import { EventEmitter } from 'node:events';
 const TERMINAL = new Set(['completed','declined','cancelled','expired','superseded']);
 const REASONS = new Set(['consent_required','permission_denied','target_not_found',
   'ambiguous_target','display_mapping','native_timeout','native_error',
-  'stale_observation','no_desktop','helper_unavailable','unsupported_platform','display_layout_changed']);
+  'stale_observation','no_desktop','helper_unavailable','unsupported_platform','display_layout_changed','target_incorrect']);
 export const EVENT_TYPES = Object.freeze(['started','session_started','target_acquired','target_moved',
   'target_lost','target_restored','display_changed','desktop_unavailable',
   'scene_changed','scene_updated','session_finished','tracking_released','completed','declined','cancelled',
@@ -72,7 +72,8 @@ export class InteractionJournal extends EventEmitter {
     if(prior && session.status==='paused' && prior.status!=='paused')this.#append(rec,'session_paused');
     if(prior?.status==='paused' && session.status!=='paused' && !TERMINAL.has(session.status))this.#append(rec,'session_resumed');
     else if(prior && session.phase==='reconnecting' && prior.phase!=='reconnecting')this.#append(rec,'connection_changed');
-    if(prior && session.recoveryRequired && session.phase==='blocked' && session.nextAction!==prior.nextAction)this.#append(rec,'recovery_requested');
+    if(prior && session.recoveryRequired && session.phase==='blocked' && (session.nextAction!==prior.nextAction||session.recoveryReason!==prior.recoveryReason))
+      this.#append(rec,'recovery_requested',session.recoveryReason,session.recoveryReason==='target_incorrect'?'user':undefined);
     if(session.continuous && prior && session.step!==prior.step)this.#append(rec,'scene_updated');
     if(prior && session.status==='user_action_reported' && !['paused','user_action_reported'].includes(prior.status))this.#append(rec,'user_action',undefined,session.completionSource==='native_observation'?'native':session.completionSource==='agent_observation'?'agent':'user');
     if(session.continuous && TERMINAL.has(session.status) && prior?.status!==session.status)this.#append(rec,'session_finished');
@@ -98,7 +99,7 @@ export class InteractionJournal extends EventEmitter {
       if(session.sceneRevision!==prior.sceneRevision && nextState!=='tracking' && nextState!=='manual')
         this.#append(rec,'scene_changed');
     }else if(session.targetTracking?.status==='tracking') this.#append(rec,'target_acquired');
-    rec.previous={verificationResult:session.verification?.result,execution:session.execution,nextAction:session.nextAction,step:session.step,phase:session.phase,status:session.status,targetTracking:session.targetTracking ? {...session.targetTracking}:null,
+    rec.previous={verificationResult:session.verification?.result,execution:session.execution,nextAction:session.nextAction,recoveryReason:session.recoveryReason,step:session.step,phase:session.phase,status:session.status,targetTracking:session.targetTracking ? {...session.targetTracking}:null,
       sceneRevision:session.sceneRevision,annotations:session.annotations?.map(a=>({...a}))};
     // LRU: old sessions cannot hold unbounded data. A live session is always newest.
     this.entries.delete(session.id);this.entries.set(session.id,rec);

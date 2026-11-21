@@ -1,8 +1,10 @@
 /** Process-local native event delivery. It never verifies or replays an action. */
-/** @typedef {{sessionId:string,step:number,cursor:number,events:string[],nextAction:string}} ContinuationNotice */
+/** @typedef {{sessionId:string,step:number,cursor:number,events:string[],nextAction:string,reason?:string}} ContinuationNotice */
 const terminal=new Set(['completed','declined','cancelled','expired','superseded']);
 const decisions=new Set(['user_action','verification_required','target_lost','display_changed','desktop_unavailable','permission_required','connection_changed','recovery_requested']);
 export function continuationMessage(notice){
+  if(notice.nextAction==='reobserve_target'&&notice.reason==='target_incorrect')
+    return `HandoffGlass event ${JSON.stringify(notice)}. The user reported a wrong location. Observe the original application again and use session_present on this same step with a new requestId and fresh evidence.`;
   return `HandoffGlass event ${JSON.stringify(notice)}. Continue only this owned session. Independently observe the original application before session_verify; a user report is not proof. Never replay a user action or reopen a refusal. If observation is unavailable use result:inconclusive. Do not repeat the desktop card in chat.`;
 }
 export function createContinuation({broker,deliver,onError=()=>{},waitSeconds=25}){
@@ -26,9 +28,10 @@ export function createContinuation({broker,deliver,onError=()=>{},waitSeconds=25
       const events=(result.events??[]).filter(event=>event.sessionId===session.id&&Number.isSafeInteger(event.sequence??event.cursor)&&(event.sequence??event.cursor)>previous&&decisions.has(event.type));
       if(!events.length)continue;
       const types=[...new Set(events.map(event=>event.type))];
-      const key=`${session.id}:${session.step}:${session.status}:${session.nextAction}`;
+      const correction=events.findLast(event=>event.reason==='target_incorrect'&&event.type==='recovery_requested');
+      const key=`${session.id}:${session.step}:${session.status}:${session.nextAction}:${correction?.sequence??correction?.cursor??''}`;
       if(key===lastNotice)continue;
-      const notice={sessionId:session.id,step:session.step??1,cursor,events:types,nextAction:session.nextAction};
+      const notice={sessionId:session.id,step:session.step??1,cursor,events:types,nextAction:session.nextAction,...(correction?{reason:correction.reason}:{})};
       // Commit before delivery: a failed/ambiguous host admission is not retried.
       lastNotice=key;
       try{await deliver(notice,signal);}catch(error){if(!signal.aborted)onError(error);break;}

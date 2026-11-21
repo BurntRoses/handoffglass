@@ -24,10 +24,10 @@ export function quickMarkRequest(input, displays, preferences={}, context={}) {
   const markIds=new Set(specs.map((s,i)=>input.marks?(s?.id??`mark_${i+1}`):'mark_1'));
   for(const [i,spec] of specs.entries()){
     if(!spec||typeof spec!=='object'||Array.isArray(spec))throw new TypeError('Invalid mark');
-    const options={...input,...spec}, {shape='ring',placement='center',direction='auto',label='',color='auto',effect='draw',exit='fade',maskStyle='soft',strokeWidth=2.4,lineStyle='solid'}=options;
+    const options={...input,...spec}, {shape=options.bounds?'auto':'ring',placement='center',direction='auto',label='',color='auto',effect='draw',exit='fade',maskStyle='soft',strokeWidth=2.4,lineStyle='solid'}=options;
     if(options.frame!==undefined&&options.bounds===undefined)throw new TypeError('frame requires bounds');
     if(options.bounds!==undefined&&['position','placement','width','height','size'].some(k=>options[k]!==undefined))throw new TypeError('Choose bounds or position/placement/size');
-    if(!SHAPES.includes(shape)||!PLACEMENTS.includes(placement)||!DIRECTIONS.includes(direction)||!EFFECTS.includes(effect)||!EXIT_STYLES.includes(exit)||!MASK_STYLES.includes(maskStyle))throw new TypeError('Invalid drawing style or placement');
+    if(![...SHAPES,'auto'].includes(shape)||!PLACEMENTS.includes(placement)||!DIRECTIONS.includes(direction)||!EFFECTS.includes(effect)||!EXIT_STYLES.includes(exit)||!MASK_STYLES.includes(maskStyle))throw new TypeError('Invalid drawing style or placement');
     if(typeof label!=='string'||[...label].length>64)throw new TypeError('label must be at most 64 characters');
     const size=finite(options.size??220,24,800,'size');
     let width=Math.min(finite(options.width??size,24,1200,'width'),display.width-64);

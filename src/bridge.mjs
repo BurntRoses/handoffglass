@@ -85,7 +85,7 @@ export class LocalBridge {
     this.streams=new Set();
     this.anchors = new NativeAnchorTracker({manager,locator:(target, displays)=>this.locator(target,displays),
       getDisplays:()=>this.displays,desktopReady:()=>this.headless || this.connected});
-    this.onManagerChange = () => {this.projecting=true;try{this.presentation.observe(this.manager.active());}finally{this.projecting=false;}this.#publish();};
+    this.onManagerChange = change => {this.projecting=true;try{this.presentation.observe(this.manager.active(),change);}finally{this.projecting=false;}this.#publish();};
     manager.on('show', this.onManagerChange);
     manager.on('change', this.onManagerChange);
   }
@@ -196,7 +196,7 @@ export class LocalBridge {
   }
   armObservation(id,input){
     clearTimeout(this.observationTimers.get(id));this.observationTimers.delete(id);
-    const captures=(input.marks??[input]).filter(m=>m.bounds).map(m=>(m.frame??m.observation??input.observation)?.capturedAt).filter(Number.isFinite);
+    const captures=(input.marks??[input]).filter(m=>m.bounds||m.scrollTarget).map(m=>(m.frame??m.observation??input.observation)?.capturedAt).filter(Number.isFinite);
     if(!captures.length)return;
     const timer=setTimeout(()=>{
       this.observationTimers.delete(id);
@@ -280,7 +280,7 @@ export class LocalBridge {
     if(req.method==='POST' && pathname==='/desktop/control'){
       const body=await readJson(req);const active=this.manager.active();
       if(!active || body.id!==active.id || (body.step!==undefined && body.step!==active.step))return sendJson(res,409,{error:'stale_step'});
-      if(!['pause','resume','retry_target','text_fallback','park','attach'].includes(body.action))return sendJson(res,400,{error:'invalid_action'});
+      if(!['pause','resume','retry_target','text_fallback','correct_target','park','attach'].includes(body.action))return sendJson(res,400,{error:'invalid_action'});
       const result=this.manager.control(body.id,null,body.action);
       if(!['progress','park','attach'].includes(body.action))this.anchors.clearFor(body.id);
       if(!result.error)await this.manager.flushCheckpoint?.();
@@ -489,9 +489,10 @@ export class LocalBridge {
         if(body.sessionId && !this.manager.getOwned(body.sessionId,owner))return sendJson(res,404,{error:'Session not found',code:'not_found'});
         const original = JSON.stringify(body);
         const hadTarget = body.target !== undefined || body.targetRef !== undefined;
-        const hostBounds=body.bounds!==undefined;
+        const hostBounds=body.bounds!==undefined||body.scrollTarget!==undefined;
         const hostObservation=hostBounds?structuredClone(body):null;
-        if(body.frame!==undefined&&!hostBounds)return sendJson(res,400,{code:'invalid_frame',error:'frame requires bounds'});
+        if(body.bounds!==undefined&&body.scrollTarget!==undefined)return sendJson(res,400,{code:'invalid_target',error:'Choose bounds or scrollTarget'});
+        if(body.frame!==undefined&&!hostBounds)return sendJson(res,400,{code:'invalid_frame',error:'frame requires bounds or scrollTarget'});
         if(hostBounds&&['target','targetRef','x','y','annotations','scene'].some(k=>body[k]!==undefined))return sendJson(res,400,{code:'invalid_target',error:'Choose host bounds or native target/scene'});
         const followTarget = body.followTarget !== false;
         if (!hadTarget && body.followTarget !== undefined) return sendJson(res,400,{error:'followTarget requires a native target',code:'invalid_follow'});
@@ -522,13 +523,15 @@ export class LocalBridge {
           anchoredQuery=validateTarget({...target,...(hit.nativeRef?{nativeRef:hit.nativeRef,scope:hit.scope}:{})});anchoredHit=hit;
           delete body.target;
           body.x = hit.x; body.y = hit.y; body.width = hit.width; body.height = hit.height;
-          if(body.intent && !body.shape && !body.template)body.template=body.intent;
+          if(['caution','verify'].includes(body.intent) && !body.shape && !body.template)body.template=body.intent;
+          body.shape??='auto';
         }
         if(hostBounds){
+          body.locale=preference.locale;
           observedScene(body,[],{validateOnly:true});
           await this.prepare();
           body.scene=observedScene(body,this.displays,{layoutSignature:layoutSignature(this.displays)});
-          for(const key of ['bounds','frame','template'])delete body[key];
+          for(const key of ['bounds','frame','template','scrollTarget'])delete body[key];
         }
         // Apply user-owned visual preferences; Agents cannot persist them.
         body.locale = preference.locale;
@@ -631,6 +634,7 @@ export class LocalBridge {
         if(await isDisabled())return sendJson(res,423,{error:'disabled_by_user',code:'disabled_by_user'});
         const body=await readJson(req);const session=this.manager.getOwned(body.sessionId,owner);
         if(!session)return sendJson(res,404,{error:'not_found',code:'not_found'});
+      if(body.action==='correct_target')return sendJson(res,400,{error:'The desktop user reports incorrect targets',code:'invalid_action'});
         if(body.expectedStep!==undefined&&body.expectedStep!==session.step)return sendJson(res,409,{error:'stale_step',code:'stale_step'});
         const result=this.manager.control(body.sessionId,owner,body.action,body.phase);
         if(!result.error && !['progress','park','attach'].includes(body.action))this.anchors.clearFor(body.sessionId);
@@ -643,7 +647,7 @@ export class LocalBridge {
         if(body.result!==undefined&&body.verified!==undefined&&body.verified!==(verificationResult==='verified'))return sendJson(res,400,{code:'conflicting_verification',error:'Conflicting verification result'});
         const current=this.manager.getOwned(body.sessionId,owner);
         if(body.expectedStep!==undefined&&body.expectedStep!==current?.step)return sendJson(res,409,{error:'stale_step',code:'stale_step'});
-        const result = this.manager.verify(body.sessionId, owner, verificationResult, body.finish === true);
+        const result = this.manager.verify(body.sessionId, owner, verificationResult, body.finish === true,body.summary);
         return sendJson(res, result.error ? 409 : 200, result);
       }
       if (req.method === 'POST' && pathname === '/agent/scene') {
@@ -656,14 +660,18 @@ export class LocalBridge {
         if (!owned.scene) return sendJson(res, 409, { error: 'Session has no mutable scene', code: 'scene_not_enabled' });
         if (body.expectedRevision !== owned.sceneRevision) return sendJson(res, 409, { error: 'Scene revision conflict', code: 'revision_conflict', sceneRevision: owned.sceneRevision });
         const { patchScene, flattenScene } = await import('./visual/scene.mjs');
-        if(body.bounds!==undefined){
-          if(body.operations!==undefined)return sendJson(res,400,{code:'invalid_target',error:'Choose bounds or operations'});
+        const freshRegion=body.bounds!==undefined||body.scrollTarget!==undefined;
+        if(freshRegion){
+          if(body.operations!==undefined||body.bounds!==undefined&&body.scrollTarget!==undefined)return sendJson(res,400,{code:'invalid_target',error:'Choose bounds, scrollTarget or operations'});
           await this.prepare();
           const previous=owned.annotations[0];
           const color=body.color??(previous?.autoColor?'auto':previous?.color);
-          const next=observedScene({...previous,...body,color},this.displays,{layoutSignature:layoutSignature(this.displays)});
+          const shape=body.shape??(previous?.autoShape||previous?.scrollDirection?'auto':previous?.shape);
+          const label=body.label??(previous?.scrollDirection?undefined:previous?.label);
+          const next=observedScene({...previous,scrollDirection:undefined,autoShape:false,...body,color,shape,label,locale:owned.locale},this.displays,{layoutSignature:layoutSignature(this.displays)});
           body.operations=[...owned.scene.layers.map(l=>({op:'remove_layer',layerId:l.id})),...next.layers.map(layer=>({op:'upsert_layer',layer}))];
-        }else if(body.frame!==undefined)return sendJson(res,400,{code:'invalid_frame',error:'frame requires bounds'});
+        }else if(body.frame!==undefined)return sendJson(res,400,{code:'invalid_frame',error:'frame requires bounds or scrollTarget'});
+        else if(!Array.isArray(body.operations))return sendJson(res,400,{code:'invalid_target',error:'Provide bounds, scrollTarget or operations'});
         const preview = patchScene(owned.scene, body.operations);
         // An accepted edit must correspond to an available desktop, not just in-memory state.
         await this.prepare();
@@ -679,7 +687,7 @@ export class LocalBridge {
           return sendJson(res,409,{error:'Native target currently unverified',code:'target_unavailable'});
         const result = this.manager.updateScene(body.sessionId, owner, body.expectedRevision, body.operations);
         // Manual edits take ownership of the scene and stop automatic target following.
-        if (!result.error) {this.anchors.clearFor(body.sessionId);this.fixedSessions.add(body.sessionId);this.armObservation(body.sessionId,body);if(body.bounds!==undefined&&owned.targetTracking)this.manager.setAnchorState(body.sessionId,{status:'tracking',annotations:result.session.annotations,scene:result.session.scene});}
+        if (!result.error) {this.anchors.clearFor(body.sessionId);this.fixedSessions.add(body.sessionId);this.armObservation(body.sessionId,body);if(freshRegion&&owned.targetTracking)this.manager.setAnchorState(body.sessionId,{status:'tracking',annotations:result.session.annotations,scene:result.session.scene});}
         return sendJson(res, result.error ? 409 : 200, result);
       }
       if (req.method === 'POST' && pathname === '/agent/cancel') {

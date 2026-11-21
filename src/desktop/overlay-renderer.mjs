@@ -66,6 +66,8 @@ function placeLabel(a, width, height, occupied) {
     { x: a.x + rw / 2 + 24, y: a.y - h / 2 },
     { x: a.x - rw / 2 - w - 24, y: a.y - h / 2 }
   ].map(b => ({ x: clamp(b.x, 12, width - w - 12), y: clamp(b.y, 12, height - h - 12), width: w, height: h }));
+  const innerSide={down:0,up:1,left:2,right:3}[a.scrollDirection];
+  if(innerSide!==undefined)choices.unshift(...choices.splice(innerSide,1));
   const score = b => occupied.reduce((n, other) => n + (overlap(b, other) ? 1 : 0), 0);
   const box = choices.reduce((best, b) => score(b) < score(best) ? b : best);
   occupied.push(box);
@@ -90,7 +92,8 @@ function buildMark(a, accent, visualStyle, viewport, box) {
   const group = node('g', { opacity: clamp(a.opacity ?? 1, 0, 1), class: `hg-mark hg-mark-${a.shape}`,
     'data-exit': a.exit ?? (['ring','scribble','underline','strike','double_ring'].includes(a.shape) ? 'retract' : ['dot','ripple','check','cross','badge'].includes(a.shape) ? 'shrink' : 'fade'),
     'data-shape': a.shape, 'data-layer': a.layerId ?? 'legacy', 'data-effect': effect,
-    'data-inner-edge':edges.inner,'data-outer-edge':edges.outer });
+    'data-inner-edge':edges.inner,'data-outer-edge':edges.outer,
+    ...(a.scrollDirection?{'data-scroll-direction':a.scrollDirection}:{}) });
   styles(group, {'transform-origin': `${x}px ${y}px`, '--hg-accent': accent});
   const stroke = { stroke: accent, fill: 'none', 'stroke-width': a.strokeWidth ?? (ink ? 2.3 : 1.8),
     'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
@@ -133,8 +136,8 @@ function buildMark(a, accent, visualStyle, viewport, box) {
   } else if (a.shape === 'arrow') {
     const vectors={left:[1,0],right:[-1,0],up:[0,1],down:[0,-1]};
     const [side,vertical]=vectors[a.direction]??[x > viewport.width - 210 ? -1 : 1,y < 155 ? 1 : -1];
-    const sx = clamp(x + side * (rw / 2 + 82), 24, viewport.width - 24);
-    const sy = clamp(y + vertical * (rh / 2 + 66), 24, viewport.height - 24);
+    const sx = clamp(x + side * (a.scrollDirection?25:rw / 2 + 82), 12, viewport.width - 12);
+    const sy = clamp(y + vertical * (a.scrollDirection?25:rh / 2 + 66), 12, viewport.height - 12);
     const ex = x, ey = y;
     const cx = sx + (ex - sx) * .1, cy = ey + vertical * 18;
     trace(group, 'path', { d: `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`, ...stroke, 'stroke-width': a.strokeWidth ?? (ink ? 3 : 2.4) });

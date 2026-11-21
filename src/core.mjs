@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import {redact} from './local/redact.mjs';
 
 export const TERMINAL_STATES = Object.freeze(['completed', 'declined', 'cancelled', 'expired', 'superseded']);
 const TERMINAL = new Set(TERMINAL_STATES);
@@ -86,7 +87,9 @@ export function normalizeRequest(input) {
 }
 function copySession(session) {
   if (!session) return null;
-  return { ...session, completion:{...session.completion}, ...(session.verification?{verification:{...session.verification}}:{}), ...(session.agentState?{agentState:{...session.agentState}}:{}), ...(session.targetTracking?{targetTracking:{...session.targetTracking}}:{}), annotations: session.annotations.map(a => ({ ...a })),
+  return { ...session, completion:{...session.completion}, ...(session.verification?{verification:{...session.verification}}:{}),
+    ...(session.previousVerification?{previousVerification:{...session.previousVerification}}:{}),
+    ...(session.agentState?{agentState:{...session.agentState}}:{}), ...(session.targetTracking?{targetTracking:{...session.targetTracking}}:{}), annotations: session.annotations.map(a => ({ ...a })),
     ...(session.scene ? { scene: normalizeScene(session.scene) } : {}) };
 }
 
@@ -187,10 +190,12 @@ export class HandoffManager extends EventEmitter {
     return { session: copySession(session) };
   }
   /** Record an independent check performed by the host Agent after a user report. */
-  verify(id, owner, verified = false, finish = false) {
+  verify(id, owner, verified = false, finish = false, summary) {
     const result=typeof verified==='boolean'?(verified?'verified':'mismatch'):verified;
     if(!['verified','mismatch','inconclusive'].includes(result))throw new TypeError('Invalid verification result');
     verified=result==='verified';
+    if(summary!==undefined&&(!verified||typeof summary!=='string'||!summary.trim()||summary.length>140))
+      throw new TypeError('A verification summary requires a verified result and 1–140 characters');
     const session = this.sessions.get(id);
     if (!session || this.owners.get(id) !== owner) return { error: 'not_found' };
     this.get(id);
@@ -200,7 +205,8 @@ export class HandoffManager extends EventEmitter {
     if (!['completed','user_action_reported'].includes(session.status) || session.phase !== 'verifying')
       return { error: 'verification_not_due', session: copySession(session) };
     session.verified = verified === true;
-    session.verification={result,at:this.clock(),source:'host'};
+    session.verification={result,at:this.clock(),source:'host',...(summary?{summary:redact(summary.trim(),140).text}:{})};
+    delete session.previousVerification;
     if(result==='inconclusive'){
       session.annotations=[];delete session.scene;
       session.phase='verifying';session.nextAction='request_independent_evidence';session.updatedAt=this.clock();
@@ -252,8 +258,12 @@ export class HandoffManager extends EventEmitter {
     if(normalized.scene)session.scene=normalized.scene;
     else delete session.scene;
     delete session.targetTracking;
-    if(!recovering)session.step++;
-    delete session.recoveryRequired;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
+    if(!recovering){
+      if(session.verification?.summary)session.previousVerification={...session.verification};
+      else delete session.previousVerification;
+      session.step++;
+    }
+    delete session.recoveryRequired;delete session.recoveryReason;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
     session.nextAction=normalized.mode==='guide'?'observe_app':'wait_for_user';session.verified=false;delete session.verification;session.completionSource=null;session.updatedAt=this.clock();
     if(key)this.requestKeys.set(key,{id,payload:JSON.stringify(normalized)});
     if(!recovering)session.stepTimeoutAt=this.clock()+normalized.timeoutSeconds*1000;
@@ -305,10 +315,14 @@ export class HandoffManager extends EventEmitter {
       if(!reported)s.recoveryRequired=true;
       s.agentState={phase:'idle',at:this.clock()};
       s.stepTimeoutAt=this.clock()+Math.max(10000,s.remainingMs||1800000);delete s.targetTracking;delete s.scene;delete s.pausedFrom;delete s.remainingMs;
-    } else if(action==='retry_target' || action==='text_fallback') {
+    } else if(action==='retry_target' || action==='text_fallback'||action==='correct_target') {
       if(s.status==='paused')return {error:'paused'};
       if(s.status==='user_action_reported')return {error:'verification_due'};
-      s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='retry_target'?'reobserve_target':'present_text_step';
+      if(action==='correct_target'&&(!s.continuous||s.status!=='awaiting_user'||!s.annotations.some(mark=>!mark.scrollDirection)))
+        return {error:'no_target_to_correct'};
+      s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='text_fallback'?'present_text_step':'reobserve_target';
+      if(action==='correct_target'){s.recoveryReason='target_incorrect';delete s.scene;}
+      else delete s.recoveryReason;
       delete s.targetTracking;
     } else if(action==='park' || action==='attach') {
       if(!s.continuous)return {error:'not_continuous'};

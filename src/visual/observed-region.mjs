@@ -57,9 +57,11 @@ export function observedRegion(bounds,frame,displays,{validateOnly=false,now=Dat
     ...(backgroundColors?{backgroundColors}:{})};
 }
 export function observedScene(input,displays,context={}){
+  if(input.scrollTarget)return scrollScene(input,displays,context);
   const {backgroundColors,...hit}=observedRegion(input.bounds,input.frame,displays,{...context,observation:input.observation});
-  const mark=normalizeAnnotation({...input,...hit,id:'mark_1',shape:input.shape??'spotlight'});
-  const scene=input.template||(!input.shape&&input.intent)?composeTemplate(input.template??input.intent,[mark]):
+  const template=input.template??(!input.shape&&['caution','verify'].includes(input.intent)?input.intent:undefined);
+  const mark=normalizeAnnotation({...input,...hit,id:'mark_1',shape:input.shape??'auto'});
+  const scene=template?composeTemplate(template,[mark]):
     {version:1,layers:[{id:'observed',annotations:[mark]}]};
   const autoColor=input.color===undefined||input.color==='auto';
   for(const layer of scene.layers)for(const annotation of layer.annotations){
@@ -68,6 +70,33 @@ export function observedScene(input,displays,context={}){
     else delete annotation.autoColor;
   }
   return scene;
+}
+const SCROLL_TEXT={
+  'zh-CN':{up:'向上滚动',down:'向下滚动',left:'向左滚动',right:'向右滚动'},
+  'en-US':{up:'Scroll up',down:'Scroll down',left:'Scroll left',right:'Scroll right'}
+};
+function scrollScene(input,displays,context){
+  const {viewport,target,label}=input.scrollTarget;
+  const view=regionRect(viewport,'scroll viewport'),outside=regionRect(target,'scroll target');
+  const horizontal=outside.x+outside.width<=view.x?'left':outside.x>=view.x+view.width?'right':null;
+  const vertical=outside.y+outside.height<=view.y?'up':outside.y>=view.y+view.height?'down':null;
+  if(!horizontal&&!vertical||horizontal&&vertical)fail('invalid_scroll_target','Supply a target wholly beyond one edge of the observed scroll viewport');
+  const direction=horizontal||vertical;
+  const box=observedRegion(view,input.frame,displays,{...context,observation:input.observation});
+  if(box.width<72||box.height<72)fail('invalid_scroll_target','The visible scroll viewport is too small for a directional mark');
+  const dx=(outside.x+outside.width/2-view.x)/view.width-.5;
+  const dy=(outside.y+outside.height/2-view.y)/view.height-.5;
+  const fit=(center,offset,length)=>center+Math.max(32-length/2,Math.min(length/2-32,offset*length));
+  const x=horizontal?box.x+(direction==='left'?-1:1)*(box.width/2-22):fit(box.x,dx,box.width);
+  const y=vertical?box.y+(direction==='up'?-1:1)*(box.height/2-22):fit(box.y,dy,box.height);
+  const instruction=(SCROLL_TEXT[input.locale]??SCROLL_TEXT['zh-CN'])[direction];
+  const name=typeof label==='string'?label.trim().slice(0,45):'';
+  const mark=normalizeAnnotation({id:'mark_1',x,y,width:26,height:26,shape:'arrow',direction,scrollDirection:direction,
+    label:name?`${instruction} · ${name}`:instruction,color:input.color,effect:'still'});
+  if(input.color==null||input.color==='auto'){
+    mark.color=chooseAccent(mark.color,box.backgroundColors);mark.autoColor=true;
+  }
+  return {version:1,layers:[{id:'observed',annotations:[mark]}]};
 }
 export function observedTarget(bounds,frame,displays,context={}){
   const hit=observedRegion(bounds,frame,displays,context),evidence=frame??context.observation,now=context.now??Date.now();

@@ -171,8 +171,8 @@ export class BrokerClient {
   async resume(sessionId,resumeToken){return this.request('/agent/resume',{method:'POST',body:{sessionId,resumeToken}});}
   async control(sessionId,action,phase,expectedStep){return this.request('/agent/control',{method:'POST',body:{sessionId,action,phase,expectedStep}});}
   async review(args){return this.request('/agent/review',{method:'POST',body:args});}
-  async verify(sessionId, verified, finish=false,expectedStep) {
-    return this.request('/agent/verify', { method: 'POST', body: { sessionId, ...(typeof verified==='boolean'?{verified}:{result:verified}), finish, expectedStep } });
+  async verify(sessionId, verified, finish=false,expectedStep,summary) {
+    return this.request('/agent/verify', { method: 'POST', body: { sessionId, ...(typeof verified==='boolean'?{verified}:{result:verified}), finish, expectedStep, summary } });
   }
   async updateScene(sessionId, expectedRevision, operations, region={}) {
     return this.request('/agent/scene', { method: 'POST', body: { ...region, sessionId, expectedRevision, operations } });

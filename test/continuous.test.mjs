@@ -31,6 +31,22 @@ test('native completion candidates keep their source and remain unverified',()=>
   assert.equal(m.get(s.id).verified,false);assert.equal(m.get(s.id).nextAction,'verify_in_app');
  }finally{j.close();m.close();}
 });
+test('desktop correction retires the mark and requests a fresh view of the same step',()=>{
+ const m=new HandoffManager(),j=new InteractionJournal(m);
+ try{
+  const first=m.show({...body,x:40,y:50,width:80,height:24},owner);
+  assert.equal(m.control(first.id,null,'correct_target').session.nextAction,'reobserve_target');
+  assert.deepEqual(m.get(first.id).annotations,[]);
+  m.control(first.id,owner,'progress','locating');
+  const events=j.read(first.id).events.filter(e=>e.type==='recovery_requested');
+  assert.equal(events.length,1);
+  assert.equal(events[0].reason,'target_incorrect');
+  assert.equal(events[0].source,'user');
+  const result=m.present(first.id,{...body,requestId:'corrected-step',x:100,y:150},owner).session;
+  assert.equal(result.step,first.step);assert.equal(result.timeoutAt,first.timeoutAt);
+  assert.equal(result.annotations[0].x,100);assert.equal(result.recoveryReason,undefined);
+ }finally{j.close();m.close();}
+});
 test('a one-shot native guide can be verified and releases ownership on success',async()=>{
  const m=new HandoffManager(),journal=new InteractionJournal(m);
  const tracker=new NativeAnchorTracker({manager:m,getDisplays:()=>[],subscribe:()=>{},locator:async()=>{

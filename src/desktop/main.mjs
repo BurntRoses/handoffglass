@@ -4,6 +4,7 @@ import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage }
 import { registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
 import { showControlCenter, registerCenterIPC } from './center.mjs';
 import {hasStepCard} from './panel-state.mjs';
+import {createGuidanceFocus,quietAnnotations} from './guidance-focus.mjs';
 import { loadPreferences } from '../local/preferences.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,9 @@ import { readDesktopManifest, runtimeDir } from '../runtime.mjs';
 
 const overlayHides=new WeakMap();
 const overlayFrames=new WeakMap();
+const guidanceFocus=createGuidanceFocus({readPointer:()=>screen.getCursorScreenPoint()});
+let focusTimer,peekKey=null;
+const stepKey=s=>s?`${s.id}:${s.step}`:null;
 let overlayRenderToken=0;
 const here = dirname(fileURLToPath(import.meta.url));
 let port = Number(process.env.HANDOFFGLASS_PORT);
@@ -87,22 +91,26 @@ function createPanel() {
   lockDown(win);
   void win.loadFile(join(here, 'panel.html'));
   win.on('close', evt => { if (!closing) { evt.preventDefault(); win.hide(); } });
+  win.on('blur',()=>setPeek(false));
+  win.on('hide',()=>setPeek(false));
   win.webContents.on('did-finish-load', () => { if (current) win.webContents.send('hg:render', current); });
   return win;
 }
 function draw(win, display, animateExit=false) {
   if (win.isDestroyed() || win.webContents.isLoading()) return;
+  if(peekKey&&peekKey===stepKey(current)){win.hide();return;}
   const b = { id: String(display.id), x: display.bounds.x, y: display.bounds.y, width: display.bounds.width, height: display.bounds.height };
-  const annotations = current ? localAnnotations(b, current.annotations) : [];
+  const live=current?.annotations??[];
+  const annotations=localAnnotations(b,guidanceFocus.subdued?quietAnnotations(live):live);
   // Handoff sessions use a local scrim to focus attention while the SVG layer
   // remains click-through. The human-facing card is the only interactive UI.
-  if (current?.scrim === true && annotations.length && !annotations.some(a => a.shape === 'spotlight')) {
+  if (current?.scrim === true && !guidanceFocus.subdued && annotations.length && !annotations.some(a=>a.shape==='spotlight'||a.scrollDirection)) {
     const focus = annotations[0];
     annotations.unshift({ ...focus, id: '__session_spotlight', shape: 'spotlight', opacity: .45, effect: 'still', label: '' });
   }
   // Agent phase/wait changes do not redraw SVG, rebuild masks or interrupt an exit.
   const frame=JSON.stringify([current?.id,annotations,current?.visualStyle,current?.motion]);
-  if(overlayFrames.get(win)===frame)return;
+  if(overlayFrames.get(win)===frame){if(annotations.length&&!win.isVisible())win.showInactive();return;}
   overlayFrames.set(win,frame);
   const previous=overlayHides.get(win);clearTimeout(previous?.timer);overlayHides.delete(win);
   const renderToken=++overlayRenderToken;
@@ -114,6 +122,26 @@ function draw(win, display, animateExit=false) {
     timer.unref?.();overlayHides.set(win,{token:renderToken,timer});return;
   }
   win.showInactive();
+}
+function redrawMarks(){for(const {win,display} of overlays)draw(win,display);}
+function setPeek(enabled){
+  const key=enabled&&current?.status==='awaiting_user'&&current.annotations.length&&current.desktopConnection!=='reconnecting'?stepKey(current):null;
+  if(key===peekKey)return;
+  peekKey=key;
+  redrawMarks();
+}
+function syncGuidanceFocus(){
+  const enabled=guidanceFocus.update(current);
+  if(!enabled||guidanceFocus.subdued){
+    clearInterval(focusTimer);focusTimer=null;
+  }else if(!focusTimer){
+    focusTimer=setInterval(()=>{
+      if(!peekKey&&guidanceFocus.sample()){
+        clearInterval(focusTimer);focusTimer=null;redrawMarks();
+      }
+    },80);
+    focusTimer.unref?.();
+  }
 }
 function findTargetDisplay(active) {
   const first = active?.annotations?.[0];
@@ -132,7 +160,7 @@ function applySnapshot(state) {
 }
 function layoutPanel(resizeOnly=false){
   if(!panel||panel.isDestroyed()||!current)return;
-  const area=findTargetDisplay(current).workArea;
+  const area=(current.status==='completed'&&panelPosition?screen.getDisplayMatching(panel.getBounds()):findTargetDisplay(current)).workArea;
   const width=Math.min(panelSize.width,area.width-24),height=Math.min(panelSize.height,area.height-24);
   const position=resizeOnly&&panelPosition?{x:Math.max(area.x+12,Math.min(panelPosition.x,area.x+area.width-width-12)),y:Math.max(area.y+12,Math.min(panelPosition.y,area.y+area.height-height-12))}:placePanel(area,current.annotations?.[0],{width,height,targets:current.annotations,previous:panelPosition,compact:panelSize.compact});
   const next={...position,width:Math.max(300,width),height:Math.max(76,height)},bounds=panel.getBounds();
@@ -142,13 +170,16 @@ function layoutPanel(resizeOnly=false){
 function updateUI(next) {
   const animateExit=current?.id===next?.id && current?.status!=='paused' && next?.phase==='verifying' && next?.completionSource==='user_report' && next?.desktopConnection!=='reconnecting';
   const oldKey=current?`${current.id}:${current.step}`:null;
-  current=next&&['awaiting_user','user_action_reported','observing','paused'].includes(next.status)?next:null;
+  current=next&&(['awaiting_user','user_action_reported','observing','paused'].includes(next.status)||
+    next.status==='completed'&&next.verification?.summary)?next:null;
   if(oldKey!==(current?`${current.id}:${current.step}`:null))panelPosition=null;
+  if(peekKey!==stepKey(current)||current?.status!=='awaiting_user'||!current.annotations.length||current.desktopConnection==='reconnecting')peekKey=null;
+  syncGuidanceFocus();
   for(const {win,display} of overlays)draw(win,display,animateExit);
   if(!panel||panel.isDestroyed())return;
   // Legacy visual_show remains nonblocking; continuous guide sessions have controls.
   if(!hasStepCard(current)){if(!panel.webContents.isLoading())panel.webContents.send('hg:render',null);panel.hide();return;}
-  layoutPanel();
+  layoutPanel(current.status==='completed');
   if(!panel.webContents.isLoading())panel.webContents.send('hg:render',current);
   panel.showInactive();
 }
@@ -215,7 +246,7 @@ async function startDesktop() {
   await app.whenReady();
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
   app.on('window-all-closed', () => {});
-  app.on('before-quit', () => { closing = true; });
+  app.on('before-quit', () => { closing = true;clearInterval(focusTimer); });
   panel = createPanel();
   displayPreferences=await loadPreferences();
   async function setupTrayAndMenu() {
@@ -298,6 +329,10 @@ async function startDesktop() {
     if(!pending || pending.token!==token)return;
     clearTimeout(pending.timer);overlayHides.delete(overlay.win);overlay.win.hide();
   });
+  ipcMain.on('hg:peek',(event,data)=>{
+    if(event.sender!==panel?.webContents||typeof data?.enabled!=='boolean'||data.key!==stepKey(current))return;
+    setPeek(data.enabled);
+  });
   ipcMain.on('hg:panel-size',(event,data)=>{
     if(!panel||event.sender!==panel.webContents||!Number.isFinite(data?.height)||typeof data.compact!=='boolean')return;
     const height=Math.max(76,Math.min(460,Math.ceil(data.height)));
@@ -305,7 +340,7 @@ async function startDesktop() {
     panelSize={width:420,height,compact:data.compact};layoutPanel(true);
   });
   ipcMain.handle('hg:control',async(event,data)=>{
-    if(!panel||event.sender!==panel.webContents||!current||data?.id!==current.id||data.step!==current.step||!['pause','resume','retry_target','text_fallback','park','attach'].includes(data.action))return {ok:false,error:'Stale or invalid action'};
+    if(!panel||event.sender!==panel.webContents||!current||data?.id!==current.id||data.step!==current.step||!['pause','resume','retry_target','text_fallback','correct_target','park','attach'].includes(data.action))return {ok:false,error:'Stale or invalid action'};
     try{const result=await call('POST','/desktop/control',{id:current.id,step:current.step,action:data.action});applySnapshot(result);return {ok:true};}
     catch{return {ok:false,error:'Could not update guidance'};}
   });

@@ -8,6 +8,13 @@ This is an implementation contract for an Agent-friendly overlay, not a roadmap 
 2. **Ask** (`session_start`): the Agent needs human judgment or an operation it should not perform. A dedicated panel explains the action with **Complete / Decline / Cancel**. All three choices are first-class; 'Complete' means only user-reported action. The same session remains visible during verification and the next step.
 3. **Continue** (`session_wait` → `session_verify` → `session_present`): the Agent independently checks the external app after the user reports completion. If it cannot check, say that the result is unverified. Do not presume authorization, purchase or policy acceptance.
 
+## Desktop step controls
+
+- The current target keeps its full cue until the pointer rests inside its bounds. The scrim then clears and thin corners remain for that step. A new step or a substantially relocated target brings back the full cue.
+- Hold the eye button to reveal the original app. Space or Enter works when the button has focus. Release the hold or move focus away to restore the active mark.
+- 「指错位置了」 clears the marks and requests another observation for the same step. The owner receives a `recovery_requested` event with reason `target_incorrect`.
+- A verified `session_verify` result can include a short observed `summary`. The card carries that line into the next step briefly or shows it in a temporary receipt when the task ends.
+
 ## Agent decision table
 
 | Observed condition | Agent action | Overlay behavior |

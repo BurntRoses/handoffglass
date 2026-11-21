@@ -62,6 +62,23 @@ test('auto color responds to sampled backgrounds while an exact color is preserv
   assert.equal(scene.layers[0].annotations[0].autoColor,true);
   assert.notEqual(scene.layers[0].annotations[0].color,'#ffc16e');
 });
+test('automatic marks use the measured target geometry and preserve explicit shapes',()=>{
+  const mark=(width,height,shape)=>observedScene({bounds:{x:20,y:20,width,height},observation,shape},displays).layers[0].annotations[0];
+  for(const [w,h,expected] of [[24,24,'arrow'],[180,13,'underline'],[240,38,'bracket'],[360,190,'spotlight'],[100,48,'ring']])
+    assert.equal(mark(w,h).shape,expected);
+  assert.equal(mark(24,24,'box').shape,'box');
+});
+
+test('scroll hints point from inside the known viewport toward its measured off-screen target',()=>{
+  const viewport={x:40,y:100,width:520,height:300},target={x:130,y:480,width:100,height:40};
+  const request={scrollTarget:{viewport,target,label:'导出选项'},observation};
+  const hint=observedScene(request,displays).layers[0].annotations[0];
+  assert.equal(hint.scrollDirection,'down');
+  assert.equal(hint.y,378);
+  assert.equal(hint.label,'向下滚动 · 导出选项');
+  assert.throws(()=>observedScene({...request,scrollTarget:{viewport,target:{...target,y:300}}},displays),{code:'invalid_scroll_target'});
+  assert.throws(()=>observedScene({...request,scrollTarget:{viewport,target:{...target,x:800}}},displays),{code:'invalid_scroll_target'});
+});
 test('host render/session/updates and capability discovery never invoke denied native services; layout invalidates fixed marks',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'hg-host-observed-')),old=process.env.HANDOFFGLASS_RUNTIME_DIR;
   process.env.HANDOFFGLASS_RUNTIME_DIR=dir;await savePreferences({enabled:true},dir);

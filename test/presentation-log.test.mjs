@@ -38,6 +38,30 @@ test('reviews stay queryable by their owner after a new review replaces the surf
   assert.equal(log.owned(second.id,'B').status,'waiting_review');
  }finally{log.close();}
 });
+test('verified outcomes remain visible across a step change and final receipts expire',t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date']});
+ const m=new HandoffManager(),log=new PresentationLog(),owner='A';
+ const present={continuous:true,title:'Save',message:'Choose the folder.'};
+ m.on('change',change=>log.observe(m.active(),change));m.on('show',change=>log.observe(m.active(),change));
+ try{
+  const first=m.show(present,owner);
+  assert.equal(m.verify(first.id,owner,'verified',true,'File saved.').error,'verification_not_due');
+  m.resolve(first.id,'completed');
+  assert.throws(()=>m.verify(first.id,owner,'inconclusive',false,'File saved.'),/summary requires/);
+  m.verify(first.id,owner,'verified',false,'The file appeared in the folder.');
+  const next=m.present(first.id,present,owner).session;
+  assert.equal(next.previousVerification.summary,'The file appeared in the folder.');
+  log.configure({verificationEnabled:false});
+  assert.equal(log.snapshot().guidance.previousVerification,undefined);
+  log.configure({verificationEnabled:true});
+  m.resolve(first.id,'completed');
+  m.verify(first.id,owner,'verified',true,'The file reopened.');
+  assert.equal(m.active(),null);
+  assert.equal(log.snapshot().verification.verification.summary,'The file reopened.');
+  t.mock.timers.tick(6501);
+  assert.equal(log.snapshot().verification,null);
+ }finally{log.close();m.close();}
+});
 test('only summaries and hashes are accepted; credentials are hashed before log and redacted again on export',()=>{
   assert.throws(()=>normalizeChange({...change,contents:'file'}));
   assert.throws(()=>normalizeChange({...change,before:{summary:'old',hash,content:'secret'}}));

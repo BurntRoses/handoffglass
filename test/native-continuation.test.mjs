@@ -36,6 +36,24 @@ test('native delivery stays asleep while parked and coalesces user report and ve
  await delay(0);assert.equal(notices.length,1);
  await c.close();assert.deepEqual(fake.cancelled,['s']);assert.equal(fake.requests.at(-1).signal.aborted,true);
 });
+test('a new correction on the same step returns to the original host each time',async()=>{
+ const fake=deferredBroker(),notices=[],c=createContinuation({broker:fake.broker,deliver:async n=>notices.push(n)});
+ try{
+  c.update({session:session()});await delay(0);
+  const correction=(sequence,updatedAt)=>({
+   session:session({status:'observing',nextAction:'reobserve_target',updatedAt}),nextCursor:sequence,
+   events:[{sessionId:'s',sequence,type:'recovery_requested',reason:'target_incorrect'}]
+  });
+  fake.requests[0].resolve(correction(1,2));
+  await delay(0);
+  c.update({session:session({updatedAt:3})});
+  fake.requests[1].resolve(correction(2,4));
+  await delay(0);
+  assert.equal(notices.length,2);
+  assert.ok(notices.every(notice=>notice.reason==='target_incorrect'));
+  assert.match(continuationMessage(notices[1]),/session_present on this same step/);
+ }finally{await c.close();}
+});
 test('terminal refusal and disabled transport stop native delivery without waking or retrying',async()=>{
  for(const state of ['declined','cancelled','expired']){
   const fake=deferredBroker(),notices=[],c=createContinuation({broker:fake.broker,deliver:async n=>notices.push(n)});

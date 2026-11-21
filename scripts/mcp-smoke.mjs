@@ -114,9 +114,20 @@ try {
     assert.equal(h.session.annotations[0].x,120);
     const update=await invoke(a,'session_update',{sessionId:h.session.id,expectedRevision:1,observation:{capturedAt:Date.now(),layoutSignature:(await invoke(a,'screen_displays',{})).layoutSignature,provenance:'host',backgroundColors:['#141414']},bounds:{x:200,y:100,width:40,height:20}});
     assert.equal(update.session.annotations[0].x,220);
-    assert.equal(update.session.annotations[0].shape,'spotlight');
+    assert.equal(update.session.annotations[0].shape,'ring');
     assert.notEqual(update.session.annotations[0].color,h.session.annotations[0].color);
-    await invoke(a,'session_verify',{sessionId:h.session.id,verified:true,finish:true,expectedStep:1});
+    const observedLayout=(await invoke(a,'screen_displays',{})).layoutSignature;
+    const offscreen=await invoke(a,'session_update',{sessionId:h.session.id,expectedRevision:update.session.sceneRevision,
+      observation:{capturedAt:Date.now(),layoutSignature:observedLayout,provenance:'host'},
+      scrollTarget:{viewport:{x:10,y:20,width:400,height:300},target:{x:40,y:460,width:110,height:34},label:'Export options'}});
+    assert.equal(offscreen.session.annotations[0].scrollDirection,'down');
+    const visible=await invoke(a,'session_update',{sessionId:h.session.id,expectedRevision:offscreen.session.sceneRevision,
+      observation:{capturedAt:Date.now(),layoutSignature:observedLayout,provenance:'host'},bounds:{x:40,y:95,width:110,height:34}});
+    assert.equal(visible.session.annotations[0].shape,'ring');
+    assert.equal(visible.session.annotations[0].scrollDirection,undefined);
+    assert.equal(visible.session.timeoutAt,h.session.timeoutAt);
+    const verified=await invoke(a,'session_verify',{sessionId:h.session.id,verified:true,finish:true,expectedStep:1,summary:'The export options are visible.'});
+    assert.equal(verified.session.verification.summary,'The export options are visible.');
     assert.equal(tools.some(t=>t.name==='ui_inspect'),false);
     assert.equal(tools.find(t=>t.name==='session_start').inputSchema.properties.target,undefined);
   }else{

@@ -18,10 +18,11 @@ import {INTEGRATION_HOSTS} from './integration-lifecycle.mjs';
 
 const hexColor=z.string().regex(/^#[a-fA-F0-9]{6}$/);
 const markColor=z.union([hexColor,z.literal('auto')]).optional();
+const markShape=z.enum([...SHAPES,'auto']);
 const annotation = z.object({
   x: z.number().finite().min(-100000).max(100000),
   y: z.number().finite().min(-100000).max(100000),
-  shape: z.enum(SHAPES).optional(),
+  shape: markShape.optional(),
   color: markColor,
   label: z.string().max(64).optional(),
   direction:z.enum(DIRECTIONS).optional(),
@@ -58,8 +59,9 @@ const bounds=z.object({x:z.number().finite().min(-100000).max(100000),y:z.number
 const observation=z.object({capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user']),
   backgroundColors:z.array(hexColor).min(1).max(8).optional().describe('Sample around the mark in this observation. Omit when pixel or DOM colors are unavailable.')});
 const frame=observation.extend({width:z.number().positive().max(100000),height:z.number().positive().max(100000),bounds});
-const observedUpdate=z.object({sessionId:z.string().uuid(),expectedRevision:z.number().int().positive(),bounds,frame:frame.optional(),observation:observation.optional(),
-  shape:z.enum(SHAPES).optional(),label:z.string().max(64).optional(),color:markColor});
+const scrollTarget=z.object({viewport:bounds,target:bounds,label:z.string().trim().max(45).optional()});
+const observedUpdate=z.object({sessionId:z.string().uuid(),expectedRevision:z.number().int().positive(),bounds:bounds.optional(),scrollTarget:scrollTarget.optional(),frame:frame.optional(),observation:observation.optional(),
+  shape:markShape.optional(),label:z.string().max(64).optional(),color:markColor});
 const presentation = z.object({
   sessionId: z.string().uuid().optional(),
   mode: z.enum(['guide', 'handoff']).optional(),
@@ -74,12 +76,12 @@ const presentation = z.object({
   totalSteps:z.number().int().min(1).max(999).optional(),
   taskTimeoutSeconds:z.number().int().min(60).max(86400).optional(),
   followTarget: z.boolean().optional(),
-  bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),label:z.string().max(64).optional(),
+  bounds:bounds.optional(),scrollTarget:scrollTarget.optional(),frame:frame.optional(),observation:observation.optional(),label:z.string().max(64).optional(),
   title: z.string().trim().min(1).max(100),
   message: z.string().trim().min(1).max(1000),
   x: z.number().finite().min(-100000).max(100000).optional(),
   y: z.number().finite().min(-100000).max(100000).optional(),
-  shape: z.enum(SHAPES).optional(),
+  shape: markShape.optional(),
   color: markColor,
   effect: z.enum(EFFECTS).optional(),
   maskStyle: z.enum(MASK_STYLES).optional(),
@@ -162,12 +164,12 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
     inputSchema:z.object({
       visualStyle:z.enum(VISUAL_STYLES).optional(),motion:z.enum(MOTION_MODES).optional(),
       action:z.enum(['draw','update','clear']).optional(),id:z.string().uuid().optional(),expectedRevision:z.number().int().positive().optional(),
-      shape:z.enum(SHAPES).optional(),placement:z.enum(PLACEMENTS).optional(),direction:z.enum(DIRECTIONS).optional(),
+      shape:markShape.optional(),placement:z.enum(PLACEMENTS).optional(),direction:z.enum(DIRECTIONS).optional(),
       bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),
       size:z.number().min(24).max(800).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
       color:markColor,label:z.string().max(64).optional(),strokeWidth:z.number().min(1).max(8).optional(),lineStyle:z.enum(['solid','dashed']).optional(),
       effect:z.enum(EFFECTS).optional(),exit:z.enum(EXIT_STYLES).optional(),maskStyle:z.enum(MASK_STYLES).optional(),sequence:z.boolean().optional(),
-      marks:z.array(z.object({id:z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),shape:z.enum(SHAPES),placement:z.enum(PLACEMENTS).optional(),
+      marks:z.array(z.object({id:z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),shape:markShape,placement:z.enum(PLACEMENTS).optional(),
         bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
         label:z.string().max(64).optional(),color:markColor,direction:z.enum(DIRECTIONS).optional()})).min(1).max(8).optional(),
       displayId:z.string().max(80).optional(),durationSeconds:z.number().int().min(10).max(120).optional(),
@@ -183,7 +185,7 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   }, safe(async() => {const result=await broker.capabilities();return {...result,profile,manifest:{...result.manifest,capabilities:result.manifest.capabilities.filter(c=>!host||!['observe','locate'].includes(c.id))}};}));
   register('session_start', {
     title: 'Start a continuous guided session',
-    description: 'Present one action at host-observed bounds (same coordinates as screen_mark); omit bounds for text guidance. The host-bounds path needs no native permission. Default parked returns chat to idle while local guidance stays; attached waits for events. Simple annotations use screen_mark.',
+    description: 'Present at host-observed bounds or use scrollTarget for a known target beyond a visible scroll viewport. Omit both for text guidance. Default parked returns chat to idle while the card stays; attached waits for events. Simple annotations use screen_mark.',
     inputSchema: stepPresentation.omit({sessionId:true}),
     annotations: { readOnlyHint: false }
   }, safe(({ mode = 'handoff', execution='parked', ...args }) => broker.present(mode, {...args,execution,continuous:true})));
@@ -218,8 +220,8 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   }, safe(args => broker.present('handoff', args)));
   register('visual_scene_update', {
     title: 'Update a live layered scene',
-    description: 'Replace a live target using freshly host-observed bounds/frame and expectedRevision; no native lookup. Does not reset timeout or verify a user action. Full profile also accepts scene operations.',
-    inputSchema: host?observedUpdate:observedUpdate.partial({bounds:true}).extend({operations:z.array(sceneOp).min(1).max(16).optional()}), annotations: { readOnlyHint:false }
+    description: 'Replace a live target with freshly observed bounds or scrollTarget and expectedRevision. Update a scroll cue with bounds when the target enters view. Does not reset timeout or verify a user action. Full profile also accepts scene operations.',
+    inputSchema: host?observedUpdate:observedUpdate.extend({operations:z.array(sceneOp).min(1).max(16).optional()}), annotations: { readOnlyHint:false }
   }, safe(args => broker.updateScene(args.sessionId,args.expectedRevision,args.operations,args)));
   register('handoff_status', {
     title: 'Read owned handoff state',
@@ -254,10 +256,10 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   },safe(args=>broker.review(args)));
   register('session_verify', {
     title: 'Record independent verification',
-    description: 'Record the Agent’s independent check after a user report or observed-condition step. result:verified + finish:true ends the workflow; inconclusive keeps a coordinate-free pending check; otherwise retain ownership and present the next step with the same sessionId. A user report alone is insufficient.',
-    inputSchema: z.object({ sessionId: z.string().uuid(), result:z.enum(['verified','mismatch','inconclusive']).optional(), verified: z.boolean().optional(), finish:z.boolean().default(false),expectedStep:z.number().int().min(1).optional() }),
+    description: 'Record an independent check of the original app. For verified, include an optional short summary of the observed outcome for the desktop. finish:true ends a verified workflow. Inconclusive keeps verification pending.',
+    inputSchema: z.object({ sessionId: z.string().uuid(), result:z.enum(['verified','mismatch','inconclusive']).optional(), verified: z.boolean().optional(), finish:z.boolean().default(false),expectedStep:z.number().int().min(1).optional(),summary:z.string().trim().min(1).max(140).optional() }),
     annotations: { readOnlyHint: false }
-  }, safe(({ sessionId, result,verified, finish,expectedStep }) => {if(result===undefined&&verified===undefined)throw Error('Provide result: verified, mismatch or inconclusive');if(result!==undefined&&verified!==undefined)throw Error('Choose result or legacy verified');return broker.verify(sessionId,result??verified,finish,expectedStep);}));
+  }, safe(({ sessionId, result,verified, finish,expectedStep,summary }) => {if(result===undefined&&verified===undefined)throw Error('Provide result: verified, mismatch or inconclusive');if(result!==undefined&&verified!==undefined)throw Error('Choose result or legacy verified');return broker.verify(sessionId,result??verified,finish,expectedStep,summary);}));
   register('session_resume', {
     title:'Recover an interrupted session',description:'Reclaim with the saved sessionId and resumeToken after MCP or Broker restart. Rotates the token and clears marks; preserves pending verification and pause. Observe the app before continuing; never replay a user action.',
     inputSchema:z.object({sessionId:z.string().uuid(),resumeToken:z.string().regex(/^[0-9a-f]{64}$/)}),annotations:{readOnlyHint:false}

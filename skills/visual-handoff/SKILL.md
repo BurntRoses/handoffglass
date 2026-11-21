@@ -26,6 +26,8 @@ For an application target, use measured bounds; named placement describes a deco
 
 Leave color automatic. If the same observation provides actual pixel or DOM colors, include up to eight samples from around the mark in `frame.backgroundColors` or `observation.backgroundColors`. With no samples, the renderer uses contrasting outlines.
 
+Leave shape automatic for ordinary grounded targets. If fresh host evidence places a target beyond the edge of a visible scroll viewport, send `scrollTarget:{viewport,target,label}` with the same observation. Replace the cue with fresh `bounds` via `session_update` when the target becomes visible.
+
 Host observations may be unavailable or protected (including Codex's own window in Computer Use). Stop that observation route; never bypass restrictions through another capture API, shell or native locator. Explain the specific limitation. Missing HandoffGlass Accessibility access does not block drawing an already authorized host observation. Native `ui_inspect`/`ui_locate` are optional in the **full** tool profile, for explicitly available native observation/following; they are not a compulsory fallback.
 
 ## Drawing
@@ -47,6 +49,7 @@ Save session ID, recovery token and cursor privately in task context. After proc
 - `declined_by_user`: stop; a new request ID or visual style does not reopen the rejected step. Use `retryDeclined:true` in a new presentation only after the user explicitly asks to try that step or review again. Never set it for an automatic retry.
 - `observation_required`, `stale_observation`, `layout_changed`, `outside_frame`, `ambiguous_frame` or `outside_display`: obtain fresh host evidence and its mapping; never guess scale or silently clamp a target.
 - On a blocked step, use `session_present` with the same session ID and a new request ID. Supply fresh evidence or a text-only handoff. Keep `sensitive:true` for a pending sensitive confirmation.
+- On `target_incorrect`, observe the original app again and restore the same step. For a verified result, include a short `summary` of what was observed in the original app, in the user's language.
 - Native `permission_denied`/`consent_required`: explain optional native access once; keep host drawing available. Do not change permission yourself.
 - `verification_due`/`step_not_verified`: check the original app. `revision_conflict`/`stale_step`: use the returned revision or current snapshot; do not blindly repeat edits.
 - Invalid recovery token: do not claim ownership. `truncated:true`: continue from the current snapshot and next cursor.

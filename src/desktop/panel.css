@@ -35,6 +35,9 @@ p { font-size:var(--text-body); color:var(--sub); line-height:1.8; margin:0; ove
 .action-status { padding-top:var(--space-3); font-size:var(--text-caption); color:var(--sub); flex:none; }
 .action-status:empty { display:none; }
 .action-status[data-error='true'] { color:var(--error); }
+.verification-receipt { margin-top:var(--space-3); padding:var(--space-2) var(--space-3); background:var(--raised); border-radius:var(--radius-control); color:var(--ink); }
+.panel[data-receipt='true'] .verification-receipt { background:transparent; padding:0; }
+#peek[data-held='true'] { background:var(--selection); color:var(--ink); }
 .panel-caption { margin-top:var(--space-3); color:var(--sub); }
 .panel-caption[data-tone='warning'] { color:var(--error); }
 .step-details { margin-bottom:var(--space-3); padding-top:var(--space-2); border-top:1px solid var(--edge); }

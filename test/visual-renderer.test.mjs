@@ -29,7 +29,7 @@ test('multiple spotlights share a single dimming mask rather than stacking dark 
 });
 test('documented sample scenes load and shared palette/schema stay in sync',async()=>{
   const schema=JSON.parse(await readFile(fileURLToPath(new URL('../schemas/scene-v1.schema.json',import.meta.url)),'utf8'));
-  assert.deepEqual(schema.$defs.annotation.properties.shape.enum,SHAPES);
+  assert.deepEqual(schema.$defs.annotation.properties.shape.enum,[...SHAPES,'auto']);
   assert.deepEqual(schema.$defs.annotation.properties.tone.enum,Object.keys(TONES));
   for(const [key,values] of [['effect',EFFECTS],['exit',EXIT_STYLES],['maskStyle',MASK_STYLES]])assert.deepEqual(schema.$defs.annotation.properties[key].enum,values);
   for(const filename of ['access-review','tutorial','multi-monitor']){
