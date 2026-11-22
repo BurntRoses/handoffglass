@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /** Inspect the exact packaged runtime. Structural verification, not native GUI acceptance. */
+import { constants } from 'node:fs';
 import { readFile, access, stat, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { execFile } from 'node:child_process';
@@ -19,6 +20,8 @@ const script = `
  const base = path.join(resources, 'app.asar');
  const pkg = JSON.parse(fs.readFileSync(path.join(base, 'package.json'), 'utf8'));
  for (const name of ['LICENSE', 'NOTICE', 'src/mcp.mjs', 'src/desktop/app.mjs', 'src/capabilities.mjs',
+   'src/desktop/screenshot-share.mjs', 'src/desktop/screenshot.html', 'src/desktop/screenshot.css',
+   'src/desktop/screenshot.js', 'src/desktop/screenshot-preload.cjs', 'src/local/screenshot-share.mjs',
    'assets/ui/tokens.css', 'assets/ui/controls.css', 'src/desktop/ui-tokens.css',
    'skills/visual-handoff/SKILL.md', 'skills/visual-handoff/references/tool-contracts.md',
    'integrations/workbuddy/connector-meta.json', 'integrations/workbuddy/icon.svg',
@@ -41,11 +44,17 @@ const { stdout } = await run(runtime.binary, ['-e', script], {
 const embedded = JSON.parse(stdout);
 if (embedded.version !== pkg.version || embedded.license !== pkg.license || embedded.build?.version !== pkg.version || embedded.build?.commit !== commit.trim() || embedded.arch !== process.arch)
   throw new Error('Packaged version, source commit or runtime architecture does not match this checkout');
-const native = join(runtime.resources, 'native', process.platform === 'darwin' ? 'hg-locate' : 'locate.ps1');
-await access(native);
+const native = join(runtime.resources, 'native');
 if (process.platform === 'darwin') {
-  const { stdout: architectures } = await run('lipo', ['-archs', native]);
-  if (!architectures.trim().split(/\s+/).includes(process.arch === 'x64' ? 'x86_64' : process.arch)) throw new Error('Native helper architecture does not match the app');
+  const expectedArch = process.arch === 'x64' ? 'x86_64' : process.arch;
+  for (const name of ['hg-locate', 'hg-capture']) {
+    const helper = join(native, name);
+    await access(helper, constants.X_OK);
+    const { stdout: architectures } = await run('lipo', ['-archs', helper]);
+    if (!architectures.trim().split(/\s+/).includes(expectedArch)) throw new Error(`${name} architecture does not match the app`);
+  }
+} else if (process.platform === 'win32') {
+  await access(join(native, 'locate.ps1'));
 }
 const asar = join(runtime.resources, 'app.asar');
 const result = { schemaVersion: 1, mode: 'structural-only', target: releaseTarget(), version: pkg.version,

@@ -49,7 +49,15 @@ export async function pluginSnapshot(root,{desktop=false}={}) {
   }
   if(desktop){
     for(const file of ['index.js','package.json','path.txt','dist'])await add('node_modules/electron/'+file);
-    if(process.platform==='darwin')try{await add('native/macos/hg-locate');}catch(error){if(error.code!=='ENOENT')throw error;}
+    if(process.platform==='darwin'){
+      for(const name of ['locate','capture']){
+        try{await add('native/macos/hg-'+name);}
+        catch(error){
+          if(error.code!=='ENOENT')throw error;
+          await add('native/macos/'+name+'.swift');
+        }
+      }
+    }
     if(process.platform==='win32')await add('native/windows/locate.ps1');
   }
   return {files,modes,links,...mode};

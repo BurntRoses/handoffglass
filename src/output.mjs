@@ -16,7 +16,8 @@ function compactSession(session) {
   const { id, status, mode, execution, phase, nextAction, continuous, step, totalSteps, epoch, completion, taskTimeoutAt, stepTimeoutAt, timeoutAt, verified, verification, completionSource, sceneRevision, targetTracking } = session;
   const scrollDirection=session.annotations?.find(mark=>mark.scrollDirection)?.scrollDirection;
   return { id, status, mode, ...(execution?{execution}:{}), ...(continuous?{continuous,step,totalSteps,epoch,completion,taskTimeoutAt,stepTimeoutAt}:{}), ...(phase ? { phase } : {}), ...(nextAction ? { nextAction } : {}), timeoutAt, verified, ...(verification?{verification}:{}), completionSource, ...(sceneRevision ? { sceneRevision } : {}), ...(targetTracking ? { targetStatus: targetTracking.status } : {}),
-    ...(session.recoveryReason?{recoveryReason:session.recoveryReason}:{}),...(scrollDirection?{scrollDirection}:{}) };
+    ...(session.recoveryReason?{recoveryReason:session.recoveryReason}:{}),...(scrollDirection?{scrollDirection}:{}),
+    ...(session.observationMethod?{observationMethod:session.observationMethod}:{}) };
 }
 export function formatToolResult(value, { compact = false } = {}) {
   if (!value || typeof value !== 'object') return value;

@@ -38,7 +38,8 @@ void app.whenReady().then(async()=>{
     const fixture=new BrowserWindow({x:d.x+50,y:d.y+60,width:Math.min(600,d.width-100),height:Math.min(420,d.height-120),frame:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false}});
     await fixture.loadURL('data:text/html,'+encodeURIComponent('<style>body{margin:0;font:16px system-ui;background:#fafafa}aside{width:176px;height:100vh;background:#e8eee9;padding:20px;box-sizing:border-box}main{position:absolute;left:196px;top:20px}</style><aside id="sidebar"><button onclick="this.setAttribute(\'aria-pressed\',\'true\')" aria-pressed="false">Show settings</button></aside><main>Host observation fixture</main>'));
     fixture.showInactive();
-    const image=await fixture.webContents.capturePage(),pixels=image.getSize(),viewport=fixture.getContentBounds();
+    const capturedAt=Date.now(),image=await fixture.webContents.capturePage(),pixels=image.getSize(),viewport=fixture.getContentBounds();
+    const frame={capturedAt,layoutSignature:layoutSignature(b.displays),provenance:'host',width:pixels.width,height:pixels.height,bounds:viewport};
     const target=await fixture.webContents.executeJavaScript('(()=>{const r=document.querySelector("#sidebar").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()');
     const pixelBounds={x:target.x*pixels.width/viewport.width,y:target.y*pixels.height/viewport.height,width:target.width*pixels.width/viewport.width,height:target.height*pixels.height/viewport.height};
     const bitmap=image.toBitmap();
@@ -50,7 +51,7 @@ void app.whenReady().then(async()=>{
     const backgroundColors=[colorAt(pixelBounds.width-3,80),colorAt(pixelBounds.width+7,80)];
     let nativeCalls=0;b.locator=b.inspector=b.permissions=async()=>{nativeCalls++;throw Object.assign(Error('Native access denied in fixture'),{code:'permission_denied'});};
     const hostStarted=performance.now();
-    const hostMark=await post('/agent/mark',{shape:'spotlight',effect:'still',bounds:pixelBounds,frame:{capturedAt:Date.now(),layoutSignature:layoutSignature(b.displays),provenance:'host',width:pixels.width,height:pixels.height,bounds:viewport,backgroundColors}});
+    const hostMark=await post('/agent/mark',{shape:'spotlight',effect:'still',bounds:pixelBounds,frame:{...frame,backgroundColors}});
     const hostResponseMs=performance.now()-hostStarted;
     const hostOverlay=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/overlay.html')&&w.getBounds().x===d.x&&w.getBounds().y===d.y);
     await until(()=>hostOverlay.webContents.executeJavaScript('!!document.querySelector(".hg-mark[data-shape=spotlight]")'),'Host region did not render');
@@ -71,10 +72,12 @@ void app.whenReady().then(async()=>{
     await post('/agent/mark',{action:'clear',id:hostMark.id,expectedRevision:hostMark.revision});
     const guided=await post('/agent/show',{
       continuous:true,execution:'attached',title:'打开测试设置',message:'在测试窗口点击 Show settings。',
-      bounds:pixelBounds,frame:{capturedAt:Date.now(),layoutSignature:layoutSignature(b.displays),provenance:'host',width:pixels.width,height:pixels.height,bounds:viewport}
+      bounds:pixelBounds,frame:{...frame,directReadUnavailable:true}
     });
     const fixturePressed=()=>fixture.webContents.executeJavaScript('document.querySelector("button").getAttribute("aria-pressed")==="true"');
     await until(()=>panel.webContents.executeJavaScript('document.querySelector("#title").textContent==="打开测试设置"'),'Grounded guide did not appear');
+    assert.equal(await panel.webContents.executeJavaScript('document.querySelector("#note:not([hidden])")?.textContent'),'当前界面无法直接读取，已根据截图标出位置。');
+    await writeFile(join(output,'screenshot-guidance.png'),(await panel.webContents.capturePage()).toPNG());
     assert.equal(await fixturePressed(),false);
     await fixture.webContents.executeJavaScript('document.querySelector("button").click()');
     await panel.webContents.executeJavaScript('document.querySelector("#done").click()');

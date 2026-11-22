@@ -37,7 +37,7 @@ This is a plugin preview. Native Codex installation and tool discovery are teste
 <details>
 <summary>Documentation</summary>
 
-[Agent installation instructions](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [Other hosts](docs/INTEGRATIONS.md) · [Development](docs/CODEX_HANDOFF.md) · [All docs](docs/INDEX.md)
+[Agent installation instructions](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [Other hosts](docs/INTEGRATIONS.md) · [Development](docs/DEVELOPMENT.md) · [All docs](docs/INDEX.md)
 
 Before a device trial, run `npm run test:preacceptance` in a prepared checkout. This checks source and isolated protocols without installing a host or calling a model. [Plugin release checks](docs/COMMUNITY_RELEASE.md#prepare-the-plugin-trial) do not require signing a separate App.
 

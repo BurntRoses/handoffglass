@@ -4,6 +4,7 @@ import { app, BrowserWindow, screen, ipcMain, session, Menu, Tray, nativeImage }
 import { registerSetupIPC, maybeShowFirstRun } from './setup.mjs';
 import { showControlCenter, registerCenterIPC } from './center.mjs';
 import {hasStepCard} from './panel-state.mjs';
+import {shareScreenshot} from './screenshot-share.mjs';
 import {createGuidanceFocus,quietAnnotations} from './guidance-focus.mjs';
 import { loadPreferences } from '../local/preferences.mjs';
 import { dirname, join } from 'node:path';
@@ -217,10 +218,14 @@ async function runLoop() {
         while((end=buffer.indexOf('\n\n'))>=0){
           const frame=buffer.slice(0,end);buffer=buffer.slice(end+2);
           if(frame.startsWith('data: '))applySnapshot(JSON.parse(frame.slice(6)));
+          else if(frame.startsWith('event: capture\ndata: ')){
+            void shareScreenshot(JSON.parse(frame.slice('event: capture\ndata: '.length)),{call,displays:info,signal:controller.signal})
+              .catch(error=>console.error('[handoffglass] screenshot share:',error.code||'capture_failed'));
+          }
         }
         if(closing)break;
       }
-      } finally { clearInterval(watchdog); }
+      } finally { clearInterval(watchdog);controller.abort(); }
       if(!closing)throw Error('Desktop stream closed');
       failures = 0;
     } catch (error) {

@@ -12,10 +12,10 @@ const git = args => { try { return execFileSync('git', args, {cwd:__dirname,enco
 const commit = git(['rev-parse', 'HEAD']);
 const changes = git(['status', '--porcelain']);
 const native = process.platform === 'darwin'
-  ? [{ from: 'native/macos/hg-locate', to:'native/hg-locate' }]
+  ? ['hg-locate','hg-capture'].map(name=>({from:`native/macos/${name}`,to:`native/${name}`}))
   : process.platform === 'win32'
     ? [{ from: 'native/windows/locate.ps1', to:'native/locate.ps1' }] : [];
-if (process.platform === 'darwin' && !existsSync(join(__dirname,'native/macos/hg-locate')))
+if (process.platform === 'darwin' && native.some(item=>!existsSync(join(__dirname,item.from))))
   throw new Error('Compile native macOS helper first: npm run native:macos');
 module.exports = {
   appId: 'dev.handoffglass.desktop', productName: 'HandoffGlass',

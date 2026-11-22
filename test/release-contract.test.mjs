@@ -24,7 +24,7 @@ test('a build or a license alone does not establish public release acceptance', 
   const result = assessPublicRelease({license:'UNLICENSED'});
   assert.equal(result.publicReady, false);
   assert.ok(result.blockers.includes('distribution_license'));
-  const evidence = Object.fromEntries(result.blockers.filter(id => id !== 'distribution_license').map(id => [id,{status:'verified',record:'docs/qa/example.md'}]));
+  const evidence = Object.fromEntries(result.blockers.filter(id => id !== 'distribution_license').map(id => [id,{status:'verified',record:'fixtures/release-example.json'}]));
   assert.equal(assessPublicRelease({license:'MIT',licenseText:'License text',evidence}).publicReady,true);
   delete evidence.codexHost.record;
   assert.ok(assessPublicRelease({license:'MIT',licenseText:'License text',evidence}).blockers.includes('codexHost'));
@@ -35,8 +35,8 @@ test('plugin acceptance excludes App signing and requires every advertised host 
   assert.equal(pending.publicReady,false);
   assert.ok(!pending.blockers.some(id=>/Signing/.test(id)));
   assert.deepEqual(pending.blockers.filter(id=>id.startsWith('host:')),HARNESS_ORDER.map(host=>'host:'+host));
-  const evidence=Object.fromEntries(['windowsDesktop','multiDisplay'].map(id=>[id,{status:'verified',record:'docs/qa/fixture.md'}]));
-  const hostEvidence=Object.fromEntries(HARNESS_ORDER.map(host=>[host,{status:'verified',record:'docs/qa/fixture.md'}]));
+  const evidence=Object.fromEntries(['windowsDesktop','multiDisplay'].map(id=>[id,{status:'verified',record:'fixtures/plugin-example.json'}]));
+  const hostEvidence=Object.fromEntries(HARNESS_ORDER.map(host=>[host,{status:'verified',record:'fixtures/plugin-example.json'}]));
   assert.equal(assessPublicRelease({...options,evidence,hostEvidence}).publicReady,true);
   hostEvidence.deepseek.status='unverified';
   assert.deepEqual(assessPublicRelease({...options,evidence,hostEvidence}).blockers,['host:deepseek']);

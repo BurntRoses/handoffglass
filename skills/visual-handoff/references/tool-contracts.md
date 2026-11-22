@@ -22,7 +22,9 @@ const mark={shape:"box",bounds:{x:20,y:40,width:200,height:80},
 
 `screen_mark`, `session_start`, `session_present` and `session_update` share bounds/frame. Fixed marks need new observations after window movement. When evidence expires or the layout changes, use `session_present` with the same session ID, a new request ID and fresh evidence. If observation is unavailable, present a text-only handoff. The step number and existing deadlines carry through this recovery.
 
-The Codex plugin uses `HANDOFFGLASS_TOOL_PROFILE=host` (18 tools): host bounds and lightweight session schemas. Standalone defaults to `full` (20 tools), retaining native targets, layered scenes and legacy coordinate inputs. `HANDOFFGLASS_LEGACY_TOOLS=1` adds old aliases separately. Native target APIs remain opt-in by local consent and OS access. Neither profile bypasses protected host applications.
+On guided steps, `frame.directReadUnavailable:true` shows the screenshot fallback notice when the direct observation route is unavailable and an authorized or user-shared screenshot is already available. `frame.provenance` identifies who supplied the evidence. The tools receive the region and frame geometry, while the Agent sees the screenshot in the host or conversation.
+
+The Codex plugin uses `HANDOFFGLASS_TOOL_PROFILE=host`: host bounds and lightweight session schemas. Standalone defaults to `full`, retaining native targets, layered scenes and legacy coordinate inputs. `HANDOFFGLASS_LEGACY_TOOLS=1` adds old aliases separately. Native target APIs remain opt-in by local consent and OS access. Neither profile bypasses protected host applications.
 
 ## Quick drawing and parked delivery (0.19)
 
@@ -46,6 +48,7 @@ The live MCP schemas are authoritative. Read this reference when a host cannot s
 | --- | --- | --- |
 | `capability_manifest` | none | workflow, valid example arguments, recovery and transport limits |
 | `screen_displays` | none | fresh global DIP display bounds, no screenshot |
+| `screen_capture` | `appBundleId` | macOS 14+. Asks the user before capture, then returns one image and `frame`. Optional `displayId` selects the display. |
 | `ui_inspect` | none | up to 48 foreground controls, bounded labels and bounds |
 | `ui_locate` | `target:{app,role,name}` | exact observed control; optional previous bounds for comparison |
 | `review_changes` | `action:present|status|wait`; changes for present | summaries and hashes; reviewed/declined is a human review, not independent verification |

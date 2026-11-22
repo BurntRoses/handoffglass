@@ -2,11 +2,15 @@
 
 ## The two independent runtime tracks
 
-**Developer/CLI track:** MCP stdio `src/mcp.mjs` runs on local Node.js 22+. On demand it starts the existing singleton Node broker, which invokes Electron for the desktop surface. This retains the original v0.5 workflow.
+**Developer/CLI track:** MCP stdio `src/mcp.mjs` runs on local Node.js 22+. On demand it starts the existing singleton Node broker, which invokes Electron for the desktop surface.
 
 **Installed desktop track:** `src/desktop/app.mjs` is the Electron application main. It starts the loopback broker **in the desktop process** and writes the same owner-only `~/.handoffglass/broker.json` manifest as the Node broker. Other MCP/CLI clients can attach to it. End users launching the desktop do not need a separate Node.js binary for the desktop. When the installed app is packaged with the MCP entry, compatible hosts can use its Electron binary with `ELECTRON_RUN_AS_NODE=1` and `.../resources/app.asar/src/mcp.mjs` as the stdio entry (menu: Copy MCP configuration). A system Node.js checkout is an alternative. This relies on the Electron run-as-Node fuse and must be tested against each installed artifact.
 
 Only one broker may be active per OS user. Source and packaged desktops share one identity and single-instance lock. Relaunch opens the existing control center. An installed desktop joins an already active source Broker through its private desktop discovery record. The Broker reuses an attached desktop and prefers the recorded installed application on its next GUI launch. One startup lock coordinates creation; stale manifests are probed and replaced only when not live.
+
+## Screenshot sharing
+
+On macOS 14 or later, `hg-capture` uses ScreenCaptureKit to capture one display filtered to a user-approved application. The desktop supplies the image and display mapping directly to the requesting Agent. The macOS build includes both `hg-capture` and `hg-locate`. See [screenshot positioning](HOST_OBSERVATION.md#截图定位).
 
 ## Native Accessibility adapters
 

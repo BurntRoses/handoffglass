@@ -8,7 +8,7 @@ import { join } from 'node:path';
 import { readManifest } from '../runtime.mjs';
 
 export const REQUIRED_TOOLS = Object.freeze([
-  'screen_mark','review_changes','screen_displays','ui_inspect','ui_locate','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control',
+  'screen_mark','review_changes','screen_displays','screen_capture','ui_inspect','ui_locate','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control',
   'capability_manifest','connection_status','permission_status','integration_status','integration_install','integration_cleanup','integration_set_enabled','integration_uninstall'
 ]);
 const MAX_OUTPUT = 256 * 1024;

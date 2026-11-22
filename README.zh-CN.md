@@ -28,6 +28,8 @@ Agent 需要你操作时，在屏幕上指出位置，等待你完成，再继�
 
 直接说“教我清空废纸篓”。执行其他任务时，遇到需要你亲手操作的步骤，Agent 也可以在屏幕上指引你。
 
+在 macOS 14 或更新系统，可以确认分享一张只含目标应用的截图，让 Agent 在屏幕原处标出按钮或图标。桌面标记会根据已知背景色调整。
+
 如果要停用或移除连接，直接告诉 Agent“停用 HandoffGlass”或“清理 Codex 里的 HandoffGlass”。Agent 会先读取连接状态，给出清理预览，只删除 HandoffGlass 自己写入的内容；也可以在应用的「连接」页面完成停用和卸载。
 
 如果使用 Codex，推荐安装[原生插件试用版](docs/CODEX_PLUGIN.md)：默认包含 MCP、Skill 和按需启动的本地绘制进程，无需独立 App。生命周期 Hooks 为可选增强，选择后才需审核。
@@ -37,7 +39,7 @@ Agent 需要你操作时，在屏幕上指出位置，等待你完成，再继�
 <details>
 <summary>文档</summary>
 
-[Agent 安装要求](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [其他宿主](docs/INTEGRATIONS.md) · [开发](docs/CODEX_HANDOFF.md) · [全部文档](docs/INDEX.md)
+[Agent 安装要求](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [其他宿主](docs/INTEGRATIONS.md) · [开发](docs/DEVELOPMENT.md) · [全部文档](docs/INDEX.md)
 
 依赖准备后，运行 `npm run test:preacceptance` 完成源码与隔离协议检查；不会安装宿主或调用模型。[插件发布检查](docs/COMMUNITY_RELEASE.md#prepare-the-plugin-trial)无需先为独立 App 购买签名证书。
 

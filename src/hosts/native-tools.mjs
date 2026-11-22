@@ -10,6 +10,8 @@ import {createContinuation} from './continuation.mjs';
  */
 export function nativeTools(host,{env=process.env,deliver,onError,clientFactory=()=>new BrokerClient({env:{...env,HANDOFFGLASS_HOST_ID:host,HANDOFFGLASS_EMBEDDED_RENDERER:'1'}})}={}){
   const descriptions=toolCatalog(undefined),scopes=new Map();
+  // These adapters forward structured JSON only. Screenshot delivery needs MCP image content.
+  descriptions.delete('screen_capture');
   let closed=false;
   const definitions=[...descriptions.values()].map(({name,description,inputSchema})=>({name,description,input:z.toJSONSchema(inputSchema,{io:'input'})}));
   return {instructions:SERVER_INSTRUCTIONS,definitions,

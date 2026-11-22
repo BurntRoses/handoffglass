@@ -14,6 +14,7 @@ import {fileURLToPath} from 'node:url';
 import {realpathSync} from 'node:fs';
 import {resolve} from 'node:path';
 import { capabilityInstructions } from './capabilities.mjs';
+import {APP_BUNDLE_ID} from './local/screenshot-share.mjs';
 import {INTEGRATION_HOSTS} from './integration-lifecycle.mjs';
 
 const hexColor=z.string().regex(/^#[a-fA-F0-9]{6}$/);
@@ -58,7 +59,8 @@ const uiTarget = z.object({ app: z.string().trim().min(1).max(128), role: z.stri
 const bounds=z.object({x:z.number().finite().min(-100000).max(100000),y:z.number().finite().min(-100000).max(100000),width:z.number().positive().max(100000),height:z.number().positive().max(100000)});
 const observation=z.object({capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user']),
   backgroundColors:z.array(hexColor).min(1).max(8).optional().describe('Sample around the mark in this observation. Omit when pixel or DOM colors are unavailable.')});
-const frame=observation.extend({width:z.number().positive().max(100000),height:z.number().positive().max(100000),bounds});
+const frame=observation.extend({width:z.number().positive().max(100000),height:z.number().positive().max(100000),bounds,
+  directReadUnavailable:z.boolean().optional().describe('For an authorized or user-shared screenshot already available to the agent. Set true when direct UI observation is unavailable to show a screenshot fallback notice.')});
 const scrollTarget=z.object({viewport:bounds,target:bounds,label:z.string().trim().max(45).optional()});
 const observedUpdate=z.object({sessionId:z.string().uuid(),expectedRevision:z.number().int().positive(),bounds:bounds.optional(),scrollTarget:scrollTarget.optional(),frame:frame.optional(),observation:observation.optional(),
   shape:markShape.optional(),label:z.string().max(64).optional(),color:markColor});
@@ -100,9 +102,10 @@ const compact = process.env.HANDOFFGLASS_OUTPUT === 'compact';
 // Kept short because hosts use server instructions while choosing tools.
 export const SERVER_INSTRUCTIONS = capabilityInstructions();
 const json = object => {const value=formatToolResult(object,{compact});return {content:[{type:'text',text:JSON.stringify(value)}],structuredContent:value};};
+const toolError=error=>({isError:true,...json({error:error.message,code:error.code||'broker_error',...(error.nextAction?{nextAction:error.nextAction}:{})})});
 const safe = fn => async args => {
   try { return json(await fn(args)); }
-  catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error', ...(error.nextAction?{nextAction:error.nextAction}:{}) }) }; }
+  catch (error) { return toolError(error); }
 };
 export function makeServer({broker=new BrokerClient(),env=process.env,server,exitOnUninstall=false}={}) {
   server ??= new McpServer({ name: 'handoffglass', version: '0.23.0' }, { instructions: SERVER_INSTRUCTIONS });
@@ -158,6 +161,19 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
     description: 'Return connected screen bounds in device-independent pixels (DIP). No screenshots or UI element location.',
     inputSchema: z.object({}), annotations: { readOnlyHint: true }
   }, safe(() => broker.displays()));
+  register('screen_capture', {
+    title:'Request one app screenshot',
+    description:'On macOS, ask the user to share one screenshot of a named app. Capture contains only its windows on one display, and returns an image and exact frame. Use when the user wants screenshot-based guidance and capture is allowed for that app. Never use it after an explicit host protection or denial. Do not guess the app identifier or retry a declined request.',
+    inputSchema:z.object({appBundleId:z.string().max(160).regex(APP_BUNDLE_ID),displayId:z.string().max(64).optional()}),
+    annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:true}
+  },async(args,ctx)=>{
+    try{
+      const {data,...metadata}=await (ctx?.signal&&broker.withSignal?broker.withSignal(ctx.signal):broker).capture(args);
+      const result=json(metadata);
+      result.content.unshift({type:'image',mimeType:'image/jpeg',data});
+      return result;
+    }catch(error){return toolError(error);}
+  });
   register('screen_mark', {
     title:'Draw, revise or clear screen marks',
     description:'Draw host-observed bounds once; no native lookup, preflight or wait. bounds={x,y,width,height} is top-left global DIP; with frame it is pixels in that exact image, mapped to frame.bounds global DIP (one display). Reuse authorized host observations; never bypass capture restrictions or guess controls. Decorative marks use placement. Update/clear own id+expectedRevision; fixed marks expire.',
@@ -185,7 +201,7 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   }, safe(async() => {const result=await broker.capabilities();return {...result,profile,manifest:{...result.manifest,capabilities:result.manifest.capabilities.filter(c=>!host||!['observe','locate'].includes(c.id))}};}));
   register('session_start', {
     title: 'Start a continuous guided session',
-    description: 'Present at host-observed bounds or use scrollTarget for a known target beyond a visible scroll viewport. Omit both for text guidance. Default parked returns chat to idle while the card stays; attached waits for events. Simple annotations use screen_mark.',
+    description: 'Present at observed bounds, optionally mapped from an authorized or user-shared screenshot using frame. Use scrollTarget for a known target outside the viewport. Omit both for text guidance. Default parked keeps the card on the desktop; attached waits for events. Simple annotations use screen_mark.',
     inputSchema: stepPresentation.omit({sessionId:true}),
     annotations: { readOnlyHint: false }
   }, safe(({ mode = 'handoff', execution='parked', ...args }) => broker.present(mode, {...args,execution,continuous:true})));

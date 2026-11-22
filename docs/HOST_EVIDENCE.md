@@ -13,9 +13,7 @@
 | Cursor / Trae | 独立运行包、MCP 配置合并/启停/恢复；未运行真实宿主 | 未验证 |
 | OpenCode v2 | Plugin.define 原生入口、共享契约、按聊天隔离及 JSONC 合并/清理；未运行宿主 | 未验证 |
 
-Codex CLI `0.167.0-alpha.4.1` 的真实模型试跑已发现 `screen_mark` 并尝试调用，但宿主返回 `MCP tool call requires approval, but approval policy is never`，调用未进入 HandoffGlass，未产生标记。临时工具级审批配置使用短插件名或 marketplace 完整名称均未改变结果。此记录只证明模型选择了工具，不证明绘制、人工决定、核验或恢复；对应处理见[工具审批诊断](CONNECTION_DIAGNOSTICS.md#codex-tool-approval)。
-
-0.23 已为本地绘制补充非破坏、无外部访问的 MCP 标记，并把安装、启用、工具加载、绘制授权和首次调用拆成独立检查。是否解除上述宿主审批阻塞，需更新插件后由当前交互式会话实际调用确认；不修改宿主审批策略。
+Codex 需要分别确认插件加载、工具授权与首次成功调用。授权问题参见[工具审批诊断](CONNECTION_DIAGNOSTICS.md#codex-tool-approval)。
 
 ## 开始实机验收
 

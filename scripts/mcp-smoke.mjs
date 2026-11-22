@@ -39,7 +39,7 @@ try {
   assert.match(a.getInstructions() || '', /host observes/);
   assert.match(a.getInstructions() || '', /never ask the user to name a tool/);
   const { tools } = await a.listTools();
-  const names=['review_changes','screen_mark','screen_displays',...(!hostProfile?['ui_inspect','ui_locate']:[]),'capability_manifest','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control','integration_uninstall','connection_status','permission_status','integration_status','integration_install','integration_cleanup','integration_set_enabled'];
+  const names=['review_changes','screen_mark','screen_displays','screen_capture',...(!hostProfile?['ui_inspect','ui_locate']:[]),'capability_manifest','session_start','session_present','session_wait','session_update','session_verify','session_stop','session_resume','session_control','integration_uninstall','connection_status','permission_status','integration_status','integration_install','integration_cleanup','integration_set_enabled'];
   if(legacy)names.push('visual_show','handoff_request','visual_scene_update','handoff_status','handoff_events','handoff_wait','handoff_cancel');
   if (extras) names.push('handoff_context', 'handoff_blueprint', 'handoff_assess');
   assert.deepEqual(tools.map(tool => tool.name).sort(), names.sort());
@@ -110,10 +110,12 @@ try {
   assert.notEqual(id, second.session.id);
   assert.equal((await invoke(b, 'session_stop', { sessionId: second.session.id })).session.status, 'cancelled');
   if(hostProfile){
-    const h=await invoke(a,'session_start',{mode:'guide',title:'Host region',message:'Review the highlighted region',bounds:{x:20,y:40,width:200,height:80},frame:{capturedAt:Date.now(),layoutSignature:(await invoke(a,'screen_displays',{})).layoutSignature,provenance:'host',width:1440,height:900,bounds:{x:0,y:0,width:1440,height:900},backgroundColors:['#FFFFFF']}});
+    const h=await invoke(a,'session_start',{mode:'guide',title:'Host region',message:'Review the highlighted region',bounds:{x:20,y:40,width:200,height:80},frame:{capturedAt:Date.now(),layoutSignature:(await invoke(a,'screen_displays',{})).layoutSignature,provenance:'host',width:1440,height:900,bounds:{x:0,y:0,width:1440,height:900},directReadUnavailable:true,backgroundColors:['#FFFFFF']}});
     assert.equal(h.session.annotations[0].x,120);
+    assert.equal(h.session.observationMethod,'screenshot_fallback');
     const update=await invoke(a,'session_update',{sessionId:h.session.id,expectedRevision:1,observation:{capturedAt:Date.now(),layoutSignature:(await invoke(a,'screen_displays',{})).layoutSignature,provenance:'host',backgroundColors:['#141414']},bounds:{x:200,y:100,width:40,height:20}});
     assert.equal(update.session.annotations[0].x,220);
+    assert.equal(update.session.observationMethod,null);
     assert.equal(update.session.annotations[0].shape,'ring');
     assert.notEqual(update.session.annotations[0].color,h.session.annotations[0].color);
     const observedLayout=(await invoke(a,'screen_displays',{})).layoutSignature;

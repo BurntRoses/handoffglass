@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'">
+  <meta name="color-scheme" content="dark light">
+  <link rel="stylesheet" href="ui-tokens.css"><link rel="stylesheet" href="screenshot.css">
+  <title>HandoffGlass</title>
+</head>
+<body>
+  <main>
+    <h1 id="title">向 Agent 分享截图？</h1>
+    <p id="target"></p>
+    <p id="detail">只会分享该应用在一块屏幕上的画面。</p>
+    <footer>
+      <button type="button" class="ui-button secondary" id="cancel" autofocus>取消</button>
+      <button type="button" class="ui-button action-primary" id="share">分享截图</button>
+    </footer>
+  </main>
+  <script type="module" src="screenshot.js"></script>
+</body>
+</html>

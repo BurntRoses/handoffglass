@@ -1,6 +1,6 @@
 # 桌面实机验收 · macOS / Windows
 
-由 Codex 在本机组织、执行并记录。每项附系统版本、显示器布局、构建提交、观察结果和对应修复。
+每项实机验收记录系统版本、显示器布局、构建提交和观察结果。
 
 先执行 `npm run test:desktop`：在隔离的临时运行目录中启动真实 Electron，分别验证普通 Node MCP、独立桌面、Electron Node 模式 MCP 的启动、双客户端复用 Broker、显示器连接与引导取消。随后核对覆盖窗口的全屏 DIP 边界、焦点保持和显示器变化后的重建。需要图形桌面与 Electron；模拟布局事件不代表通过物理外接屏验收。
 
@@ -33,6 +33,7 @@ macOS 执行 `npm run test:native:macos`：编译独立 AppKit 测试窗口，�
 - [ ] 将外接显示器放在主屏左侧，检查负坐标定位。
 - [ ] 改变缩放倍率、断开并重新接入外屏，检查定位复核。
 - [ ] 验证受保护窗口通过常规人工交接继续流程。
+- [ ] 在 macOS 14 或更新系统，使用专用测试窗口分别取消和同意截图分享，核对画面中仅有目标应用，再把按钮标回原位置。
 
 ## 故障与恢复
 
@@ -75,4 +76,4 @@ Reproduction:
 Fix / test / PR:
 ```
 
-[项目 Issues](https://github.com/BurntRoses/handoffglass/issues) · [Codex 接手](CODEX_HANDOFF.md)
+[项目 Issues](https://github.com/BurntRoses/handoffglass/issues) · [开发与打包](DEVELOPMENT.md)

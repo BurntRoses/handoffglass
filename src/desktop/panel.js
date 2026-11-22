@@ -18,6 +18,8 @@ Object.assign(UI['zh-CN'],{
  recoverHere:'正在等待原会话提供更新后的步骤。',
  recoverInChat:'回到原会话说“继续”，获取更新后的步骤。',
  expiredTarget:'标记已过期。可重新定位，或改用文字提示。',
+ screenshot:'已根据截图标出位置。',
+ screenshotFallback:'当前界面无法直接读取，已根据截图标出位置。',
  displayChanged:'显示布局已变化，可用新的位置重新标记。',
  permissionNote:'查看当前应用的定位权限，或改用文字提示。'
 });
@@ -31,6 +33,8 @@ Object.assign(UI['en-US'],{
  recoverHere:'Waiting for an updated step from your chat.',
  recoverInChat:'Say “continue” in your original chat for the updated step.',
  expiredTarget:'The mark expired. Locate it again or use text guidance.',
+ screenshot:'Marked using the screenshot.',
+ screenshotFallback:'Direct access to this interface is unavailable. The mark is based on the screenshot.',
  displayChanged:'The display layout changed. Locate the target again to update its mark.',
  permissionNote:'Check control lookup access or use text guidance.'
 });
@@ -120,7 +124,10 @@ function render(session){
  else if(reported)note=session.completionSource==='native_observation'?
    (returnToChat?c.returnToChat:c.observedNote):(returnToChat?c.returnToChat:c.attachedReceipt);
  else if(review)note=c.reviewNote;
- else if(waiting&&scrollMark)note=scrollMark.label;
+ else if(hasMarks){
+   const screenshotNote=session.observationMethod==='screenshot_fallback'?c.screenshotFallback:session.observationMethod==='screenshot'?c.screenshot:'';
+   note=[screenshotNote,scrollMark?.label].filter(Boolean).join(' ');
+ }
  $('note').hidden=!note;$('note').dataset.tone=(blocked&&!recovering)||offline||inconclusive||mismatch?'warning':'info';
  $('note').textContent=note;
  $('recoveryActions').hidden=!canRecover;

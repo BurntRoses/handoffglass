@@ -5,7 +5,7 @@ description: Draw or revise desktop annotations from host-observed regions, or g
 
 # HandoffGlass
 
-The host observes and verifies. HandoffGlass maps coordinates, draws, animates and records local user events. Reuse the host's existing authorized screenshot, DOM or UI evidence; do not add native inspection, capability queries or permission checks before drawing. HandoffGlass does not capture the screen or operate the original app.
+The host normally observes and verifies. HandoffGlass maps coordinates, draws, animates and records local user events. Reuse existing authorized screenshots, DOM or UI evidence without extra probes. On macOS, `screen_capture` can request one user-approved screenshot of an app whose capture is allowed. HandoffGlass renders guidance over the original app.
 
 ## Choose the shortest route
 
@@ -13,6 +13,7 @@ The host observes and verifies. HandoffGlass maps coordinates, draws, animates a
 | --- | --- |
 | “画个圈”“屏幕左侧画椭圆” | `screen_mark` once with shape/placement/label; no inspection or wait |
 | Highlight an actual app region | Existing host observation → `screen_mark` with `bounds`; read the app once only if evidence is missing |
+| User asks to share an app screenshot for guidance | When capture is allowed and you know the app's bundle ID, `screen_capture` once → measure in returned image → `screen_mark` or `session_start` with returned frame |
 | Revise / clear | `screen_mark(action:"update"|"clear",id,expectedRevision)`; save returned revision |
 | Teach or hand over one action | Host observe → `session_start` with bounds and one short instruction |
 | Continue a parked task | `session_control(action:"attach")` → host observe → `session_verify` → `session_present` |
@@ -29,6 +30,10 @@ Leave color automatic. If the same observation provides actual pixel or DOM colo
 Leave shape automatic for ordinary grounded targets. If fresh host evidence places a target beyond the edge of a visible scroll viewport, send `scrollTarget:{viewport,target,label}` with the same observation. Replace the cue with fresh `bounds` via `session_update` when the target becomes visible.
 
 Host observations may be unavailable or protected (including Codex's own window in Computer Use). Stop that observation route; never bypass restrictions through another capture API, shell or native locator. Explain the specific limitation. Missing HandoffGlass Accessibility access does not block drawing an already authorized host observation. Native `ui_inspect`/`ui_locate` are optional in the **full** tool profile, for explicitly available native observation/following; they are not a compulsory fallback.
+
+If the host already supplied an authorized screenshot or the user shared one, locate the target in that image. For a guided step with a reliable mapping, pass the measured bounds and exact frame. Set `frame.directReadUnavailable:true` when direct observation is unavailable, so the desktop card explains how the mark was placed. For a simple mark, explain the screenshot source in the chat. Without a reliable mapping, point out the target in the shared image or use text guidance. A pre-action image cannot verify the result.
+
+Use `screen_capture` only for a requested, permitted share. It waits for one desktop confirmation and returns both image and frame to this call. Stop on a decline or a host protection/denial. With a blocked system permission, explain the requirement before another request. Reuse the frame timestamp and pixel dimensions exactly.
 
 ## Drawing
 

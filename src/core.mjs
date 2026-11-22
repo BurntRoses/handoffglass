@@ -80,10 +80,12 @@ export function normalizeRequest(input) {
     annotations = flattenScene(scene);
   }
   if (annotations.length > MAX_MARKS) throw new TypeError('Too many visible annotations');
+  const observationMethod=input.observationMethod??null;
+  if(![null,'screenshot','screenshot_fallback'].includes(observationMethod))throw new TypeError('Invalid observation method');
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { execution, retryDeclined:input.retryDeclined===true, taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true||purpose==='verification', purpose,intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
+  return { execution, retryDeclined:input.retryDeclined===true, taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true||purpose==='verification', purpose,intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, observationMethod, ...(scene ? { scene } : {}) };
 }
 function copySession(session) {
   if (!session) return null;
@@ -135,7 +137,7 @@ export class HandoffManager extends EventEmitter {
     const now = this.clock();
     const session = {
       id: randomUUID(), mode: normalized.mode, title: normalized.title,
-      message: normalized.message, annotations: normalized.annotations,
+      message: normalized.message, annotations: normalized.annotations, observationMethod:normalized.observationMethod,
       visualStyle: normalized.visualStyle, motion: normalized.motion, locale:normalized.locale, density:normalized.density, theme:normalized.theme,
       ...(normalized.scene ? {scene:normalized.scene, sceneRevision:1} : {}),
       execution:normalized.execution, continuous: input.continuous === true, demo:owner==='desktop-trial', step: 1,
@@ -251,7 +253,7 @@ export class HandoffManager extends EventEmitter {
     if(confirmationDeadline!==null&&current.sensitive&&!normalized.sensitive)return {error:'sensitive_confirmation_pending'};
     const fingerprint=refusalKey(owner,normalized);
     if(this.refusals.has(fingerprint)&&!normalized.retryDeclined)return refused();
-    for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','purpose','intent','scrim']) session[field]=normalized[field];
+    for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','purpose','intent','scrim','observationMethod']) session[field]=normalized[field];
     if(input.execution!==undefined)session.execution=normalized.execution;
     if(normalized.totalSteps!==undefined)session.totalSteps=normalized.totalSteps;
     session.sceneRevision=(session.sceneRevision||0)+1;
@@ -380,7 +382,7 @@ export class HandoffManager extends EventEmitter {
     // Allow temporarily hiding every layer to clear the screen without finishing a handoff.
     session.scene = next;
     session.annotations = flattened;
-    for(const key of ['visualStyle','motion'])if(appearance[key]!==undefined)session[key]=appearance[key];
+    for(const key of ['visualStyle','motion','observationMethod'])if(appearance[key]!==undefined)session[key]=appearance[key];
     // A manual scene edit transfers control from native auto-follow to the Agent.
     if (session.targetTracking) session.targetTracking = { status: 'manual', observedAt: null };
     session.sceneRevision++;

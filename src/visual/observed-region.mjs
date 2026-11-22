@@ -4,6 +4,10 @@ import {layoutSignature as signatureFor} from '../native/calibration.mjs';
 import {chooseAccent} from './contrast.mjs';
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const fail=(code,message)=>{throw Object.assign(new TypeError(message),{code});};
+export function screenshotMethod(frame){
+  if(!frame)return null;
+  return frame.directReadUnavailable?'screenshot_fallback':'screenshot';
+}
 export function regionRect(value,name='bounds'){
   if(!object(value))fail('invalid_bounds',`${name} must be {x,y,width,height}`);
   const {x,y,width,height}=value;
@@ -31,6 +35,7 @@ export function observedRegion(bounds,frame,displays,{validateOnly=false,now=Dat
   let r=regionRect(bounds);
   if(frame!==undefined){
     if(!object(frame)||![frame.width,frame.height].every(n=>Number.isFinite(n)&&n>0&&n<=100000))fail('invalid_frame','frame needs image width, height and its global DIP bounds');
+    if(frame.directReadUnavailable!==undefined&&typeof frame.directReadUnavailable!=='boolean')fail('invalid_frame','frame.directReadUnavailable must be boolean');
     const viewport=regionRect(frame.bounds,'frame.bounds');
     if(r.x<0||r.y<0||r.x+r.width>frame.width||r.y+r.height>frame.height)fail('outside_frame','bounds exceed the supplied image');
     if(frame.capturedAt!==undefined&&(!Number.isFinite(frame.capturedAt)||now-frame.capturedAt>30000||frame.capturedAt-now>2000))fail('stale_observation','Capture is stale; observe the original app again');

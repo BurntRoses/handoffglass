@@ -37,7 +37,8 @@ test('bad, old or ambiguous observations fail with actionable codes before rende
     [bounds,{...frame,capturedAt:39000,layoutSignature:'a'.repeat(16)},'layout_changed'],
     [bounds,{...frame,capturedAt:39000,bounds:{x:-100,y:0,width:500,height:300}},'ambiguous_frame'],
     [{x:1910,y:0,width:100,height:20},undefined,'outside_display'],
-    [{...bounds,width:0},undefined,'invalid_bounds'],[bounds,{...frame,width:NaN},'invalid_frame']
+    [{...bounds,width:0},undefined,'invalid_bounds'],[bounds,{...frame,width:NaN},'invalid_frame'],
+    [bounds,{...frame,capturedAt:39000,directReadUnavailable:'true'},'invalid_frame']
   ])assert.throws(()=>observedRegion(b,f,displays,{now:40000,layoutSignature:layoutSignature(displays),observation:{...observation,capturedAt:39000}}),{code});
   assert.ok(observedRegion(bounds,{...frame,capturedAt:39000,layoutSignature:layoutSignature(displays)},displays,{now:40000,layoutSignature:layoutSignature(displays),observation:{...observation,capturedAt:39000}}));
 });
@@ -99,11 +100,14 @@ test('host render/session/updates and capability discovery never invoke denied n
     await call('/hello',{displays:[{...displays[1],width:1800}]},true);
     assert.equal(m.active(),null,'A changed display layout must clear an old fixed drawing');
     b.displays=displays;
-    const first=await call('/agent/show',{continuous:true,execution:'attached',bounds,frame:{...frame,backgroundColors:['#ffffff']},title:'查看区域',message:'在此查看',requestId:'host-step-1'});
+    const first=await call('/agent/show',{continuous:true,execution:'attached',bounds,frame:{...frame,provenance:'user',directReadUnavailable:true,backgroundColors:['#ffffff']},title:'查看区域',message:'在此查看',requestId:'host-step-1'});
     assert.equal(first.status,200,JSON.stringify(first.body));assert.equal(first.body.observation.tracking,'fixed');
+    assert.equal(first.body.observation.method,'screenshot_fallback');
+    assert.equal(first.body.session.observationMethod,'screenshot_fallback');
     const id=first.body.session.id,expiry=first.body.session.timeoutAt;
     const changed=await call('/agent/scene',{sessionId:id,expectedRevision:1,observation:{...observation,backgroundColors:['#101419']},bounds:{x:120,y:20,width:90,height:30},shape:'box'});
     assert.equal(changed.status,200,JSON.stringify(changed.body));assert.equal(changed.body.session.annotations[0].x,165);assert.equal(changed.body.session.timeoutAt,expiry);
+    assert.equal(changed.body.session.observationMethod,null);
     assert.notEqual(changed.body.session.annotations[0].color,first.body.session.annotations[0].color);
     assert.equal(changed.body.session.annotations[0].autoColor,true);
     assert.equal((await call('/agent/scene',{sessionId:id,expectedRevision:1,bounds})).body.code,'revision_conflict');

@@ -155,6 +155,7 @@ export class BrokerClient {
   async blueprint(blueprint, locale) { return this.request('/agent/blueprint', { method: 'POST', body: { blueprint, locale } }); }
   async present(mode, args) { return this.request('/agent/show', { method: 'POST', body: { ...args, mode } }); }
   async displays() { return this.request('/agent/displays'); }
+  async capture(args) { return this.request('/agent/capture',{method:'POST',body:args}); }
   async mark(args) { return this.request('/agent/mark',{method:'POST',body:args}); }
   async inspect() {
     try { return await this.request('/agent/inspect'); }
