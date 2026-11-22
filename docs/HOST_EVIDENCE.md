@@ -6,7 +6,7 @@
 
 | 宿主 | 自动检查范围 | 模型闭环 |
 | --- | --- | --- |
-| Codex | 原生插件安装、19 个工具、两个 Skill、首次调用、卸载 | 未验证 |
+| Codex | 原生插件安装、工具和 Skill 发现、首次调用、卸载 | 未验证 |
 | Claude Code | 原生插件、MCP/Skill 快照及自有 marketplace 生命周期；未运行真实宿主 | 未验证 |
 | DeepSeek Harness | Cordis 原生工具、共享契约、自有 patch/启动器及归属清理；本机未安装 Harness | 未验证 |
 | WorkBuddy | 单 MCP + Skill 连接器结构 | 未验证 |
