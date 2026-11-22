@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {HandoffManager} from '../src/core.mjs';
 import {InteractionJournal} from '../src/local/interaction-journal.mjs';
 import {LocalBridge} from '../src/bridge.mjs';
+import {NativeAnchorTracker} from '../src/native/anchor-tracker.mjs';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -29,6 +30,44 @@ test('native completion candidates keep their source and remain unverified',()=>
   assert.equal(j.read(s.id).events.find(e=>e.type==='user_action').source,'native');
   assert.equal(m.get(s.id).verified,false);assert.equal(m.get(s.id).nextAction,'verify_in_app');
  }finally{j.close();m.close();}
+});
+test('desktop correction retires the mark and requests a fresh view of the same step',()=>{
+ const m=new HandoffManager(),j=new InteractionJournal(m);
+ try{
+  const first=m.show({...body,x:40,y:50,width:80,height:24},owner);
+  assert.equal(m.control(first.id,null,'correct_target').session.nextAction,'reobserve_target');
+  assert.deepEqual(m.get(first.id).annotations,[]);
+  m.control(first.id,owner,'progress','locating');
+  const events=j.read(first.id).events.filter(e=>e.type==='recovery_requested');
+  assert.equal(events.length,1);
+  assert.equal(events[0].reason,'target_incorrect');
+  assert.equal(events[0].source,'user');
+  const result=m.present(first.id,{...body,requestId:'corrected-step',x:100,y:150},owner).session;
+  assert.equal(result.step,first.step);assert.equal(result.timeoutAt,first.timeoutAt);
+  assert.equal(result.annotations[0].x,100);assert.equal(result.recoveryReason,undefined);
+ }finally{j.close();m.close();}
+});
+test('a one-shot native guide can be verified and releases ownership on success',async()=>{
+ const m=new HandoffManager(),journal=new InteractionJournal(m);
+ const tracker=new NativeAnchorTracker({manager:m,getDisplays:()=>[],subscribe:()=>{},locator:async()=>{
+  throw Object.assign(new Error('Target gone'),{code:'target_not_found'});
+ }});
+ try{
+  const target={app:'Example',role:'button',name:'Continue'},bounds={x:40,y:50,width:80,height:20};
+  const guide=m.show({...bounds,mode:'guide',title:'Close dialog',message:'Close the original dialog.',completion:{kind:'observed_condition',condition:'target_absent'}},owner);
+  tracker.track(guide.id,target,bounds);
+  const cursor=journal.latestCursor(guide.id);
+  await tracker.recheck();
+  assert.equal(await tracker.recheck(),'verification_required');
+  assert.ok(journal.read(guide.id,{after:cursor}).events.some(e=>e.type==='verification_required'));
+  assert.equal(m.verify(guide.id,owner,'mismatch').session.phase,'verifying');
+  assert.equal(m.show(body,other).error,'busy');
+  const final=m.verify(guide.id,owner,'verified',true).session;
+  assert.equal(final.status,'completed');
+  assert.equal(final.nextAction,'stop');
+  assert.equal(m.active(),null);
+  assert.equal(m.show(body,other).status,'awaiting_user');
+ }finally{tracker.close();journal.close();m.close();}
 });
 test('same session retains ownership through report, verification and next step; only verified final ends it',()=>{
  const m=new HandoffManager();try{

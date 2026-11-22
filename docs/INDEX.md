@@ -1,35 +1,12 @@
 # 文档索引
 
-**安装与使用：** [Agent 安装要求](INSTALL_AGENT.md) · [在 Codex 中使用](USE_WITH_CODEX.zh-CN.md)
-
-**本地继续开发：** [Codex 接手指南](CODEX_HANDOFF.md) · [工程规则](../AGENTS.md)
-
-**实机记录：** [0.22 插件与分层检查](qa/2026-11-13-plugin-layers.md) · [2026-10-19 macOS 接手与验收](qa/2026-10-19-macos.md) · [2026-10-20 视觉与 Agent 试用](qa/2026-10-20-visual.md)
-
-**当前交付：** [插件运行时、三层与核验](MUSE_IMPLEMENTATION.md) · [七宿主接入与管理](HARNESS_PLUGINS.md) · [验收前检查与实机步骤](HOST_EVIDENCE.md#开始实机验收) · [插件发布检查](COMMUNITY_RELEASE.md#prepare-the-plugin-trial) · [0.20 屏幕标注](SCREEN_DRAWING.md) · [0.19.1 浮窗体验](qa/2026-11-12-panel.md) · [0.19 单应用与快速响应](qa/2026-11-12-runtime.md) · [0.18 连续任务、桌面工作台与完整卸载](qa/2026-11-04-upgrade.md)
-
-**原生插件：** [跨 Harness 实现与剩余验收](NATIVE_PLUGIN_UPGRADE.md) · [Codex 本机插件试用](CODEX_PLUGIN.md)
-
 | 方向 | 文档 |
 |---|---|
-| 任务与验收 | [路线图](ROADMAP.md) · [桌面验收](DESKTOP_QA.md) |
-| 系统运行 | [架构](ARCHITECTURE.md) · [原生运行时](NATIVE_RUNTIME.md) · [安全实现](SECURITY.md) |
-| Agent 接入 | [接入指南](INTEGRATIONS.md) · [视觉试用](AGENT_VISUAL_TRIAL.md) · [兼容矩阵](COMPATIBILITY.md) · [国产 Harness](CHINA_HARNESS_INTEGRATION.md) |
-| 交互与定位 | [事件](INTERACTION_EVENTS.md) · [几何复核](GEOMETRY_RECHECK.md) · [宿主活动](HOST_ACTIVITY.md) |
-| 桌面 UI | [首次启动](ONBOARDING.md) · [设置中心](CONTROL_CENTER.md) · [连接诊断](CONNECTION_DIAGNOSTICS.md) · [停用与移除](INTEGRATION_LIFECYCLE.md) |
-| 网站 | [前端结构与性能](WEBSITE.md) |
-| 视觉设计 | [视觉语言](VISUAL_LANGUAGE.md) · [动态系统](VISUAL_MOTION.md) · [界面规范](INTERFACE_SYSTEM.md) · [品牌](BRAND.md) |
-| 协议与本地逻辑 | [场景协议](SCENE_PROTOCOL.md) · [Agent 工作流](AGENT_AUTONOMY.md) · [偏好记忆](LOCAL_FIRST_MEMORY.md) |
-| 产品 | [产品定义](PRODUCT.md) · [更新日志](CHANGELOG.md) · [社区构建与发布](COMMUNITY_RELEASE.md) · [使用许可](../LICENSING.md) |
-
-[0.16 桌面界面验收与截图](qa/2026-10-20-release-interface.md)
-
-[2026-10-20 项目审查与连续会话改造](qa/2026-10-20-lifecycle-audit.md)
-
-[2026-10-21 社区发布检查](qa/2026-10-21-community-release.md)
-
-- [界面处方](../DESIGN.md) · [逐项核对与整改](FRONTEND_REDESIGN.md)
-
-- [0.19.2 交互与状态修正](qa/2026-11-12-interaction.md)
-
-- [宿主观察与本地绘制](HOST_OBSERVATION.md)：职责、区域坐标、轻量插件与权限边界。
+| 安装与使用 | [在 Codex 中使用](USE_WITH_CODEX.zh-CN.md) · [Codex 插件](CODEX_PLUGIN.md) · [其他宿主](HARNESS_PLUGINS.md) · [安装入口](INSTALL_AGENT.md) |
+| 桌面应用 | [首次启动](ONBOARDING.md) · [设置中心](CONTROL_CENTER.md) · [连接诊断](CONNECTION_DIAGNOSTICS.md) · [停用与移除](INTEGRATION_LIFECYCLE.md) |
+| 引导与标注 | [截图定位和宿主观察](HOST_OBSERVATION.md) · [屏幕标注](SCREEN_DRAWING.md) · [显示坐标复核](GEOMETRY_RECHECK.md) |
+| 本地开发 | [开发与打包](DEVELOPMENT.md) · [架构](ARCHITECTURE.md) · [原生运行时](NATIVE_RUNTIME.md) · [安全](SECURITY.md) |
+| 协议 | [场景](SCENE_PROTOCOL.md) · [事件](INTERACTION_EVENTS.md) · [偏好](LOCAL_FIRST_MEMORY.md) · [工具契约](../skills/visual-handoff/references/tool-contracts.md) |
+| 验收 | [桌面验收](DESKTOP_QA.md) · [宿主验收](HOST_EVIDENCE.md) · [平台矩阵](PLATFORM_MATRIX.md) · [兼容范围](COMPATIBILITY.md) |
+| 产品与设计 | [产品定义](PRODUCT.md) · [界面处方](../DESIGN.md) · [视觉语言](VISUAL_LANGUAGE.md) · [视觉动效](VISUAL_MOTION.md) · [网站](WEBSITE.md) |
+| 许可 | [许可说明](../LICENSING.md) · [许可证](../LICENSE) |

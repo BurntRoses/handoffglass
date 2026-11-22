@@ -26,13 +26,20 @@ function identifier(v, key) {
   if (typeof v !== 'string' || !ID.test(v)) throw new TypeError(`Invalid ${key}; use ASCII letters, digits, underscore or hyphen (max 48)`);
   return v;
 }
+export function shapeForTarget(width=112,height=56) {
+  if(height<=16&&width>=60 || height<=22&&width>=120&&width/height>=7)return 'underline';
+  if(width<36||height<20)return 'arrow';
+  if(width>=300&&height>=150)return 'spotlight';
+  if(width/height>=3.5)return 'bracket';
+  return width<=120&&height<=72?'ring':'box';
+}
 export function normalizeAnnotation(input) {
   if (!object(input)) throw new TypeError('Annotation must be an object');
-  const shape = input.shape ?? 'arrow';
+  const shape = input.shape==='auto'?shapeForTarget(input.width??undefined,input.height??undefined):input.shape??'arrow';
   if (!SHAPES.includes(shape)) throw new TypeError('Unknown annotation shape');
   const tone = input.tone ?? 'accent';
   if (!Object.hasOwn(TONES, tone)) throw new TypeError('Unknown annotation tone');
-  const color = input.color ?? TONES[tone];
+  const color = input.color === 'auto' ? TONES[tone] : input.color ?? TONES[tone];
   if (typeof color !== 'string' || !HEX.test(color)) throw new TypeError('Color must be a six-digit hex color');
   const result = {
     x: number(input.x, 'x', -100000, 100000), y: number(input.y, 'y', -100000, 100000),
@@ -51,6 +58,12 @@ export function normalizeAnnotation(input) {
     result.lineStyle=input.lineStyle;
   }
   if (input.id !== undefined) result.id = identifier(input.id, 'annotation id');
+  if (input.autoColor === true) result.autoColor = true;
+  if (input.autoShape === true || input.shape==='auto') result.autoShape = true;
+  if (input.scrollDirection!==undefined) {
+    if(!['left','right','up','down'].includes(input.scrollDirection)||shape!=='arrow')throw new TypeError('Invalid scroll direction');
+    result.scrollDirection=input.scrollDirection;
+  }
   if (input.tone !== undefined) result.tone = tone;
   if (input.opacity !== undefined) result.opacity = number(input.opacity, 'opacity', 0, 1);
   if (input.effect !== undefined) {

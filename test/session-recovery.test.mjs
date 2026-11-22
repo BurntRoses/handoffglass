@@ -48,6 +48,26 @@ test('pause freezes a normal step, resumes into reobservation, and never extends
   } finally {m.close();}
 });
 
+test('refreshing a blocked step preserves its number and confirmation deadline',()=>{
+  let now=0;
+  const m=new HandoffManager({clock:()=>now});
+  try {
+    const request={...step,sensitive:true,x:300,y:400,timeoutSeconds:120};
+    const first=m.show(request,'a');
+    now=10000;
+    m.setAnchorState(first.id,{status:'lost',annotations:[],reason:'stale_observation'});
+    assert.equal(m.present(first.id,{...step,sensitive:false},'a').error,'sensitive_confirmation_pending');
+    const refreshed=m.present(first.id,{...request,x:600,timeoutSeconds:300},'a').session;
+    assert.equal(refreshed.step,first.step);
+    assert.equal(refreshed.timeoutAt,first.timeoutAt);
+    assert.equal(refreshed.confirmationTimeoutAt,first.confirmationTimeoutAt);
+    assert.equal(refreshed.annotations[0].x,600);
+    m.resolve(first.id,'completed');
+    for(const action of ['retry_target','text_fallback'])assert.equal(m.control(first.id,'a',action).error,'verification_due');
+    assert.equal(m.get(first.id).completionSource,'user_report');
+  } finally {m.close();}
+});
+
 test('a shorter task deadline declines a pending sensitive decision but expires reported verification',()=>{
   for(const reported of [false,true])for(const paused of [false,true]){
     let now=0;const m=new HandoffManager({clock:()=>now});

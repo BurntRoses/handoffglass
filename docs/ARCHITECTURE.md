@@ -45,9 +45,9 @@ User preferences persist locally. `integration_set_enabled` changes only the glo
 
 ## Interfaces
 
-**Full MCP tools (20):** `review_changes`, `screen_mark`, `screen_displays`, `ui_inspect`, `ui_locate`, `capability_manifest`, `session_start`, `session_present`, `session_wait`, `session_update`, `session_verify`, `session_stop`, `connection_status`, `permission_status`, `integration_status`, `integration_cleanup` `integration_set_enabled`, `session_resume`, `session_control` and `integration_uninstall`. Tool results include machine-readable `structuredContent` and a text fallback. Installers enable compact output.
+**Full MCP tools:** `review_changes`, `screen_mark`, `screen_displays`, `screen_capture`, `ui_inspect`, `ui_locate`, `capability_manifest`, `session_start`, `session_present`, `session_wait`, `session_update`, `session_verify`, `session_stop`, `connection_status`, `permission_status`, `integration_status`, `integration_install`, `integration_cleanup`, `integration_set_enabled`, `session_resume`, `session_control` and `integration_uninstall`. Tool results include machine-readable `structuredContent` and a text fallback. Screenshot shares also return an image block. Installers enable compact output.
 
-`HANDOFFGLASS_LEGACY_TOOLS=1` adds the seven old one-step/scene aliases for existing clients. They are excluded from the normal tool catalog. `HANDOFFGLASS_EXTRAS=1` adds the three local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`). The Codex plugin uses the 18-tool host profile, with native lookup hidden and compact bounds/frame presentation schemas. Standalone full preserves existing interfaces. Initialization includes the core workflow in fewer than 512 characters; `capability_manifest` exposes conditions, inputs, recovery actions and host/transport limits. The installed Skill provides a short routing table without asking the model to reread a manual each step.
+`HANDOFFGLASS_LEGACY_TOOLS=1` adds the seven old one-step/scene aliases for existing clients. They are excluded from the normal tool catalog. `HANDOFFGLASS_EXTRAS=1` adds the three local read-only helpers (`handoff_context`, `handoff_assess`, `handoff_blueprint`). The Codex plugin uses the host profile, with native lookup hidden and compact bounds/frame presentation schemas. Standalone full preserves existing interfaces. Initialization includes the core workflow in fewer than 512 characters; `capability_manifest` exposes conditions, inputs, recovery actions and host/transport limits. The installed Skill provides a short routing table without asking the model to reread a manual each step.
 
 
 The single local Bridge has distinct Agent and desktop tokens, loopback-only socket, Host/Origin checks, bounded JSON, event streams and waits, and per-owner access checks. Only Agent routes accept the agent token; desktop state, event delivery and human decisions require the desktop token. `src/local/host-activity.mjs` exposes recent authenticated calls with **caller-declared** host labels (not verified application identity).
@@ -76,7 +76,7 @@ Opaque `targetRef` values are owner-, expiry- and display-layout-scoped; resolvi
 | Host install / configuration | `src/config.mjs`, `src/host-install.mjs`, `integrations/` | `test/config.test.mjs`, `test/connector.test.mjs` |
 | Installer | `electron-builder.config.cjs`, `.github/workflows/` | packaged MCP smoke + clean-install desktop acceptance |
 
-See [Codex handoff](CODEX_HANDOFF.md), [security](SECURITY.md), [compatibility](COMPATIBILITY.md) and [desktop acceptance](DESKTOP_QA.md).
+See [development and packaging](DEVELOPMENT.md), [security](SECURITY.md), [compatibility](COMPATIBILITY.md) and [desktop acceptance](DESKTOP_QA.md).
 
 ## Workbench and owned removal
 

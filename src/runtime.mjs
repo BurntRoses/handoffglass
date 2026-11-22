@@ -155,6 +155,7 @@ export class BrokerClient {
   async blueprint(blueprint, locale) { return this.request('/agent/blueprint', { method: 'POST', body: { blueprint, locale } }); }
   async present(mode, args) { return this.request('/agent/show', { method: 'POST', body: { ...args, mode } }); }
   async displays() { return this.request('/agent/displays'); }
+  async capture(args) { return this.request('/agent/capture',{method:'POST',body:args}); }
   async mark(args) { return this.request('/agent/mark',{method:'POST',body:args}); }
   async inspect() {
     try { return await this.request('/agent/inspect'); }
@@ -171,8 +172,8 @@ export class BrokerClient {
   async resume(sessionId,resumeToken){return this.request('/agent/resume',{method:'POST',body:{sessionId,resumeToken}});}
   async control(sessionId,action,phase,expectedStep){return this.request('/agent/control',{method:'POST',body:{sessionId,action,phase,expectedStep}});}
   async review(args){return this.request('/agent/review',{method:'POST',body:args});}
-  async verify(sessionId, verified, finish=false,expectedStep) {
-    return this.request('/agent/verify', { method: 'POST', body: { sessionId, ...(typeof verified==='boolean'?{verified}:{result:verified}), finish, expectedStep } });
+  async verify(sessionId, verified, finish=false,expectedStep,summary) {
+    return this.request('/agent/verify', { method: 'POST', body: { sessionId, ...(typeof verified==='boolean'?{verified}:{result:verified}), finish, expectedStep, summary } });
   }
   async updateScene(sessionId, expectedRevision, operations, region={}) {
     return this.request('/agent/scene', { method: 'POST', body: { ...region, sessionId, expectedRevision, operations } });

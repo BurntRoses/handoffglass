@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import {redact} from './local/redact.mjs';
 
 export const TERMINAL_STATES = Object.freeze(['completed', 'declined', 'cancelled', 'expired', 'superseded']);
 const TERMINAL = new Set(TERMINAL_STATES);
@@ -79,14 +80,18 @@ export function normalizeRequest(input) {
     annotations = flattenScene(scene);
   }
   if (annotations.length > MAX_MARKS) throw new TypeError('Too many visible annotations');
+  const observationMethod=input.observationMethod??null;
+  if(![null,'screenshot','screenshot_fallback'].includes(observationMethod))throw new TypeError('Invalid observation method');
   if (mode === 'guide' && annotations.length === 0) {
     throw new TypeError('Visual guidance requires grounded annotation coordinates');
   }
-  return { execution, retryDeclined:input.retryDeclined===true, taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true||purpose==='verification', purpose,intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, ...(scene ? { scene } : {}) };
+  return { execution, retryDeclined:input.retryDeclined===true, taskTimeoutSeconds, completion:{...completion}, sensitive:input.sensitive===true||purpose==='verification', purpose,intent, scrim:input.scrim===true, ...(input.totalSteps?{totalSteps:input.totalSteps}:{}), continuous:input.continuous===true, mode, title, message, timeoutSeconds, annotations, requestId, visualStyle, motion, locale, density, theme, observationMethod, ...(scene ? { scene } : {}) };
 }
 function copySession(session) {
   if (!session) return null;
-  return { ...session, completion:{...session.completion}, ...(session.verification?{verification:{...session.verification}}:{}), ...(session.agentState?{agentState:{...session.agentState}}:{}), ...(session.targetTracking?{targetTracking:{...session.targetTracking}}:{}), annotations: session.annotations.map(a => ({ ...a })),
+  return { ...session, completion:{...session.completion}, ...(session.verification?{verification:{...session.verification}}:{}),
+    ...(session.previousVerification?{previousVerification:{...session.previousVerification}}:{}),
+    ...(session.agentState?{agentState:{...session.agentState}}:{}), ...(session.targetTracking?{targetTracking:{...session.targetTracking}}:{}), annotations: session.annotations.map(a => ({ ...a })),
     ...(session.scene ? { scene: normalizeScene(session.scene) } : {}) };
 }
 
@@ -132,7 +137,7 @@ export class HandoffManager extends EventEmitter {
     const now = this.clock();
     const session = {
       id: randomUUID(), mode: normalized.mode, title: normalized.title,
-      message: normalized.message, annotations: normalized.annotations,
+      message: normalized.message, annotations: normalized.annotations, observationMethod:normalized.observationMethod,
       visualStyle: normalized.visualStyle, motion: normalized.motion, locale:normalized.locale, density:normalized.density, theme:normalized.theme,
       ...(normalized.scene ? {scene:normalized.scene, sceneRevision:1} : {}),
       execution:normalized.execution, continuous: input.continuous === true, demo:owner==='desktop-trial', step: 1,
@@ -187,10 +192,12 @@ export class HandoffManager extends EventEmitter {
     return { session: copySession(session) };
   }
   /** Record an independent check performed by the host Agent after a user report. */
-  verify(id, owner, verified = false, finish = false) {
+  verify(id, owner, verified = false, finish = false, summary) {
     const result=typeof verified==='boolean'?(verified?'verified':'mismatch'):verified;
     if(!['verified','mismatch','inconclusive'].includes(result))throw new TypeError('Invalid verification result');
     verified=result==='verified';
+    if(summary!==undefined&&(!verified||typeof summary!=='string'||!summary.trim()||summary.length>140))
+      throw new TypeError('A verification summary requires a verified result and 1–140 characters');
     const session = this.sessions.get(id);
     if (!session || this.owners.get(id) !== owner) return { error: 'not_found' };
     this.get(id);
@@ -200,7 +207,8 @@ export class HandoffManager extends EventEmitter {
     if (!['completed','user_action_reported'].includes(session.status) || session.phase !== 'verifying')
       return { error: 'verification_not_due', session: copySession(session) };
     session.verified = verified === true;
-    session.verification={result,at:this.clock(),source:'host'};
+    session.verification={result,at:this.clock(),source:'host',...(summary?{summary:redact(summary.trim(),140).text}:{})};
+    delete session.previousVerification;
     if(result==='inconclusive'){
       session.annotations=[];delete session.scene;
       session.phase='verifying';session.nextAction='request_independent_evidence';session.updatedAt=this.clock();
@@ -208,11 +216,15 @@ export class HandoffManager extends EventEmitter {
       return {session:copySession(session)};
     }
     if(session.continuous){
-      if(verified && finish){this.#finish(session,'completed');session.phase='complete';session.nextAction='stop';}
-      else{session.status='observing';session.phase='next_step';session.nextAction=verified?'present_next_step':'observe_app';session.recoveryRequired=!verified;session.stepTimeoutAt=this.clock()+1800000;this.#arm(session);}
+      if(verified && finish){this.#finish(session,'completed');return {session:copySession(session)};}
+      session.status='observing';session.phase='next_step';session.nextAction=verified?'present_next_step':'observe_app';
+      session.recoveryRequired=!verified;session.stepTimeoutAt=this.clock()+1800000;this.#arm(session);
     }else{
-      session.phase = verified === true ? 'complete' : 'next_step';
-      session.nextAction = verified === true ? 'stop' : 'observe_app';
+      if(verified && session.status==='user_action_reported'){
+        this.#finish(session,'completed');return {session:copySession(session)};
+      }
+      session.phase=verified?'complete':session.status==='user_action_reported'?'verifying':'next_step';
+      session.nextAction=verified?'stop':'observe_app';
     }
     session.updatedAt = this.clock();
     this.emit('change', copySession(session));
@@ -234,21 +246,30 @@ export class HandoffManager extends EventEmitter {
     if(TERMINAL.has(current.status)||this.activeId!==id)return {error:'already_final'};
     if(current.status==='paused')return {error:'paused'};
     if(current.phase==='verifying')return {error:'verification_due'};
-    const layoutRecovery=current.status==='awaiting_user'&&current.targetTracking?.status==='layout_changed';
-    if(current.status!=='observing'&&!layoutRecovery)return {error:'step_not_verified'};
+    const targetRecovery=current.status==='awaiting_user'&&current.phase==='blocked';
+    if(current.status!=='observing'&&!targetRecovery)return {error:'step_not_verified'};
+    const recovering=!!session.recoveryRequired||targetRecovery;
+    const confirmationDeadline=recovering?session.confirmationTimeoutAt:null;
+    if(confirmationDeadline!==null&&current.sensitive&&!normalized.sensitive)return {error:'sensitive_confirmation_pending'};
     const fingerprint=refusalKey(owner,normalized);
     if(this.refusals.has(fingerprint)&&!normalized.retryDeclined)return refused();
-    for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','purpose','intent','scrim']) session[field]=normalized[field];
+    for(const field of ['mode','title','message','annotations','visualStyle','motion','locale','density','theme','completion','sensitive','purpose','intent','scrim','observationMethod']) session[field]=normalized[field];
     if(input.execution!==undefined)session.execution=normalized.execution;
     if(normalized.totalSteps!==undefined)session.totalSteps=normalized.totalSteps;
     session.sceneRevision=(session.sceneRevision||0)+1;
     if(normalized.scene)session.scene=normalized.scene;
     else delete session.scene;
     delete session.targetTracking;
-    if(!session.recoveryRequired&&!layoutRecovery)session.step++;delete session.recoveryRequired;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
+    if(!recovering){
+      if(session.verification?.summary)session.previousVerification={...session.verification};
+      else delete session.previousVerification;
+      session.step++;
+    }
+    delete session.recoveryRequired;delete session.recoveryReason;session.status='awaiting_user';session.phase=normalized.mode==='guide'?'presenting':'waiting_user';
     session.nextAction=normalized.mode==='guide'?'observe_app':'wait_for_user';session.verified=false;delete session.verification;session.completionSource=null;session.updatedAt=this.clock();
     if(key)this.requestKeys.set(key,{id,payload:JSON.stringify(normalized)});
-    session.stepTimeoutAt=this.clock()+normalized.timeoutSeconds*1000;session.confirmationTimeoutAt=normalized.sensitive?this.clock()+Math.min(300,normalized.timeoutSeconds)*1000:null;
+    if(!recovering)session.stepTimeoutAt=this.clock()+normalized.timeoutSeconds*1000;
+    session.confirmationTimeoutAt=confirmationDeadline??(normalized.sensitive?this.clock()+Math.min(300,normalized.timeoutSeconds)*1000:null);
     session.agentState={phase:'idle',at:this.clock()};this.#arm(session);
     this.refusals.delete(fingerprint);
     this.emit('show',copySession(session));return {session:copySession(session)};
@@ -296,9 +317,14 @@ export class HandoffManager extends EventEmitter {
       if(!reported)s.recoveryRequired=true;
       s.agentState={phase:'idle',at:this.clock()};
       s.stepTimeoutAt=this.clock()+Math.max(10000,s.remainingMs||1800000);delete s.targetTracking;delete s.scene;delete s.pausedFrom;delete s.remainingMs;
-    } else if(action==='retry_target' || action==='text_fallback') {
+    } else if(action==='retry_target' || action==='text_fallback'||action==='correct_target') {
       if(s.status==='paused')return {error:'paused'};
-      s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='retry_target'?'reobserve_target':'present_text_step';
+      if(s.status==='user_action_reported')return {error:'verification_due'};
+      if(action==='correct_target'&&(!s.continuous||s.status!=='awaiting_user'||!s.annotations.some(mark=>!mark.scrollDirection)))
+        return {error:'no_target_to_correct'};
+      s.annotations=[];s.status='observing';s.phase='blocked';s.recoveryRequired=true;s.nextAction=action==='text_fallback'?'present_text_step':'reobserve_target';
+      if(action==='correct_target'){s.recoveryReason='target_incorrect';delete s.scene;}
+      else delete s.recoveryReason;
       delete s.targetTracking;
     } else if(action==='park' || action==='attach') {
       if(!s.continuous)return {error:'not_continuous'};
@@ -313,6 +339,7 @@ export class HandoffManager extends EventEmitter {
   }
   observed(id,condition) {
     const s=this.sessions.get(id);
+    if(s)this.get(id);
     if(!s || s.status!=='awaiting_user' || s.sensitive || s.completion?.kind!=='observed_condition' || s.completion.condition!==condition)return false;
     s.status='user_action_reported';s.phase='verifying';s.nextAction='verify_in_app';s.completionSource='native_observation';s.annotations=[];
     s.stepTimeoutAt=this.clock()+1800000;this.#arm(s);this.emit('change',copySession(s));return true;
@@ -355,7 +382,7 @@ export class HandoffManager extends EventEmitter {
     // Allow temporarily hiding every layer to clear the screen without finishing a handoff.
     session.scene = next;
     session.annotations = flattened;
-    for(const key of ['visualStyle','motion'])if(appearance[key]!==undefined)session[key]=appearance[key];
+    for(const key of ['visualStyle','motion','observationMethod'])if(appearance[key]!==undefined)session[key]=appearance[key];
     // A manual scene edit transfers control from native auto-follow to the Agent.
     if (session.targetTracking) session.targetTracking = { status: 'manual', observedAt: null };
     session.sceneRevision++;
@@ -397,8 +424,9 @@ export class HandoffManager extends EventEmitter {
       while(this.refusals.size>this.maxHistory)this.refusals.delete(this.refusals.keys().next().value);
     }
     session.status = status;
-    session.phase = status === 'completed' ? (session.continuous?'complete':'verifying') : 'finished';
-    session.nextAction = status === 'completed' && !session.continuous ? 'verify_in_app' : 'stop';
+    const needsVerification=status==='completed'&&!session.continuous&&!session.verified;
+    session.phase=status==='completed'?(needsVerification?'verifying':'complete'):'finished';
+    session.nextAction=needsVerification?'verify_in_app':'stop';
     session.updatedAt = this.clock();
     session.completionSource = status === 'completed' ? (session.completionSource || 'user_report') : null;
     if (this.activeId === session.id) this.activeId = null;

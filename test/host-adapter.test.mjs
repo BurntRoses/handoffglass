@@ -22,13 +22,14 @@ test('all seven adapters keep observation and verification with their host; only
   result='verified';await adapter.verify({sessionId:'s'});assert.deepEqual((await adapter.resume({sessionId:'s'})).hostWakeup,false);
  }
 });
-test('native hosts reuse all host-profile MCP schemas and never share ownership between chats',async()=>{
+test('native hosts reuse JSON-compatible host-profile MCP schemas and never share ownership between chats',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'hg-native-tools-')),m=new HandoffManager(),b=new LocalBridge(m,{headless:true});
  const previous=process.env.HANDOFFGLASS_RUNTIME_DIR;process.env.HANDOFFGLASS_RUNTIME_DIR=dir;
  await b.start();await writeManifest(dir,{pid:process.pid,port:b.port,token:b.agentToken});
  const tools=nativeTools('opencode',{clientFactory:()=>new BrokerClient({env:{...process.env,HANDOFFGLASS_RUNTIME_DIR:dir,HANDOFFGLASS_HOST_ID:'opencode'}})});
  try{
-  assert.deepEqual(tools.definitions.map(x=>x.name),[...toolCatalog(undefined).keys()]);assert.equal(tools.definitions.length,19);
+  const jsonToolNames=[...toolCatalog(undefined).keys()].filter(name=>name!=='screen_capture');
+  assert.deepEqual(tools.definitions.map(tool=>tool.name),jsonToolNames);
   await assert.rejects(tools.execute('session_start',{title:'a',message:'b'}),/identity/);
   const s=await tools.execute('session_start',{title:'Open settings',message:'In the original app',requestId:'native-step-1'},{identity:'chat-A'});
   assert.equal(s.session.execution,'parked');

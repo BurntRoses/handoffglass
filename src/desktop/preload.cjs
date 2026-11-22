@@ -7,8 +7,9 @@ contextBridge.exposeInMainWorld('handoffglass', {
     return Promise.resolve({ ok:false,error:'Invalid decision' });
   },
   control(id,action,step) {
-    if(typeof id==='string'&&['pause','resume','retry_target','text_fallback','park','attach'].includes(action))return ipcRenderer.invoke('hg:control',{id,action,step});
+    if(typeof id==='string'&&['pause','resume','retry_target','text_fallback','correct_target','park','attach'].includes(action))return ipcRenderer.invoke('hg:control',{id,action,step});
     return Promise.resolve({ok:false,error:'Invalid action'});
   },
+  peek(key,enabled) { if(typeof key==='string'&&typeof enabled==='boolean')ipcRenderer.send('hg:peek',{key,enabled}); },
   resize({height,compact}={}) { if(Number.isFinite(height)&&typeof compact==='boolean')ipcRenderer.send('hg:panel-size',{height,compact}); }
 });

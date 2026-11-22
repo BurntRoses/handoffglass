@@ -1,6 +1,6 @@
 # 宿主观察与本地绘制
 
-0.21 将默认链路分成两段：宿主用已授权工具观察界面并确定目标，HandoffGlass 接收结构化区域，完成坐标映射、绘制、动画和本地事件记录。HandoffGlass 不调用模型、不截图、不代为操作原应用。
+默认由宿主使用已授权工具观察界面并确定目标，HandoffGlass 接收区域，完成坐标映射、绘制、动画和本地事件记录。macOS 也支持由 HandoffGlass 发起一次截图分享。
 
 ## 原有开销
 
@@ -31,13 +31,19 @@
 
 全局 DIP 的 `observation` 或图像 `frame` 必须携带真实 `capturedAt`、当前 16hex `layoutSignature` 与 `provenance`。签名复用宿主元数据，缺少时只读取一次显示器信息；不为每次绘制重复查询。证据不全时使用无坐标引导。
 
+可随同这次观察提供 `backgroundColors`，包含标记周边 1–8 个实际色样，例如 `["#f8fafc","#24303a"]`。宿主能读取像素或 DOM 实际背景色时才提交色样。绘制和步骤默认根据色样选色，显式 `color:"#75b9ff"` 保持指定色，`color:"auto"` 恢复自动模式。新位置使用新色样。
+
+提供可见的 `bounds` 时，省略 `shape` 或传入 `shape:"auto"`，按 DIP 尺寸选用箭头、下划线、四角、圈、框或聚焦。调用者指定的形状和模板保留。
+
+宿主确知目标位于可视滚动区之外时，`session_start`、`session_present` 和 `session_update` 接受 `scrollTarget:{viewport,target,label}`。两矩形共用这次 `observation` 或 `frame` 的坐标系。视口须可见，目标须完全越过一个边缘，工具在视口内画方向提示。滚入视野后用新观察和 `session_update({bounds,…})` 替换提示，继续当前步骤。
+
 固定标记默认 20 秒清除，带坐标证据的绘制最迟在观察满 30 秒时清空；窗口移动后由宿主重新观察并 update，不能声称自动跟随。显示器布局变化清除临时标记、隐藏固定任务场景；重新呈现仍是原步骤，用户报告仍须独立核验。
 
 参数示例见随包 [工具契约](../skills/visual-handoff/references/tool-contracts.md)。
 
 ## 发现与生命周期
 
-Codex 插件设置 `HANDOFFGLASS_TOOL_PROFILE=host`：18 个工具，呈现和更新只提供宿主区域所需的结构。`full` 默认用于现有独立 MCP，保留 20 个工具、原生定位、图层和旧坐标参数；旧工具别名仍由独立开关控制。
+Codex 插件设置 `HANDOFFGLASS_TOOL_PROFILE=host`，呈现和更新只提供宿主区域所需的结构。`full` 默认用于现有独立 MCP，保留原生定位、图层和旧坐标参数。旧工具别名仍由独立开关控制。
 
 初始化的短规则直接说明职责和快路径。manifest 不再探测原生权限；设置原生定位时才调用 permission_status。App 也将原生权限标为可选，不再表示绘制依赖它。
 
@@ -50,7 +56,15 @@ npm run plugin:codex:install -- --lifecycle=enhanced
 
 ## 宿主边界
 
-宿主是否能观察目标取决于当前工具和权限。此次 Computer Use 实际拒绝访问 Codex 自身窗口；HandoffGlass 不能使这个受保护目标变为可观察，也不能换一个截图或原生接口绕过限制。允许的观察结果、用户提供的截图及对应可靠映射仍可用于绘制。
+使用宿主允许的界面观察或带有可靠映射的用户截图。对于受保护的目标，使用文字引导，或由用户在原应用中完成该步骤。
+
+### 截图定位
+
+在 macOS 14 或更新系统，用户要求截图定位且目标允许捕获时，Agent 可以调用 `screen_capture({appBundleId})`。用户在 HandoffGlass 点击「分享截图」后，桌面程序截取单屏尺寸的一张图，图中只包含指定应用的窗口。选择应用所在显示器，可选传入 `displayId`。macOS 必须已授予屏幕录制权限。图片直接回给发起调用的 Agent，HandoffGlass 不保存截图文件。
+
+一张已获授权的截图可以覆盖整块显示器。宿主提供截图和显示器映射，或用户在会话中主动分享截图。Agent 在图中找到图标或按钮，将区域和映射交给 HandoffGlass，由桌面在原位置画圈或指向目标。用户分享的图片缺少可靠映射时，可以在图里指出位置，或给出文字引导。
+
+直接读取不可用且已有可用截图时，在步骤的 `frame` 中设置 `directReadUnavailable: true`。桌面卡片显示“当前界面无法直接读取，已根据截图标出位置。”普通截图定位显示“已根据截图标出位置。”窗口或显示布局变化后，使用新的画面重新定位。操作结果需要另行核验。
 
 Codex 官方说明：[Computer Use](https://learn.chatgpt.com/docs/computer-use)、[插件构成](https://developers.openai.com/plugins/build/plugins)、[Hooks](https://learn.chatgpt.com/docs/hooks)。宿主的观察权限与本插件原生定位权限分别管理；后台 Hook 无法唤醒空闲模型回合。
 

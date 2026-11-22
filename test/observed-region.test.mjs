@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {observedRegion} from '../src/visual/observed-region.mjs';
+import {observedRegion,observedScene} from '../src/visual/observed-region.mjs';
 import {quickMarkRequest} from '../src/visual/quick-mark.mjs';
 import {layoutSignature} from '../src/native/calibration.mjs';
 import {HandoffManager} from '../src/core.mjs';
@@ -37,7 +37,8 @@ test('bad, old or ambiguous observations fail with actionable codes before rende
     [bounds,{...frame,capturedAt:39000,layoutSignature:'a'.repeat(16)},'layout_changed'],
     [bounds,{...frame,capturedAt:39000,bounds:{x:-100,y:0,width:500,height:300}},'ambiguous_frame'],
     [{x:1910,y:0,width:100,height:20},undefined,'outside_display'],
-    [{...bounds,width:0},undefined,'invalid_bounds'],[bounds,{...frame,width:NaN},'invalid_frame']
+    [{...bounds,width:0},undefined,'invalid_bounds'],[bounds,{...frame,width:NaN},'invalid_frame'],
+    [bounds,{...frame,capturedAt:39000,directReadUnavailable:'true'},'invalid_frame']
   ])assert.throws(()=>observedRegion(b,f,displays,{now:40000,layoutSignature:layoutSignature(displays),observation:{...observation,capturedAt:39000}}),{code});
   assert.ok(observedRegion(bounds,{...frame,capturedAt:39000,layoutSignature:layoutSignature(displays)},displays,{now:40000,layoutSignature:layoutSignature(displays),observation:{...observation,capturedAt:39000}}));
 });
@@ -49,6 +50,35 @@ test('global DIP regions may cross adjacent screens, but may not cover gaps',()=
 test('each host mark can carry its own image frame on mixed-DPI displays',()=>{
   const r=quickMarkRequest({marks:[{shape:'box',bounds,frame},{shape:'ring',bounds:{x:10,y:10,width:100,height:50},frame:{...observation,width:1920,height:1080,bounds:{x:0,y:0,width:1920,height:1080}}}]},displays);
   assert.deepEqual(r.annotations.map(a=>a.x),[-1140,60]);
+});
+test('auto color responds to sampled backgrounds while an exact color is preserved',()=>{
+  const paint=(samples,color)=>quickMarkRequest({bounds,color,frame:{...frame,backgroundColors:samples}},displays).annotations[0].color;
+  const light=paint(['#ffffff','#f2f5f8']);
+  const dark=paint(['#151922','#252c35']);
+  assert.notEqual(light,dark);
+  assert.notEqual(paint(['#52ca94']),'#52ca94');
+  assert.equal(paint(['#ffffff'],'#ffffff'),'#ffffff');
+  assert.throws(()=>paint(['chartreuse']),{code:'invalid_background_colors'});
+  const scene=observedScene({bounds,frame:{...frame,backgroundColors:['#ffffff']},template:'caution'},displays);
+  assert.equal(scene.layers[0].annotations[0].autoColor,true);
+  assert.notEqual(scene.layers[0].annotations[0].color,'#ffc16e');
+});
+test('automatic marks use the measured target geometry and preserve explicit shapes',()=>{
+  const mark=(width,height,shape)=>observedScene({bounds:{x:20,y:20,width,height},observation,shape},displays).layers[0].annotations[0];
+  for(const [w,h,expected] of [[24,24,'arrow'],[180,13,'underline'],[240,38,'bracket'],[360,190,'spotlight'],[100,48,'ring']])
+    assert.equal(mark(w,h).shape,expected);
+  assert.equal(mark(24,24,'box').shape,'box');
+});
+
+test('scroll hints point from inside the known viewport toward its measured off-screen target',()=>{
+  const viewport={x:40,y:100,width:520,height:300},target={x:130,y:480,width:100,height:40};
+  const request={scrollTarget:{viewport,target,label:'导出选项'},observation};
+  const hint=observedScene(request,displays).layers[0].annotations[0];
+  assert.equal(hint.scrollDirection,'down');
+  assert.equal(hint.y,378);
+  assert.equal(hint.label,'向下滚动 · 导出选项');
+  assert.throws(()=>observedScene({...request,scrollTarget:{viewport,target:{...target,y:300}}},displays),{code:'invalid_scroll_target'});
+  assert.throws(()=>observedScene({...request,scrollTarget:{viewport,target:{...target,x:800}}},displays),{code:'invalid_scroll_target'});
 });
 test('host render/session/updates and capability discovery never invoke denied native services; layout invalidates fixed marks',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'hg-host-observed-')),old=process.env.HANDOFFGLASS_RUNTIME_DIR;
@@ -70,11 +100,16 @@ test('host render/session/updates and capability discovery never invoke denied n
     await call('/hello',{displays:[{...displays[1],width:1800}]},true);
     assert.equal(m.active(),null,'A changed display layout must clear an old fixed drawing');
     b.displays=displays;
-    const first=await call('/agent/show',{continuous:true,execution:'attached',bounds,frame,title:'查看区域',message:'在此查看',requestId:'host-step-1'});
+    const first=await call('/agent/show',{continuous:true,execution:'attached',bounds,frame:{...frame,provenance:'user',directReadUnavailable:true,backgroundColors:['#ffffff']},title:'查看区域',message:'在此查看',requestId:'host-step-1'});
     assert.equal(first.status,200,JSON.stringify(first.body));assert.equal(first.body.observation.tracking,'fixed');
+    assert.equal(first.body.observation.method,'screenshot_fallback');
+    assert.equal(first.body.session.observationMethod,'screenshot_fallback');
     const id=first.body.session.id,expiry=first.body.session.timeoutAt;
-    const changed=await call('/agent/scene',{sessionId:id,expectedRevision:1,observation,bounds:{x:120,y:20,width:90,height:30},shape:'box'});
+    const changed=await call('/agent/scene',{sessionId:id,expectedRevision:1,observation:{...observation,backgroundColors:['#101419']},bounds:{x:120,y:20,width:90,height:30},shape:'box'});
     assert.equal(changed.status,200,JSON.stringify(changed.body));assert.equal(changed.body.session.annotations[0].x,165);assert.equal(changed.body.session.timeoutAt,expiry);
+    assert.equal(changed.body.session.observationMethod,null);
+    assert.notEqual(changed.body.session.annotations[0].color,first.body.session.annotations[0].color);
+    assert.equal(changed.body.session.annotations[0].autoColor,true);
     assert.equal((await call('/agent/scene',{sessionId:id,expectedRevision:1,bounds})).body.code,'revision_conflict');
     await call('/hello',{displays:[{...displays[1],width:1800}]},true);
     assert.equal(m.get(id).annotations.length,0);assert.equal(m.get(id).nextAction,'reobserve_target');

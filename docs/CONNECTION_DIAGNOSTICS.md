@@ -33,7 +33,7 @@ Plugin enablement, Hook trust and permission to call a tool are separate checks.
 
 If Codex reports `MCP tool call requires approval, but approval policy is never`, the host stopped the call before HandoffGlass received it. Repeating the drawing call, reinstalling the plugin or enabling Accessibility does not resolve that approval decision. Verify in a new interactive Codex chat that can show the tool approval request, and let the user decide when it appears. Keep the installation marked as unverified until an actual call succeeds.
 
-Codex documents [plugin-scoped server and tool policy](https://developers.openai.com/plugins/build/plugins#configure-installed-server-policy). In the tested CLI `0.167.0-alpha.4.1`, temporary `screen_mark` approval settings parsed successfully with both the short plugin name and the marketplace-qualified name, but the model call still returned the error above. Runtime application of those settings remains unverified for that version. Tool authorization remains a host setting; the installer leaves it unchanged.
+The host manages tool authorization. See [Codex server and tool policy](https://developers.openai.com/plugins/build/plugins#configure-installed-server-policy).
 
 ## Display map
 

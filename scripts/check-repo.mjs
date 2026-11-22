@@ -15,7 +15,7 @@ async function markdownIn(dir,found=[]){
   return found;
 }
 const markdown=[...await markdownIn(join(root,'docs'))];
-for(const file of ['README.md','README.zh-CN.md','README.ja.md','AGENTS.md'])markdown.push(join(root,file));
+for(const file of ['README.md','README.zh-CN.md','README.ja.md','DESIGN.md'])markdown.push(join(root,file));
 for(const path of markdown){
   const source=await readFile(path,'utf8');
   // No network access: check the file part of local Markdown links only.
@@ -41,7 +41,7 @@ for(const [name,actual] of Object.entries({lockfile:lock.version,lockRoot:lock.p
 }
 if(!mcp.includes(`version: '${pkg.version}'`))fail.push('MCP SDK server version is not aligned with package.json');
 if(pkg.engines?.node!=='>=22')fail.push('Node engine contract differs from documented Node 22+ baseline');
-for(const entry of ['src/mcp.mjs','src/desktop/app.mjs','scripts/build-overlay.mjs','docs/CODEX_HANDOFF.md','docs/ARCHITECTURE.md','docs/DESKTOP_QA.md']){
+for(const entry of ['src/mcp.mjs','src/desktop/app.mjs','scripts/build-overlay.mjs','docs/DEVELOPMENT.md','docs/ARCHITECTURE.md','docs/DESKTOP_QA.md']){
   if(!await exists(join(root,entry)))fail.push(`missing mandatory entrypoint: ${entry}`);
 }
 for(const [name,command] of Object.entries(pkg.scripts||{})){

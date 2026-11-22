@@ -11,4 +11,4 @@ Host MCP configuration formats are tracked in [Compatibility](COMPATIBILITY.md).
 
 Every OS inspection requires explicit local user opt-in. HandoffGlass does not click, approve, reveal passwords or bypass protected desktops.
 
-See [Native runtime](NATIVE_RUNTIME.md), [Desktop QA](DESKTOP_QA.md) and [Codex handoff](CODEX_HANDOFF.md) for measured acceptance tasks.
+See [Native runtime](NATIVE_RUNTIME.md), [Desktop QA](DESKTOP_QA.md) and [development and packaging](DEVELOPMENT.md) for measured acceptance tasks.

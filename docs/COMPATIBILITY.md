@@ -15,7 +15,7 @@ HandoffGlass 提供本地 stdio MCP 服务。下表表示已实现的配置生�
 | WorkBuddy | `npm run connector:workbuddy`；本机 MCP + Skill | 有记录的本地包；已导入连接器需在宿主移除 |
 | DeepSeek Harness | `npm run harness:deepseek`；实验性 Cordis 插件 | 通过宿主移除 |
 
-[Agent 安装](INSTALL_AGENT.md)用于安装；[Codex 接手](CODEX_HANDOFF.md)用于继续开发。
+[Agent 安装](INSTALL_AGENT.md)用于安装；[本地开发](DEVELOPMENT.md)用于继续开发。
 
 ## 自动测试证明什么
 

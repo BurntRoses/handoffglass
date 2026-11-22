@@ -35,7 +35,7 @@ Codex では [ネイティブプラグイン](docs/CODEX_PLUGIN.md)を利用で�
 <details>
 <summary>ドキュメント</summary>
 
-[エージェント向けインストール手順](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [その他のホスト](docs/INTEGRATIONS.md) · [開発](docs/CODEX_HANDOFF.md) · [一覧](docs/INDEX.md)
+[エージェント向けインストール手順](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [その他のホスト](docs/INTEGRATIONS.md) · [開発](docs/DEVELOPMENT.md) · [一覧](docs/INDEX.md)
 
 ローカル macOS / Windows · MCP 対応エージェント · テストプレビュー
 

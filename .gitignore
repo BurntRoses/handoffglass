@@ -12,3 +12,4 @@ dist/
 build/icons/
 build/notices/
 native/macos/hg-locate
+native/macos/hg-capture

@@ -1,6 +1,6 @@
 /** Real paint + reversible disclosure + parked local execution; no model calls. */
 import assert from 'node:assert/strict';
-import {app,BrowserWindow,ipcMain} from 'electron';
+import {app,BrowserWindow,ipcMain,screen} from 'electron';
 import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
 import {mkdtempSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -11,15 +11,19 @@ import {LocalBridge} from '../src/bridge.mjs';
 import {savePreferences} from '../src/local/preferences.mjs';
 const profile=mkdtempSync(join(tmpdir(),'hg-ui-profile-'));app.setPath('userData',profile);
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
-async function until(fn,label){for(let i=0;i<100;i++){if(await fn())return;await pause(10);}throw Error(label);}
+async function until(fn,label,timeout=1600){
+  const deadline=Date.now()+timeout;
+  while(Date.now()<deadline){if(await fn())return;await pause(10);}
+  throw Error(label);
+}
 void app.whenReady().then(async()=>{
   const dir=await mkdtemp(join(tmpdir(),'hg-runtime-ui-')),output=resolve('.tmp/runtime-ui');
   process.env.HANDOFFGLASS_RUNTIME_DIR=dir;await savePreferences({theme:'light'},dir);
   const m=new HandoffManager(),b=new LocalBridge(m),errors=[];
   await b.start();process.env.HANDOFFGLASS_PORT=String(b.port);process.env.HANDOFFGLASS_SECRET=b.token;
   const owner='11111111-1111-4111-8111-111111111111';
-  const post=async(path,body)=>{
-    const r=await fetch(`http://127.0.0.1:${b.port}${path}`,{method:'POST',headers:{authorization:`Bearer ${b.agentToken}`,'x-handoffglass-owner':owner,'content-type':'application/json'},body:JSON.stringify(body)});
+  const post=async(path,body,identity=owner)=>{
+    const r=await fetch(`http://127.0.0.1:${b.port}${path}`,{method:'POST',headers:{authorization:`Bearer ${b.agentToken}`,'x-handoffglass-owner':identity,'content-type':'application/json'},body:JSON.stringify(body)});
     const value=await r.json();assert.equal(r.status,200,JSON.stringify(value));return value;
   };
   try{
@@ -32,17 +36,28 @@ void app.whenReady().then(async()=>{
     // A disposable app supplies its own captured-image metadata, never Codex's protected window.
     const d=b.displays.find(d=>d.primary)||b.displays[0];
     const fixture=new BrowserWindow({x:d.x+50,y:d.y+60,width:Math.min(600,d.width-100),height:Math.min(420,d.height-120),frame:false,show:false,webPreferences:{contextIsolation:true,nodeIntegration:false}});
-    await fixture.loadURL('data:text/html,'+encodeURIComponent('<style>body{margin:0;font:16px system-ui;background:#fafafa}aside{width:176px;height:100vh;background:#e8eee9;padding:20px;box-sizing:border-box}main{position:absolute;left:196px;top:20px}</style><aside id="sidebar">Test sidebar</aside><main>Host observation fixture</main>'));
+    await fixture.loadURL('data:text/html,'+encodeURIComponent('<style>body{margin:0;font:16px system-ui;background:#fafafa}aside{width:176px;height:100vh;background:#e8eee9;padding:20px;box-sizing:border-box}main{position:absolute;left:196px;top:20px}</style><aside id="sidebar"><button onclick="this.setAttribute(\'aria-pressed\',\'true\')" aria-pressed="false">Show settings</button></aside><main>Host observation fixture</main>'));
     fixture.showInactive();
-    const image=await fixture.webContents.capturePage(),pixels=image.getSize(),viewport=fixture.getContentBounds();
+    const capturedAt=Date.now(),image=await fixture.webContents.capturePage(),pixels=image.getSize(),viewport=fixture.getContentBounds();
+    const frame={capturedAt,layoutSignature:layoutSignature(b.displays),provenance:'host',width:pixels.width,height:pixels.height,bounds:viewport};
     const target=await fixture.webContents.executeJavaScript('(()=>{const r=document.querySelector("#sidebar").getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()');
     const pixelBounds={x:target.x*pixels.width/viewport.width,y:target.y*pixels.height/viewport.height,width:target.width*pixels.width/viewport.width,height:target.height*pixels.height/viewport.height};
+    const bitmap=image.toBitmap();
+    assert.equal(bitmap.length,pixels.width*pixels.height*4);
+    const colorAt=(x,y)=>{
+      const offset=(Math.floor(y)*pixels.width+Math.floor(x))*4;
+      return '#'+[bitmap[offset+2],bitmap[offset+1],bitmap[offset]].map(channel=>channel.toString(16).padStart(2,'0')).join('');
+    };
+    const backgroundColors=[colorAt(pixelBounds.width-3,80),colorAt(pixelBounds.width+7,80)];
     let nativeCalls=0;b.locator=b.inspector=b.permissions=async()=>{nativeCalls++;throw Object.assign(Error('Native access denied in fixture'),{code:'permission_denied'});};
     const hostStarted=performance.now();
-    const hostMark=await post('/agent/mark',{shape:'spotlight',effect:'still',bounds:pixelBounds,frame:{capturedAt:Date.now(),layoutSignature:layoutSignature(b.displays),provenance:'host',width:pixels.width,height:pixels.height,bounds:viewport},color:'#75b9ff'});
+    const hostMark=await post('/agent/mark',{shape:'spotlight',effect:'still',bounds:pixelBounds,frame:{...frame,backgroundColors}});
     const hostResponseMs=performance.now()-hostStarted;
     const hostOverlay=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/overlay.html')&&w.getBounds().x===d.x&&w.getBounds().y===d.y);
     await until(()=>hostOverlay.webContents.executeJavaScript('!!document.querySelector(".hg-mark[data-shape=spotlight]")'),'Host region did not render');
+    const stroke=await hostOverlay.webContents.executeJavaScript('document.querySelector(".hg-mark .hg-trace").getAttribute("stroke")');
+    assert.notEqual(stroke,'#52ca94','Real light-background samples did not change the default ink');
+    assert.equal(await hostOverlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark .hg-contrast-trace").length'),2);
     const rendered=await hostOverlay.webContents.executeJavaScript('(()=>{const r=document.querySelector(".hg-mark[data-shape=spotlight] rect.hg-trace");return Object.fromEntries(["x","y","width","height"].map(k=>[k,Number(r.getAttribute(k))]))})()');
     assert.ok(Math.abs(rendered.x-(viewport.x-d.x+target.x-7))<.01);
     assert.ok(Math.abs(rendered.y-(viewport.y-d.y+target.y-7))<.01);
@@ -53,8 +68,76 @@ void app.whenReady().then(async()=>{
     await mkdir(output,{recursive:true});
     await writeFile(join(output,'host-source.png'),image.toPNG());
     await writeFile(join(output,'host-region.png'),(await hostOverlay.webContents.capturePage()).toPNG());
-    await writeFile(join(output,'host-region.json'),JSON.stringify({hostResponseMs,hostDomMs,nativeCalls,pixels,viewport,target,rendered,maxErrorDIP:.01,modelCalls:0},null,2));
+    await writeFile(join(output,'host-region.json'),JSON.stringify({hostResponseMs,hostDomMs,nativeCalls,pixels,viewport,target,rendered,backgroundColors,stroke,maxErrorDIP:.01,modelCalls:0},null,2));
     await post('/agent/mark',{action:'clear',id:hostMark.id,expectedRevision:hostMark.revision});
+    const guided=await post('/agent/show',{
+      continuous:true,execution:'attached',title:'打开测试设置',message:'在测试窗口点击 Show settings。',
+      bounds:pixelBounds,frame:{...frame,directReadUnavailable:true}
+    });
+    const fixturePressed=()=>fixture.webContents.executeJavaScript('document.querySelector("button").getAttribute("aria-pressed")==="true"');
+    await until(()=>panel.webContents.executeJavaScript('document.querySelector("#title").textContent==="打开测试设置"'),'Grounded guide did not appear');
+    assert.equal(await panel.webContents.executeJavaScript('document.querySelector("#note:not([hidden])")?.textContent'),'当前界面无法直接读取，已根据截图标出位置。');
+    await writeFile(join(output,'screenshot-guidance.png'),(await panel.webContents.capturePage()).toPNG());
+    assert.equal(await fixturePressed(),false);
+    await fixture.webContents.executeJavaScript('document.querySelector("button").click()');
+    await panel.webContents.executeJavaScript('document.querySelector("#done").click()');
+    await until(()=>m.get(guided.session.id).status==='user_action_reported','User report did not reach Broker');
+    assert.equal(m.get(guided.session.id).verified,false);
+    const result=await fixturePressed()?'verified':'mismatch';
+    assert.equal(result,'verified','The original app did not change');
+    const summary='测试窗口的设置按钮已进入选中状态。';
+    const finalized=await post('/agent/verify',{sessionId:guided.session.id,result,finish:true,expectedStep:1,summary});
+    assert.equal(finalized.session.status,'completed');
+    const panelJS=code=>panel.webContents.executeJavaScript(code);
+    await until(()=>panelJS(`document.querySelector('#verificationReceipt').textContent===${JSON.stringify(summary)} && document.querySelector('#panel').dataset.receipt==='true'`),'Observed result was not shown');
+    await writeFile(join(output,'verified-outcome.png'),(await panel.webContents.capturePage()).toPNG());
+    await until(()=>!panel.isVisible(),'Verification receipt did not expire',8500);
+
+    await fixture.webContents.executeJavaScript(`(()=>{
+      const viewport=document.createElement('section');viewport.id='scroll-view';
+      Object.assign(viewport.style,{position:'absolute',left:'196px',top:'26px',width:'320px',height:'280px',overflow:'auto',background:'#e7edf7'});
+      const space=document.createElement('div');space.style.height='490px';
+      const button=document.createElement('button');button.id='export-options';button.textContent='Export options';
+      viewport.append(space,button);document.body.replaceChildren(viewport);
+    })()`);
+    const measure=()=>fixture.webContents.executeJavaScript(`Object.fromEntries(['scroll-view','export-options'].map(id=>{
+      const {x,y,width,height}=document.querySelector('#'+id).getBoundingClientRect();return [id,{x,y,width,height}];
+    }))`);
+    const screenRect=({x,y,width,height})=>({x:x+viewport.x,y:y+viewport.y,width,height});
+    const freshObservation=()=>({capturedAt:Date.now(),layoutSignature:layoutSignature(b.displays),provenance:'host'});
+    const beforeScroll=await measure();
+    const scrolling=await post('/agent/show',{continuous:true,execution:'parked',title:'导出文档',message:'找到导出选项后，在原窗口检查格式。',
+      observation:freshObservation(),scrollTarget:{viewport:screenRect(beforeScroll['scroll-view']),target:screenRect(beforeScroll['export-options']),label:'导出选项'}});
+    await until(()=>hostOverlay.webContents.executeJavaScript('!!document.querySelector("[data-scroll-direction=down]")'),'Scroll cue was not drawn at the viewport edge');
+    await until(()=>panelJS(`(()=>{
+      const note=document.querySelector('#note'),done=document.querySelector('#done');
+      return note.textContent.includes('向下滚动')&&note.getBoundingClientRect().height>0&&done.getBoundingClientRect().bottom<innerHeight;
+    })()`),'Scroll direction and action did not fit the step card');
+    await pause(240);
+    await writeFile(join(output,'scroll-hint.png'),(await panel.webContents.capturePage()).toPNG());
+    await fixture.webContents.executeJavaScript("document.querySelector('#scroll-view').scrollTop=490");
+    const afterScroll=await measure();
+    const revealed=await post('/agent/scene',{sessionId:scrolling.session.id,expectedRevision:scrolling.session.sceneRevision,
+      bounds:screenRect(afterScroll['export-options']),observation:freshObservation()});
+    assert.equal(revealed.session.step,scrolling.session.step);
+    assert.equal(revealed.session.timeoutAt,scrolling.session.timeoutAt);
+    assert.equal(revealed.session.annotations[0].autoShape,true);
+    await until(()=>hostOverlay.webContents.executeJavaScript('!!document.querySelector(".hg-mark") && !document.querySelector("[data-scroll-direction]")'),'Scroll cue did not become a grounded mark');
+    await until(()=>panelJS("!document.querySelector('#correctTarget').hidden"),'Target correction action missing');
+    await panelJS("document.querySelector('#correctTarget').click()");
+    await until(()=>panelJS("document.querySelector('#phase').textContent==='已报告位置错误'"),'Correction feedback absent');
+    assert.equal(m.get(scrolling.session.id).nextAction,'reobserve_target');
+    assert.equal(b.journal.read(scrolling.session.id).events.filter(event=>event.reason==='target_incorrect').length,1);
+    await until(()=>!hostOverlay.isVisible(),'Incorrect mark remained visible');
+    await fixture.webContents.executeJavaScript("document.querySelector('#export-options').style.marginLeft='90px'");
+    const newRegion=screenRect((await measure())['export-options']);
+    const corrected=await post('/agent/show',{sessionId:scrolling.session.id,continuous:true,title:'在原窗口检查导出选项',message:'检查导出的文件格式。',
+      bounds:newRegion,observation:freshObservation()});
+    assert.equal(corrected.session.step,scrolling.session.step);
+    assert.equal(corrected.session.timeoutAt,scrolling.session.timeoutAt);
+    assert.equal(corrected.session.annotations[0].x,revealed.session.annotations[0].x+90);
+    await until(()=>hostOverlay.isVisible(),'The newly observed target was not shown');
+    m.resolve(scrolling.session.id,'cancelled');
     fixture.destroy();
     const samples=[];
     for(let i=0;i<12;i++){
@@ -82,6 +165,36 @@ void app.whenReady().then(async()=>{
     assert.match(await overlay.webContents.executeJavaScript('getComputedStyle(document.querySelector(".hg-mark .hg-trace")).strokeDasharray'),/0.045/);
     await post('/agent/mark',{action:'clear',id:group.id,expectedRevision:changed.revision});
     await until(()=>overlay.webContents.executeJavaScript('document.querySelectorAll(".hg-mark").length===0'),'Drawing did not clear');
+    const pointer=screen.getCursorScreenPoint(),nativeDisplay=screen.getDisplayNearestPoint(pointer);
+    const pointerOverlay=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('/overlay.html')&&w.getBounds().x===nativeDisplay.bounds.x&&w.getBounds().y===nativeDisplay.bounds.y);
+    const pointerTarget={x:Math.max(nativeDisplay.bounds.x,Math.min(pointer.x-30,nativeDisplay.bounds.x+nativeDisplay.bounds.width-60)),
+      y:Math.max(nativeDisplay.bounds.y,Math.min(pointer.y-24,nativeDisplay.bounds.y+nativeDisplay.bounds.height-48)),width:60,height:48};
+    const accessible=await post('/agent/show',{continuous:true,execution:'parked',title:'查看标记区域',message:'将鼠标停在标记内。',
+      bounds:pointerTarget,shape:'spotlight',observation:freshObservation()});
+    const panelInput=(type,key)=>panelJS(`document.querySelector('#peek').dispatchEvent(new KeyboardEvent(${JSON.stringify(type)},{key:${JSON.stringify(key)},bubbles:true}))`);
+    await until(()=>pointerOverlay.webContents.executeJavaScript('!!document.querySelector("[data-shape=bracket]") && !document.querySelector(".hg-veil")'),'Pointer dwell did not yield the overlay');
+    assert.equal(m.get(accessible.session.id).status,'awaiting_user');
+    await until(()=>panelJS("!document.querySelector('#peek').hidden"),'Hold-to-peek action missing');
+    const eye=await panelJS(`(()=>{const r=document.querySelector('#peek').getBoundingClientRect();
+      return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+    panel.webContents.debugger.attach('1.3');
+    const mouse=type=>panel.webContents.debugger.sendCommand('Input.dispatchMouseEvent',{type,...eye,button:'left',clickCount:1});
+    await mouse('mousePressed');
+    await until(()=>!pointerOverlay.isVisible(),'Mouse hold did not hide the mark');
+    await mouse('mouseReleased');
+    await until(()=>pointerOverlay.isVisible(),'Mouse release did not restore the mark');
+    panel.webContents.debugger.detach();
+    await panelInput('keydown',' ');
+    await until(()=>!pointerOverlay.isVisible(),'Holding the control did not reveal the original screen');
+    await panelInput('keyup',' ');
+    await until(()=>pointerOverlay.isVisible(),'Releasing the control did not restore the mark');
+    assert.equal(await pointerOverlay.webContents.executeJavaScript('!!document.querySelector("[data-shape=bracket]")'),true);
+    await panelInput('keydown','Enter');
+    await until(()=>!pointerOverlay.isVisible(),'Enter did not engage original screen preview');
+    await panelJS("document.querySelector('#peek').dispatchEvent(new FocusEvent('blur'))");
+    await until(()=>pointerOverlay.isVisible(),'Focus loss left the overlay hidden');
+    assert.equal(b.journal.read(accessible.session.id).events.some(event=>event.type==='user_action'),false);
+    m.resolve(accessible.session.id,'cancelled');
     const s=m.show({continuous:true,execution:'parked',title:'打开设置',message:'在原窗口点击设置，完成后返回会话。',x:100,y:100},owner);
     const js=code=>panel.webContents.executeJavaScript(code);
     await until(()=>js(`document.querySelector('#title').textContent==='打开设置'`),'Parked panel absent');
@@ -131,14 +244,35 @@ void app.whenReady().then(async()=>{
     let hiddenResizes=0;const onResize=event=>{if(event.sender===panel.webContents)hiddenResizes++;};
     ipcMain.on('hg:panel-size',onResize);await pause(1100);ipcMain.off('hg:panel-size',onResize);
     assert.equal(hiddenResizes,0,'Hidden panel kept refreshing');
+    const recoverable=m.show({continuous:true,execution:'parked',title:'查找保存位置',message:'选择一个文件夹，然后点打开。',x:100,y:100,totalSteps:3},owner);
+    m.setAnchorState(recoverable.id,{status:'lost',annotations:[],reason:'stale_observation'});
+    await until(()=>js("!document.querySelector('#recoveryActions').hidden && document.querySelector('#note').textContent.includes('标记已过期')"),'Expired mark has no recovery instructions');
+    assert.equal(await js("document.querySelector('#done').hidden"),false,'An expired mark must still accept a completion report');
+    await writeFile(join(output,'target-expired.png'),(await panel.webContents.capturePage()).toPNG());
+    await js("document.querySelector('#fallback').click()");
+    await until(()=>js("document.querySelector('#phase').textContent==='已请求文字引导' && document.querySelector('#recoveryActions').hidden"),'Recovery request feedback absent');
+    assert.match(await js("document.querySelector('#note').textContent"),/回到原会话/);
+    await writeFile(join(output,'text-requested.png'),(await panel.webContents.capturePage()).toPNG());
+    const recovered=await post('/agent/show',{sessionId:recoverable.id,continuous:true,title:'选择文件夹',message:'在原窗口选择文件夹，然后点打开。'});
+    assert.equal(recovered.session.step,recoverable.step);
+    assert.equal(recovered.session.timeoutAt,recoverable.timeoutAt);
+    await until(()=>js("document.querySelector('#title').textContent==='选择文件夹' && !document.querySelector('#done').hidden"),'Updated text step missing');
+    m.resolve(recoverable.id,'completed');
+    m.verify(recoverable.id,owner,'mismatch');
+    await until(()=>js("document.querySelector('#phase').textContent==='结果与预期不符'"),'Verification mismatch not shown');
+    assert.equal(await js("document.querySelector('#message').hidden && document.querySelector('#done').hidden"),true,'Old instructions still active after mismatch');
+    await writeFile(join(output,'verification-mismatch.png'),(await panel.webContents.capturePage()).toPNG());
+    m.resolve(recoverable.id,'cancelled');
     const long=m.show({continuous:true,execution:'parked',locale:'en-US',theme:'light',title:'Choose the application settings for this workspace',message:'Review the controls in the original window. '.repeat(22)},owner);
     await until(()=>js("document.querySelector('#title').textContent.startsWith('Choose')"),'Long panel absent');
     assert.equal(await js("document.querySelector('#phase').scrollWidth<=document.querySelector('#phase').clientWidth"),true,'State label was clipped');
     await js("document.querySelector('#detailsLabel').click()");await pause(250);
     await js("document.querySelector('#detailText').scrollIntoView({block:'end'})");
     assert.equal(await js("document.documentElement.scrollWidth<=innerWidth"),true);
-    assert.equal(await js("document.querySelector('#cardBody').scrollHeight>document.querySelector('#cardBody').clientHeight"),true,'Long content has no scroll path');
-    assert.equal(await js("document.querySelector('#detailText').getBoundingClientRect().bottom<=innerHeight"),true,'Continuation instructions are clipped');
+    assert.equal(await js("document.querySelector('#stepBody').scrollHeight>document.querySelector('#stepBody').clientHeight"),true,'Long content has no scroll path');
+    assert.equal(await js("document.querySelector('#detailText').getBoundingClientRect().bottom<=document.querySelector('#stepBody').getBoundingClientRect().bottom+1"),true,'Continuation instructions are clipped');
+    await js("document.querySelector('#stepBody').scrollTop=0");
+    assert.equal(await js("document.querySelector('#done').getBoundingClientRect().bottom<=innerHeight"),true,'Completion requires scrolling through instructions');
     const actualResolve=m.resolve.bind(m);m.resolve=()=>({error:'simulated_failure'});
     await js("document.querySelector('#done').click()");
     await until(()=>js("document.querySelector('#status').dataset.error==='true'"),'Failed action has no feedback');
@@ -148,7 +282,7 @@ void app.whenReady().then(async()=>{
     m.resolve(long.id,'cancelled');
     const fresh=m.show({continuous:true,title:'新的步骤',message:'本步骤从顶部开始。'},owner);
     await until(()=>js("document.querySelector('#title').textContent==='新的步骤'"),'New step absent');
-    assert.equal(await js("document.querySelector('#cardBody').scrollTop"),0);
+    assert.equal(await js("document.querySelector('#stepBody').scrollTop"),0);
     await until(async()=>!await js("document.querySelector('#stepDetails').open"),'New step retained an open disclosure');
     m.resolve(fresh.id,'cancelled');
     const change={kind:'config',risk:'high',summary:'更新当前工作区的显示选项',before:{summary:'使用默认设置',hash:'a'.repeat(64)},after:{summary:'使用自定义设置',hash:'b'.repeat(64)}};
@@ -192,6 +326,9 @@ void app.whenReady().then(async()=>{
     await preferences({reviewEnabled:true});await until(()=>reviewWindow.isVisible(),'Review did not work with both other layers disabled');
     await reviewJS("document.querySelector('#decline').click()");await until(()=>b.presentation.owned(reviewed.review.id,owner).status==='declined','Human review refusal absent');
     assert.equal((await post('/agent/review',{changes:[change]})).review.status,'declined','Refusal asked again');
+    const nextReview=await post('/agent/review',{changes:[{...change,summary:'另一条配置改动'}]},'22222222-2222-4222-8222-222222222222');
+    assert.notEqual(nextReview.review.id,reviewed.review.id);
+    assert.equal((await post('/agent/review',{action:'status',id:reviewed.review.id})).review.status,'declined');
     m.resolve(independently.id,'cancelled');
     assert.deepEqual(errors,[]);
     const stats=key=>{const sorted=samples.slice(2).map(s=>s[key]).sort((a,b)=>a-b);return {p50Ms:+sorted[5].toFixed(1),p95Ms:+sorted[9].toFixed(1)};};

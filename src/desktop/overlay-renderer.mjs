@@ -1,4 +1,6 @@
 /** Shared, local SVG renderer. Geometry is grounded; all decorative motion stays local. */
+import {chooseAccent,contrastEdges} from '../visual/contrast.mjs';
+
 const NS = 'http://www.w3.org/2000/svg';
 const states = new WeakMap();
 let nextSurface = 0;
@@ -22,12 +24,27 @@ function inkLoop(x, y, rx, ry, second = false) {
   return `M ${p[0]} C ${p.slice(1,4).join(' ')} C ${p.slice(4,7).join(' ')} C ${p.slice(7,10).join(' ')} C ${p.slice(10).join(' ')}`;
 }
 function trace(group, tag, attrs, extra = '') {
+  const width=Number(attrs['stroke-width']);
+  if(width<=8 && (attrs.opacity??1)>.5 && extra!=='hg-marker-ink'){
+    for(const [edge,extraWidth] of [['outer',4],['inner',2.1]]){
+      group.append(node(tag,{...attrs,fill:'none',pathLength:1,
+        stroke:group.getAttribute(`data-${edge}-edge`),'stroke-width':width+extraWidth,
+        'stroke-opacity':1,class:`hg-contrast-edge hg-contrast-trace ${extra}`.trim(),'aria-hidden':'true'}));
+    }
+  }
   const mark = node(tag, { ...attrs, pathLength: 1, class: `hg-trace ${extra}`.trim() });
   group.append(mark);
   if (group.getAttribute?.('data-effect') === 'flow') {
     group.append(node(tag, { ...attrs, fill: 'none', pathLength: 1, class: 'hg-flow', 'stroke-width': 3.4 }));
   }
   return mark;
+}
+function point(group,x,y,r,accent,className){
+  for(const [edge,width] of [['outer',4],['inner',2.1]]){
+    group.append(node('circle',{cx:x,cy:y,r,fill:'none',stroke:group.getAttribute(`data-${edge}-edge`),
+      'stroke-width':width,class:'hg-contrast-edge','aria-hidden':'true'}));
+  }
+  group.append(node('circle',{cx:x,cy:y,r,fill:accent,class:className}));
 }
 function overlap(a, b) {
   return a.x < b.x + b.width + 8 && a.x + a.width + 8 > b.x && a.y < b.y + b.height + 6 && a.y + a.height + 6 > b.y;
@@ -49,6 +66,8 @@ function placeLabel(a, width, height, occupied) {
     { x: a.x + rw / 2 + 24, y: a.y - h / 2 },
     { x: a.x - rw / 2 - w - 24, y: a.y - h / 2 }
   ].map(b => ({ x: clamp(b.x, 12, width - w - 12), y: clamp(b.y, 12, height - h - 12), width: w, height: h }));
+  const innerSide={down:0,up:1,left:2,right:3}[a.scrollDirection];
+  if(innerSide!==undefined)choices.unshift(...choices.splice(innerSide,1));
   const score = b => occupied.reduce((n, other) => n + (overlap(b, other) ? 1 : 0), 0);
   const box = choices.reduce((best, b) => score(b) < score(best) ? b : best);
   occupied.push(box);
@@ -69,9 +88,12 @@ function buildMark(a, accent, visualStyle, viewport, box) {
   const { x, y } = a, rw = a.width ?? 112, rh = a.height ?? 56;
   const ink = visualStyle === 'handdrawn' || a.shape === 'scribble';
   const effect = a.effect ?? (['halo', 'ripple'].includes(a.shape) ? 'pulse' : a.shape === 'glow' ? 'fade' : 'draw');
+  const edges=contrastEdges(accent);
   const group = node('g', { opacity: clamp(a.opacity ?? 1, 0, 1), class: `hg-mark hg-mark-${a.shape}`,
     'data-exit': a.exit ?? (['ring','scribble','underline','strike','double_ring'].includes(a.shape) ? 'retract' : ['dot','ripple','check','cross','badge'].includes(a.shape) ? 'shrink' : 'fade'),
-    'data-shape': a.shape, 'data-layer': a.layerId ?? 'legacy', 'data-effect': effect });
+    'data-shape': a.shape, 'data-layer': a.layerId ?? 'legacy', 'data-effect': effect,
+    'data-inner-edge':edges.inner,'data-outer-edge':edges.outer,
+    ...(a.scrollDirection?{'data-scroll-direction':a.scrollDirection}:{}) });
   styles(group, {'transform-origin': `${x}px ${y}px`, '--hg-accent': accent});
   const stroke = { stroke: accent, fill: 'none', 'stroke-width': a.strokeWidth ?? (ink ? 2.3 : 1.8),
     'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
@@ -99,7 +121,7 @@ function buildMark(a, accent, visualStyle, viewport, box) {
     trace(group,'rect',{...rect,...stroke,'stroke-opacity':.65,'stroke-width':1});
   } else if (a.shape === 'dot' || a.shape === 'ripple') {
     group.append(node('circle',{cx:x,cy:y,r:13,fill:accent,'fill-opacity':.12,class:'hg-dot-well'}));
-    group.append(node('circle',{cx:x,cy:y,r:5,fill:accent,stroke:'#10251f','stroke-width':1.5}));
+    point(group,x,y,5,accent,'hg-target-dot');
     if (a.shape === 'ripple') for (let i=0;i<2;i++) {
       const wave=node('circle',{cx:x,cy:y,r:13+i*9,...stroke,'stroke-width':1.3,opacity:.4-i*.15,class:'hg-wave'});
       styles(wave,{'--hg-wave-offset':`${i*700}ms`});group.append(wave);
@@ -114,14 +136,14 @@ function buildMark(a, accent, visualStyle, viewport, box) {
   } else if (a.shape === 'arrow') {
     const vectors={left:[1,0],right:[-1,0],up:[0,1],down:[0,-1]};
     const [side,vertical]=vectors[a.direction]??[x > viewport.width - 210 ? -1 : 1,y < 155 ? 1 : -1];
-    const sx = clamp(x + side * (rw / 2 + 82), 24, viewport.width - 24);
-    const sy = clamp(y + vertical * (rh / 2 + 66), 24, viewport.height - 24);
+    const sx = clamp(x + side * (a.scrollDirection?25:rw / 2 + 82), 12, viewport.width - 12);
+    const sy = clamp(y + vertical * (a.scrollDirection?25:rh / 2 + 66), 12, viewport.height - 12);
     const ex = x, ey = y;
     const cx = sx + (ex - sx) * .1, cy = ey + vertical * 18;
     trace(group, 'path', { d: `M ${sx} ${sy} Q ${cx} ${cy} ${ex} ${ey}`, ...stroke, 'stroke-width': a.strokeWidth ?? (ink ? 3 : 2.4) });
     const angle = Math.atan2(ey - cy, ex - cx), size = 10;
     trace(group, 'path', { d: `M ${f(ex - Math.cos(angle - .55) * size)} ${f(ey - Math.sin(angle - .55) * size)} L ${ex} ${ey} L ${f(ex - Math.cos(angle + .55) * size)} ${f(ey - Math.sin(angle + .55) * size)}`, ...stroke }, 'hg-arrow-head');
-    group.append(node('circle', { cx: x, cy: y, r: 3, fill: accent, class: 'hg-target-dot' }));
+    point(group,x,y,3,accent,'hg-target-dot');
   } else if (a.shape === 'underline') {
     const yy = y + rh / 2 + 8;
     trace(group, 'path', { d: `M ${x - rw / 2} ${yy + 1} Q ${x - rw / 8} ${yy + (ink ? -4 : -1)} ${x + rw / 2} ${yy - 1}`, ...stroke, 'stroke-width': ink ? 3.6 : 2.8 });
@@ -149,31 +171,18 @@ function buildMark(a, accent, visualStyle, viewport, box) {
     const r = Math.max(18, Math.min(rw, rh) / 2 + 4);
     group.append(node('circle', { cx: x, cy: y, r, ...stroke, class: 'hg-beacon', opacity: .5 }));
     group.append(node('circle', { cx: x, cy: y, r: r + 10, ...stroke, class: 'hg-beacon hg-beacon-outer', opacity: .2 }));
-    group.append(node('circle', { cx: x, cy: y, r: 4, fill: accent }));
+    point(group,x,y,4,accent,'hg-target-dot');
   } else if (a.shape === 'cursor') {
     trace(group, 'path', { d: `M ${x} ${y} L ${x + 4} ${y + 29} L ${x + 11} ${y + 21} L ${x + 17} ${y + 33} L ${x + 23} ${y + 30} L ${x + 17} ${y + 18} L ${x + 28} ${y + 17} Z`, ...stroke,
       fill: '#11231e', 'fill-opacity': .95, 'stroke-width': 1.8 });
     group.append(node('circle', { cx: x, cy: y, r: 8, ...stroke, 'stroke-width': 1, opacity: .5, class: 'hg-aura' }));
   } else if (a.shape === 'badge') {
     const {x:bx, y:by} = badgePosition(a, viewport);
-    group.append(node('circle', { cx: bx, cy: by, r: 13, fill: '#14251f', stroke: accent, 'stroke-width': 1.4 }));
+    point(group,bx,by,13,edges.inner,'hg-dot-well');
     const t = node('text', { x: bx, y: by + 5, 'font-size': 14, 'font-weight': 650, 'font-family': 'system-ui,sans-serif', 'text-anchor': 'middle', fill: accent });
     t.textContent = [...String(a.label || '•')].slice(0, 3).join(''); group.append(t);
   }
-  if (visualStyle === 'luminous') {
-    const underlay=node('g',{class:'hg-contrast-edge','aria-hidden':'true'});
-    for(const path of group.querySelectorAll('.hg-trace')) {
-      if (path.getAttribute('class')?.includes('hg-marker-ink') || Number(path.getAttribute('stroke-width'))>8) continue;
-      const copy=node(path.tagName ?? path.tag);
-      for(const key of ['d','x','y','width','height','rx','ry','cx','cy','r','x1','y1','x2','y2','pathLength']) {
-        const value=path.getAttribute(key);if(value!==null)copy.setAttribute(key,value);
-      }
-      for(const [key,value] of Object.entries({class:path.getAttribute('class'),fill:'none',stroke:'#07131c','stroke-opacity':.45,'stroke-width':Number(path.getAttribute('stroke-width')||1.8)+2,'stroke-linecap':'round','stroke-linejoin':'round'}))copy.setAttribute(key,value);
-      underlay.append(copy);
-    }
-    group.insertBefore(underlay,group.children[0]||null);
-  }
-  if(a.lineStyle==='dashed')for(const path of group.querySelectorAll('.hg-trace')){
+  if(a.lineStyle==='dashed')for(const path of [...group.querySelectorAll('.hg-trace'),...group.querySelectorAll('.hg-contrast-trace')]){
     // The dash pattern is geometric; entrance uses opacity so it cannot overwrite the pattern.
     styles(path,{'stroke-dasharray':'.045 .035'});
     group.setAttribute('data-effect',effect==='still'?'still':'fade');
@@ -203,7 +212,7 @@ function retireSurface(svg, state, onEmpty) {
     styles(group,{'--hg-exit-opacity':opacity});
     styles(group,{'--hg-exit-transform':globalThis.getComputedStyle?.(group)?.transform ?? 'scale(1)'});
     for (const text of group.querySelectorAll('.hg-label')) styles(text,{'--hg-exit-label-opacity':globalThis.getComputedStyle?.(text)?.opacity ?? 1});
-    for (const path of group.querySelectorAll('.hg-trace')) styles(path,{'--hg-exit-dash':globalThis.getComputedStyle?.(path)?.strokeDashoffset ?? 0});
+    for (const path of [...group.querySelectorAll('.hg-trace'),...group.querySelectorAll('.hg-contrast-trace')]) styles(path,{'--hg-exit-dash':globalThis.getComputedStyle?.(path)?.strokeDashoffset ?? 0});
     group.setAttribute('class',`${group.getAttribute('class')} hg-exiting`);
   }
   if(state.veil) {styles(state.veil,{'--hg-veil-opacity':globalThis.getComputedStyle?.(state.veil)?.opacity ?? 1});state.veil.setAttribute('class','hg-veil hg-veil-exit');}
@@ -258,7 +267,7 @@ export function renderOverlay(svg, input, viewport = {}) {
   for (const [i, a] of marks.entries()) {
     const key = `${a.layerId ?? 'legacy'}:${a.id ?? i}:${a.shape}`;
     const box = placeLabel(a, width, height, occupied);
-    const accent = /^#[a-f0-9]{6}$/i.test(a.color) ? a.color : '#79efbd';
+    const accent = a.color==='auto'?chooseAccent('#52ca94',a.backgroundColors):/^#[a-f0-9]{6}$/i.test(a.color)?a.color:'#79efbd';
     const fingerprint = JSON.stringify([a, box, visualStyle, width, height]);
     const old = state.marks.get(key);
     const start = old?.start ?? now;

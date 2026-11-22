@@ -14,13 +14,17 @@ import {fileURLToPath} from 'node:url';
 import {realpathSync} from 'node:fs';
 import {resolve} from 'node:path';
 import { capabilityInstructions } from './capabilities.mjs';
+import {APP_BUNDLE_ID} from './local/screenshot-share.mjs';
 import {INTEGRATION_HOSTS} from './integration-lifecycle.mjs';
 
+const hexColor=z.string().regex(/^#[a-fA-F0-9]{6}$/);
+const markColor=z.union([hexColor,z.literal('auto')]).optional();
+const markShape=z.enum([...SHAPES,'auto']);
 const annotation = z.object({
   x: z.number().finite().min(-100000).max(100000),
   y: z.number().finite().min(-100000).max(100000),
-  shape: z.enum(SHAPES).optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  shape: markShape.optional(),
+  color: markColor,
   label: z.string().max(64).optional(),
   direction:z.enum(DIRECTIONS).optional(),
   strokeWidth:z.number().min(1).max(8).optional(),
@@ -53,11 +57,13 @@ const sceneOp = z.discriminatedUnion('op', [
 ]);
 const uiTarget = z.object({ app: z.string().trim().min(1).max(128), role: z.string().trim().min(1).max(80), name: z.string().trim().min(1).max(256) });
 const bounds=z.object({x:z.number().finite().min(-100000).max(100000),y:z.number().finite().min(-100000).max(100000),width:z.number().positive().max(100000),height:z.number().positive().max(100000)});
-const observation=z.object({capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user'])});
-const frame=z.object({width:z.number().positive().max(100000),height:z.number().positive().max(100000),bounds,
-  capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user'])});
-const observedUpdate=z.object({sessionId:z.string().uuid(),expectedRevision:z.number().int().positive(),bounds,frame:frame.optional(),observation:observation.optional(),
-  shape:z.enum(SHAPES).optional(),label:z.string().max(64).optional(),color:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional()});
+const observation=z.object({capturedAt:z.number().finite(),layoutSignature:z.string().regex(/^[a-f0-9]{16}$/),provenance:z.enum(['host','native','user']),
+  backgroundColors:z.array(hexColor).min(1).max(8).optional().describe('Sample around the mark in this observation. Omit when pixel or DOM colors are unavailable.')});
+const frame=observation.extend({width:z.number().positive().max(100000),height:z.number().positive().max(100000),bounds,
+  directReadUnavailable:z.boolean().optional().describe('For an authorized or user-shared screenshot already available to the agent. Set true when direct UI observation is unavailable to show a screenshot fallback notice.')});
+const scrollTarget=z.object({viewport:bounds,target:bounds,label:z.string().trim().max(45).optional()});
+const observedUpdate=z.object({sessionId:z.string().uuid(),expectedRevision:z.number().int().positive(),bounds:bounds.optional(),scrollTarget:scrollTarget.optional(),frame:frame.optional(),observation:observation.optional(),
+  shape:markShape.optional(),label:z.string().max(64).optional(),color:markColor});
 const presentation = z.object({
   sessionId: z.string().uuid().optional(),
   mode: z.enum(['guide', 'handoff']).optional(),
@@ -72,13 +78,13 @@ const presentation = z.object({
   totalSteps:z.number().int().min(1).max(999).optional(),
   taskTimeoutSeconds:z.number().int().min(60).max(86400).optional(),
   followTarget: z.boolean().optional(),
-  bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),label:z.string().max(64).optional(),
+  bounds:bounds.optional(),scrollTarget:scrollTarget.optional(),frame:frame.optional(),observation:observation.optional(),label:z.string().max(64).optional(),
   title: z.string().trim().min(1).max(100),
   message: z.string().trim().min(1).max(1000),
   x: z.number().finite().min(-100000).max(100000).optional(),
   y: z.number().finite().min(-100000).max(100000).optional(),
-  shape: z.enum(SHAPES).optional(),
-  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  shape: markShape.optional(),
+  color: markColor,
   effect: z.enum(EFFECTS).optional(),
   maskStyle: z.enum(MASK_STYLES).optional(),
   exit: z.enum(EXIT_STYLES).optional(),
@@ -96,9 +102,10 @@ const compact = process.env.HANDOFFGLASS_OUTPUT === 'compact';
 // Kept short because hosts use server instructions while choosing tools.
 export const SERVER_INSTRUCTIONS = capabilityInstructions();
 const json = object => {const value=formatToolResult(object,{compact});return {content:[{type:'text',text:JSON.stringify(value)}],structuredContent:value};};
+const toolError=error=>({isError:true,...json({error:error.message,code:error.code||'broker_error',...(error.nextAction?{nextAction:error.nextAction}:{})})});
 const safe = fn => async args => {
   try { return json(await fn(args)); }
-  catch (error) { return { isError: true, ...json({ error: error.message, code: error.code || 'broker_error', ...(error.nextAction?{nextAction:error.nextAction}:{}) }) }; }
+  catch (error) { return toolError(error); }
 };
 export function makeServer({broker=new BrokerClient(),env=process.env,server,exitOnUninstall=false}={}) {
   server ??= new McpServer({ name: 'handoffglass', version: '0.23.0' }, { instructions: SERVER_INSTRUCTIONS });
@@ -154,20 +161,33 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
     description: 'Return connected screen bounds in device-independent pixels (DIP). No screenshots or UI element location.',
     inputSchema: z.object({}), annotations: { readOnlyHint: true }
   }, safe(() => broker.displays()));
+  register('screen_capture', {
+    title:'Request one app screenshot',
+    description:'On macOS, ask the user to share one screenshot of a named app. Capture contains only its windows on one display, and returns an image and exact frame. Use when the user wants screenshot-based guidance and capture is allowed for that app. Never use it after an explicit host protection or denial. Do not guess the app identifier or retry a declined request.',
+    inputSchema:z.object({appBundleId:z.string().max(160).regex(APP_BUNDLE_ID),displayId:z.string().max(64).optional()}),
+    annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:true}
+  },async(args,ctx)=>{
+    try{
+      const {data,...metadata}=await (ctx?.signal&&broker.withSignal?broker.withSignal(ctx.signal):broker).capture(args);
+      const result=json(metadata);
+      result.content.unshift({type:'image',mimeType:'image/jpeg',data});
+      return result;
+    }catch(error){return toolError(error);}
+  });
   register('screen_mark', {
     title:'Draw, revise or clear screen marks',
     description:'Draw host-observed bounds once; no native lookup, preflight or wait. bounds={x,y,width,height} is top-left global DIP; with frame it is pixels in that exact image, mapped to frame.bounds global DIP (one display). Reuse authorized host observations; never bypass capture restrictions or guess controls. Decorative marks use placement. Update/clear own id+expectedRevision; fixed marks expire.',
     inputSchema:z.object({
       visualStyle:z.enum(VISUAL_STYLES).optional(),motion:z.enum(MOTION_MODES).optional(),
       action:z.enum(['draw','update','clear']).optional(),id:z.string().uuid().optional(),expectedRevision:z.number().int().positive().optional(),
-      shape:z.enum(SHAPES).optional(),placement:z.enum(PLACEMENTS).optional(),direction:z.enum(DIRECTIONS).optional(),
+      shape:markShape.optional(),placement:z.enum(PLACEMENTS).optional(),direction:z.enum(DIRECTIONS).optional(),
       bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),
       size:z.number().min(24).max(800).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
-      color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),label:z.string().max(64).optional(),strokeWidth:z.number().min(1).max(8).optional(),lineStyle:z.enum(['solid','dashed']).optional(),
+      color:markColor,label:z.string().max(64).optional(),strokeWidth:z.number().min(1).max(8).optional(),lineStyle:z.enum(['solid','dashed']).optional(),
       effect:z.enum(EFFECTS).optional(),exit:z.enum(EXIT_STYLES).optional(),maskStyle:z.enum(MASK_STYLES).optional(),sequence:z.boolean().optional(),
-      marks:z.array(z.object({id:z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),shape:z.enum(SHAPES),placement:z.enum(PLACEMENTS).optional(),
+      marks:z.array(z.object({id:z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,47}$/).optional(),shape:markShape,placement:z.enum(PLACEMENTS).optional(),
         bounds:bounds.optional(),frame:frame.optional(),observation:observation.optional(),position:z.object({x:z.number().finite(),y:z.number().finite()}).optional(),width:z.number().min(24).max(1200).optional(),height:z.number().min(24).max(1200).optional(),
-        label:z.string().max(64).optional(),color:z.string().regex(/^#[a-fA-F0-9]{6}$/).optional(),direction:z.enum(DIRECTIONS).optional()})).min(1).max(8).optional(),
+        label:z.string().max(64).optional(),color:markColor,direction:z.enum(DIRECTIONS).optional()})).min(1).max(8).optional(),
       displayId:z.string().max(80).optional(),durationSeconds:z.number().int().min(10).max(120).optional(),
       requestId:z.string().regex(/^[A-Za-z0-9_.:-]{8,96}$/).optional()
     }),
@@ -181,13 +201,13 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   }, safe(async() => {const result=await broker.capabilities();return {...result,profile,manifest:{...result.manifest,capabilities:result.manifest.capabilities.filter(c=>!host||!['observe','locate'].includes(c.id))}};}));
   register('session_start', {
     title: 'Start a continuous guided session',
-    description: 'Present one action at host-observed bounds (same coordinates as screen_mark); omit bounds for text guidance. The host-bounds path needs no native permission. Default parked returns chat to idle while local guidance stays; attached waits for events. Simple annotations use screen_mark.',
+    description: 'Present at observed bounds, optionally mapped from an authorized or user-shared screenshot using frame. Use scrollTarget for a known target outside the viewport. Omit both for text guidance. Default parked keeps the card on the desktop; attached waits for events. Simple annotations use screen_mark.',
     inputSchema: stepPresentation.omit({sessionId:true}),
     annotations: { readOnlyHint: false }
   }, safe(({ mode = 'handoff', execution='parked', ...args }) => broker.present(mode, {...args,execution,continuous:true})));
   register('session_present', {
     title: 'Present the next guided step',
-    description: 'Advance the same sessionId after independent host verification. New step, new requestId. Reuse bounds/frame mapping; renderer owns geometry and animation.',
+    description: 'Advance the same sessionId after verification, or restore a blocked step with fresh bounds/frame or text. Use a new requestId. Restoring keeps the step number and deadlines.',
     inputSchema: stepPresentation.extend({sessionId:z.string().uuid()}),
     annotations: { readOnlyHint: false }
   }, safe(({ mode = 'handoff', ...args }) => broker.present(mode, {...args,continuous:true})));
@@ -216,8 +236,8 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   }, safe(args => broker.present('handoff', args)));
   register('visual_scene_update', {
     title: 'Update a live layered scene',
-    description: 'Replace a live target using freshly host-observed bounds/frame and expectedRevision; no native lookup. Does not reset timeout or verify a user action. Full profile also accepts scene operations.',
-    inputSchema: host?observedUpdate:observedUpdate.partial({bounds:true}).extend({operations:z.array(sceneOp).min(1).max(16).optional()}), annotations: { readOnlyHint:false }
+    description: 'Replace a live target with freshly observed bounds or scrollTarget and expectedRevision. Update a scroll cue with bounds when the target enters view. Does not reset timeout or verify a user action. Full profile also accepts scene operations.',
+    inputSchema: host?observedUpdate:observedUpdate.extend({operations:z.array(sceneOp).min(1).max(16).optional()}), annotations: { readOnlyHint:false }
   }, safe(args => broker.updateScene(args.sessionId,args.expectedRevision,args.operations,args)));
   register('handoff_status', {
     title: 'Read owned handoff state',
@@ -246,16 +266,16 @@ export function makeServer({broker=new BrokerClient(),env=process.env,server,exi
   const digestSummary=z.object({summary:z.string().max(240),hash:z.string().regex(/^[a-f0-9]{64}$/)}).strict();
   register('review_changes',{
     title:'Present a read-only change review',
-    description:'Show file/config/setting/permission/external changes as summaries and SHA256 only; never send file contents or credentials. Wait for human review, then independently check before continuing. Decline/timeout means stop. Replay is read-only; no operation is executed.',
+    description:'Show file/config/setting/permission/external changes as summaries and SHA256 only. Wait for human review, then independently check before continuing. Decline/timeout means stop. Keep the review ID to read its result while the Broker is running.',
     inputSchema:z.object({action:z.enum(['present','status','wait']).default('present'),id:z.string().uuid().optional(),retryDeclined:z.boolean().optional().describe('Only true after the user explicitly asks to review the declined changes again.'),timeoutMs:z.number().int().min(0).max(30000).optional(),timeoutSeconds:z.number().int().min(10).max(600).optional(),changes:z.array(z.object({kind:z.enum(['file','config','setting','permission','external']),risk:z.enum(['low','medium','high','irreversible']),summary:z.string().max(240),before:digestSummary,after:digestSummary}).strict()).min(1).max(24).optional()}),
     annotations:{readOnlyHint:false}
   },safe(args=>broker.review(args)));
   register('session_verify', {
     title: 'Record independent verification',
-    description: 'Record the Agent’s independent check after a user report or observed-condition step. result:verified + finish:true ends the workflow; inconclusive keeps a coordinate-free pending check; otherwise retain ownership and present the next step with the same sessionId. A user report alone is insufficient.',
-    inputSchema: z.object({ sessionId: z.string().uuid(), result:z.enum(['verified','mismatch','inconclusive']).optional(), verified: z.boolean().optional(), finish:z.boolean().default(false),expectedStep:z.number().int().min(1).optional() }),
+    description: 'Record an independent check of the original app. For verified, include an optional short summary of the observed outcome for the desktop. finish:true ends a verified workflow. Inconclusive keeps verification pending.',
+    inputSchema: z.object({ sessionId: z.string().uuid(), result:z.enum(['verified','mismatch','inconclusive']).optional(), verified: z.boolean().optional(), finish:z.boolean().default(false),expectedStep:z.number().int().min(1).optional(),summary:z.string().trim().min(1).max(140).optional() }),
     annotations: { readOnlyHint: false }
-  }, safe(({ sessionId, result,verified, finish,expectedStep }) => {if(result===undefined&&verified===undefined)throw Error('Provide result: verified, mismatch or inconclusive');if(result!==undefined&&verified!==undefined)throw Error('Choose result or legacy verified');return broker.verify(sessionId,result??verified,finish,expectedStep);}));
+  }, safe(({ sessionId, result,verified, finish,expectedStep,summary }) => {if(result===undefined&&verified===undefined)throw Error('Provide result: verified, mismatch or inconclusive');if(result!==undefined&&verified!==undefined)throw Error('Choose result or legacy verified');return broker.verify(sessionId,result??verified,finish,expectedStep,summary);}));
   register('session_resume', {
     title:'Recover an interrupted session',description:'Reclaim with the saved sessionId and resumeToken after MCP or Broker restart. Rotates the token and clears marks; preserves pending verification and pause. Observe the app before continuing; never replay a user action.',
     inputSchema:z.object({sessionId:z.string().uuid(),resumeToken:z.string().regex(/^[0-9a-f]{64}$/)}),annotations:{readOnlyHint:false}

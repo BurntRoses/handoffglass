@@ -119,7 +119,7 @@ try{
         timer=setTimeout(()=>reject(new Error('App-linked MCP connection timeout: '+item.host)),15000);
       })]);
       const copiedTools=await copiedClient.listTools();
-      assert.equal(copiedTools.tools.length,19,item.host+' must expose the host tool profile');
+      assert.equal(copiedTools.tools.length,20,item.host+' must expose the host tool profile');
       for(const name of ['screen_mark','session_start','session_wait','connection_status'])
         assert.ok(copiedTools.tools.some(tool=>tool.name===name),item.host+' missing '+name);
     }finally{clearTimeout(timer);await copiedClient.close().catch(()=>{});}

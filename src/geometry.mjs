@@ -16,7 +16,7 @@ export function intersectsDisplay(display, annotation) {
     annotation.y + rh >= display.y && annotation.y - rh < display.y + display.height;
 }
 export function localAnnotations(display, annotations) {
-  return annotations.filter(a => intersectsDisplay(display, a)).map(a => ({
+  return annotations.filter(a => a.scrollDirection ? contains(display,a) : intersectsDisplay(display, a)).map(a => ({
     ...a, x: a.x - display.x, y: a.y - display.y
   }));
 }

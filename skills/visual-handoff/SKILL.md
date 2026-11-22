@@ -5,7 +5,7 @@ description: Draw or revise desktop annotations from host-observed regions, or g
 
 # HandoffGlass
 
-The host observes and verifies. HandoffGlass maps coordinates, draws, animates and records local user events. Reuse the host's existing authorized screenshot, DOM or UI evidence; do not add native inspection, capability queries or permission checks before drawing. HandoffGlass does not capture the screen or operate the original app.
+The host normally observes and verifies. HandoffGlass maps coordinates, draws, animates and records local user events. Reuse existing authorized screenshots, DOM or UI evidence without extra probes. On macOS, `screen_capture` can request one user-approved screenshot of an app whose capture is allowed. HandoffGlass renders guidance over the original app.
 
 ## Choose the shortest route
 
@@ -13,6 +13,7 @@ The host observes and verifies. HandoffGlass maps coordinates, draws, animates a
 | --- | --- |
 | “画个圈”“屏幕左侧画椭圆” | `screen_mark` once with shape/placement/label; no inspection or wait |
 | Highlight an actual app region | Existing host observation → `screen_mark` with `bounds`; read the app once only if evidence is missing |
+| User asks to share an app screenshot for guidance | When capture is allowed and you know the app's bundle ID, `screen_capture` once → measure in returned image → `screen_mark` or `session_start` with returned frame |
 | Revise / clear | `screen_mark(action:"update"|"clear",id,expectedRevision)`; save returned revision |
 | Teach or hand over one action | Host observe → `session_start` with bounds and one short instruction |
 | Continue a parked task | `session_control(action:"attach")` → host observe → `session_verify` → `session_present` |
@@ -24,7 +25,15 @@ The host observes and verifies. HandoffGlass maps coordinates, draws, animates a
 
 For an application target, use measured bounds; named placement describes a decorative screen region, not an identified control. Each application target requires `capturedAt` (actual observation time, epoch ms), `layoutSignature` (current 16hex display signature), and `provenance:host|native|user` in `observation`, or inside `frame`. Reuse host metadata; if only the layout signature is missing, read `screen_displays` once and cache it until displays change. Never fabricate evidence or reset its timestamp. Older than 30 seconds is rejected and displayed fixed geometry clears at expiry. Without evidence use a coordinate-free step. With no `frame`, `bounds:{x,y,width,height}` is a top-left rectangle in **global DIP**. With `frame`, bounds are pixels in that exact image; frame contains its pixel `width,height` and corresponding **global DIP** `bounds`. The renderer converts crop, resize and scale locally. Use one frame per display; never assume a screenshot pixel equals a DIP. If the host does not supply a reliable mapping, use text guidance or user-supplied evidence. Do not ask the user for tool names or coordinates.
 
+Leave color automatic. If the same observation provides actual pixel or DOM colors, include up to eight samples from around the mark in `frame.backgroundColors` or `observation.backgroundColors`. With no samples, the renderer uses contrasting outlines.
+
+Leave shape automatic for ordinary grounded targets. If fresh host evidence places a target beyond the edge of a visible scroll viewport, send `scrollTarget:{viewport,target,label}` with the same observation. Replace the cue with fresh `bounds` via `session_update` when the target becomes visible.
+
 Host observations may be unavailable or protected (including Codex's own window in Computer Use). Stop that observation route; never bypass restrictions through another capture API, shell or native locator. Explain the specific limitation. Missing HandoffGlass Accessibility access does not block drawing an already authorized host observation. Native `ui_inspect`/`ui_locate` are optional in the **full** tool profile, for explicitly available native observation/following; they are not a compulsory fallback.
+
+If the host already supplied an authorized screenshot or the user shared one, locate the target in that image. For a guided step with a reliable mapping, pass the measured bounds and exact frame. Set `frame.directReadUnavailable:true` when direct observation is unavailable, so the desktop card explains how the mark was placed. For a simple mark, explain the screenshot source in the chat. Without a reliable mapping, point out the target in the shared image or use text guidance. A pre-action image cannot verify the result.
+
+Use `screen_capture` only for a requested, permitted share. It waits for one desktop confirmation and returns both image and frame to this call. Stop on a decline or a host protection/denial. With a blocked system permission, explain the requirement before another request. Reuse the frame timestamp and pixel dimensions exactly.
 
 ## Drawing
 
@@ -44,6 +53,8 @@ Save session ID, recovery token and cursor privately in task context. After proc
 - Refusal, cancellation, `disabled_by_user`, `continuous_disabled` or `busy`: stop. Enable only when asked.
 - `declined_by_user`: stop; a new request ID or visual style does not reopen the rejected step. Use `retryDeclined:true` in a new presentation only after the user explicitly asks to try that step or review again. Never set it for an automatic retry.
 - `observation_required`, `stale_observation`, `layout_changed`, `outside_frame`, `ambiguous_frame` or `outside_display`: obtain fresh host evidence and its mapping; never guess scale or silently clamp a target.
+- On a blocked step, use `session_present` with the same session ID and a new request ID. Supply fresh evidence or a text-only handoff. Keep `sensitive:true` for a pending sensitive confirmation.
+- On `target_incorrect`, observe the original app again and restore the same step. For a verified result, include a short `summary` of what was observed in the original app, in the user's language.
 - Native `permission_denied`/`consent_required`: explain optional native access once; keep host drawing available. Do not change permission yourself.
 - `verification_due`/`step_not_verified`: check the original app. `revision_conflict`/`stale_step`: use the returned revision or current snapshot; do not blindly repeat edits.
 - Invalid recovery token: do not claim ownership. `truncated:true`: continue from the current snapshot and next cursor.

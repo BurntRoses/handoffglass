@@ -21,7 +21,7 @@ HandoffGlass never clicks, types credentials, extracts OTPs, bypasses CAPTCHA, a
 - A malicious or mistaken Agent can draw deceptive arrows. Users should examine native warnings and permission scopes. Future builds need robust grounding and trust labeling, not automatic consent.
 - The broker retains no data across shutdown but can stay running after Agent disconnection; an orphaned handoff expires only by its configured TTL or a human response. An abandoned client cannot be forcibly cancelled by a different client through the normal API.
 - Electron desktop overlays may not appear over privileged Windows UAC security desktops, managed Wayland sessions or protected macOS UI surfaces.
-- There is no screenshot, password, token, or user data collection by design, but tool arguments (including typed descriptions) pass through the connecting Agent host, whose own logging/privacy policy is independent of HandoffGlass.
+- On macOS 14 or later, the screenshot tool requires OS screen-recording permission and desktop confirmation for each request. The image contains only the chosen application on one display and returns to the requesting Agent. HandoffGlass does not save an image file. The connected host applies its own data handling to tool results and arguments.
 - There is no code signing, automatic updater, binary sandbox isolation or production software supply-chain guarantee.
 
 ## Reporting
