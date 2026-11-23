@@ -4,9 +4,9 @@
 
 # HandoffGlass
 
-**次の一手を、画面に。**
+**エージェント向けのデスクトップ注釈と操作ガイド**
 
-人の操作が必要なとき、エージェントが画面上で場所を示し、完了を待って作業を続けます。
+HandoffGlass は、デスクトップ上で操作対象を示し、ユーザーによる操作が必要な手順を表示します。操作の完了後、エージェントは結果を確認してタスクを続行できます。
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [**日本語**](README.ja.md)
 
@@ -32,9 +32,11 @@ https://github.com/BurntRoses/handoffglass/blob/main/docs/INSTALL_AGENT.md に�
 
 Codex では [ネイティブプラグイン](docs/CODEX_PLUGIN.md)を利用できます。MCP・Skill・必要時に起動するローカル描画プロセスを同梱し、単独アプリは不要です。Hooks は任意です。
 
-## 使ってみた感想を聞かせてください
+## 開発環境とフィードバック
 
-普段の作業では Apple シリコン搭載の Mac で Codex を使っていて、HandoffGlass もその環境で試しながら作っています。Windows やほかのエージェントで使う機会はまだ少ないので、試した方は、うまくいったことや困ったことを [Issues](https://github.com/BurntRoses/handoffglass/issues) で教えてください。[プルリクエスト](https://github.com/BurntRoses/handoffglass/pulls)も歓迎です。
+主な開発・テスト環境は、Apple シリコン搭載 Mac 上の Codex です。Windows やほかのエージェントでの利用についても、フィードバックを歓迎します。
+
+バグ報告や機能提案は [Issues](https://github.com/BurntRoses/handoffglass/issues) へお願いします。バグ報告には OS、エージェント、再現手順を記載してください。[プルリクエスト](https://github.com/BurntRoses/handoffglass/pulls)も受け付けています。
 
 <details>
 <summary>ドキュメント</summary>
