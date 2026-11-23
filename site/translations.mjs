@@ -34,22 +34,5 @@ export const translations = {
     'start.title':'安装','start.subtitle':'把这句话发给你的 Agent。','start.label':'发送给 Agent','start.prompt':installPrompts.zh,'start.copy':'复制','start.copied':'已复制','start.setupGuide':'使用',
     'footer.text':'桌面操作，逐步引导。','footer.preview':'测试预览','footer.license':'非商业用途免费',
     'demo.completeText':'已报告完成','demo.declineText':'已拒绝','demo.completedBody':'Agent 可以继续核验实际结果。','demo.declinedBody':'本次引导已停止。'
-  },
-  ja: {
-    'nav.experience':'体験','nav.features':'機能','nav.integrations':'連携','nav.start':'はじめる',
-    'hero.eyebrow':'ローカル対話ランタイム','hero.line1':'画面操作を、','hero.line2':'一歩ずつ案内。','hero.lead':'エージェントが対象と操作を画面上に表示。操作後は結果を確認し、作業を続けます。','hero.explore':'操作を体験','hero.setup':'セットアップ','hero.note':'あなたの画面で。判断するのは、あなた。',
-    'demo.workspace':'ワークスペース設定','demo.heading':'次の操作を確認','demo.body':'接続したワークスペースが操作を求めています。','demo.option1':'接続済みアプリ','demo.option1sub':'リクエストの詳細','demo.option2':'アクセス権限','demo.option2sub':'続行前に確認','demo.later':'あとで','demo.review':'アクセスを確認','demo.tag':'次の操作','demo.yourturn':'あなたの番です','demo.cardtitle':'内容を確認してください','demo.cardbody':'元のウィンドウで判断してください。','demo.completed':'完了した','demo.decline':'拒否','demo.preview':'インタラクティブなコンセプト表示',
-    'scene.focus':'フォーカス','scene.sequence':'手順','scene.caution':'確認',
-    'rail.title':'ツール呼び出しから画面の案内まで、端末内で。','rail.broker':'ローカルサービス','rail.marks':'画面マーク',
-    'features.eyebrow':'対話レイヤー','features.heading':'説明を減らし、操作をわかりやすく。','features.intro':'エージェントだけでは進められない場面に、静かで明確な案内を。',
-    'features.visual.title':'対象を示す','features.visual.body':'手描き風の軌跡、やわらかな光、組み合わせられるレイヤー。操作を邪魔せずに案内します。',
-    'features.handoff.title':'操作を報告する','features.handoff.body':'完了・拒否を明確に返し、エージェントが次の動作を判断します。',
-    'features.local.title':'端末内で動作する','features.local.body':'共有ローカルブローカー、端末内の表示設定、許可制の UI 要素検索。',
-    'flow.eyebrow':'作業の流れを途切れさせない','flow.heading':'引き継いで、元に戻す。','flow.intro':'少しの手作業で、最初からやり直す必要はありません。',
-    'flow.one.title':'エージェントから依頼','flow.one.body':'対象を探すか、人への引き継ぎを要求。','flow.two.title':'あなたが操作','flow.two.body':'案内を見て、実行または拒否。','flow.three.title':'エージェントが再開','flow.three.body':'結果を確認し、作業を続行。',
-    'integrations.eyebrow':'プラグイン試用版','integrations.heading':'ひとつのランタイム。いつものエージェント。','integrations.body':'MCP と Skill がローカル描画プロセスを共有します。ネイティブ連携は試用段階で、実際のモデルによる作業全体は未検証です。','integrations.link':'導入手順と検証状況',
-    'start.title':'インストール','start.subtitle':'エージェントに送ってください。','start.label':'エージェントへ','start.prompt':installPrompts.ja,'start.copy':'コピー','start.copied':'コピー済み','start.setupGuide':'使い方',
-    'footer.text':'画面操作を、一歩ずつ案内。','footer.preview':'テストプレビュー','footer.license':'非商用利用は無料',
-    'demo.completeText':'完了を報告','demo.declineText':'拒否しました','demo.completedBody':'エージェントが結果を確認できます。','demo.declinedBody':'エージェントはあなたの判断を尊重します。'
   }
 };

@@ -5,19 +5,19 @@ import {join,dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {translations} from '../site/translations.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-test('every UI translation has English, Chinese and Japanese copy',async()=>{
+test('every UI translation has English and Chinese copy',async()=>{
   const html=await readFile(join(root,'site/index.html'),'utf8');
   const keys=[...html.matchAll(/data-i18n="([a-zA-Z0-9._-]+)"/g)].map(x=>x[1]);
   assert.ok(keys.length>55,'site must have substantial internationalized content');
   const basis=Object.keys(translations.en).sort();
-  for(const lang of ['en','zh','ja']){
+  for(const lang of ['en','zh']){
     assert.deepEqual(Object.keys(translations[lang]).sort(),basis,`${lang} keys differ`);
     for(const key of keys)assert.ok(translations[lang][key]?.trim(),`${lang}: ${key}`);
   }
 });
 test('all referenced home-page assets and localized READMEs exist',async()=>{
-  for(const name of ['README.md','README.zh-CN.md','README.ja.md','assets/brandmark.svg','assets/hero.svg','site/style.css','site/app.mjs','scripts/site-preview.mjs'])await access(join(root,name));
-  for(const name of ['README.md','README.zh-CN.md','README.ja.md']){
+  for(const name of ['README.md','README.zh-CN.md','assets/brandmark.svg','assets/hero.svg','site/style.css','site/app.mjs','scripts/site-preview.mjs'])await access(join(root,name));
+  for(const name of ['README.md','README.zh-CN.md']){
     const contents=await readFile(join(root,name),'utf8');
     const links=[...contents.matchAll(/\]\(([^)#]+)(?:#[^)]*)?\)/g)].map(x=>x[1]);
     for(const link of links)if(!/^https?:\/\//.test(link))await access(join(root,link));
@@ -61,9 +61,9 @@ test('local preview serves only website assets, never repository files',async()=
 
 test('language selection preserves URL, saved preference and browser precedence',async()=>{
   const {resolveLanguage}=await import('../site/shared.mjs');
-  assert.equal(resolveLanguage({search:'?lang=ja',saved:'zh',browser:'en-US'}),'ja');
-  assert.equal(resolveLanguage({search:'?lang=bad',saved:'zh',browser:'ja-JP'}),'zh');
+  assert.equal(resolveLanguage({search:'?lang=en',saved:'zh',browser:'zh-CN'}),'en');
+  assert.equal(resolveLanguage({search:'?lang=ja',saved:'zh',browser:'en-US'}),'zh');
   assert.equal(resolveLanguage({search:'?lang=bad',saved:'bad',browser:'zh-TW'}),'zh');
-  assert.equal(resolveLanguage({browser:'ja-JP'}),'ja');
+  assert.equal(resolveLanguage({saved:'ja',browser:'ja-JP'}),'en');
   assert.equal(resolveLanguage({browser:'de-DE'}),'en');
 });

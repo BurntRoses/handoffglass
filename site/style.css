@@ -75,7 +75,7 @@
 .experience-stage[data-outcome='complete'] .handoff-card { background:var(--selection); }
 .experience-stage[data-outcome='decline'] .handoff-card { background:#45382d; }
 .experience-stage:is([data-outcome='complete'],[data-outcome='decline']) .handoff-buttons { display:none; }
-.handoff-card { position:absolute; left:var(--space-4); bottom:var(--space-5); width:48%; padding:var(--space-4); background:var(--raised); z-index:6; box-shadow:var(--shadow); border-radius:var(--radius-surface); }
+.handoff-card { position:absolute; left:var(--space-4); bottom:var(--space-5); width:48%; padding:var(--space-4); background:color-mix(in srgb,var(--surface) 82%,var(--accent)); z-index:6; box-shadow:var(--shadow); border-radius:var(--radius-surface); }
 .handoff-topline { display:flex; justify-content:space-between; align-items:center; gap:var(--space-2); }
 .handoff-status { display:flex; align-items:center; gap:var(--space-2); font-size:var(--text-caption); font-weight:500; color:var(--accent); }
 .status-ring { width:6px; height:6px; background:var(--accent); border-radius:50%; }

@@ -52,7 +52,7 @@ test('multilingual onboarding guide has scoped local setup and no hidden network
  const home=await readFile(join(root,'site/index.html'),'utf8');
  assert.match(guide,/guide\.mjs/);
  assert.match(home,/getting-started\.html/);
- for(const key of ['en','zh','ja'])assert.match(js,new RegExp(`\\b${key}:\\{`));
+ for(const key of ['en','zh'])assert.match(js,new RegExp(`\\b${key}:\\{`));
  assert.doesNotMatch(js, /\beval\s*\(|\binnerHTML\s*=/);
  for(const path of ['site/guide.css','site/guide.mjs','src/desktop/setup.css','src/desktop/setup.js'])assert.ok((await stat(join(root,path))).size>200);
 });

@@ -1,4 +1,4 @@
-/** Real Chromium checks for layout, state, copy, three locales and optional baseline comparison. */
+/** Real Chromium checks for layout, state, copy, two locales and optional baseline comparison. */
 import assert from 'node:assert/strict';
 import {assertPalette,assertNoHorizontalOverflow} from './ui-design-assertions.mjs';
 import {app,BrowserWindow,nativeImage} from 'electron';
@@ -57,7 +57,7 @@ void app.whenReady().then(async()=>{
   for(const page of ['index','getting-started']){
    for(const [label,width,height] of [['desktop',1440,1000],['tablet',820,1100],['mobile',390,844]]){
     win.setContentSize(width,height);
-    for(const lang of ['en','zh','ja']){
+    for(const lang of ['en','zh']){
      await win.loadURL(`${base}${page}.html?lang=${lang}`);await pause(80);await settle();
      assert.equal(await js('document.documentElement.lang'),lang==='zh'?'zh-CN':lang);
      await record(`${page}-${label}-${lang}`);
@@ -92,11 +92,11 @@ void app.whenReady().then(async()=>{
    assert.equal(await js('window.copiedFallback.command'),'copy');
    assert.match(await js(`document.querySelector('${selector}').textContent`),/Copied/);
    if(!baseline)assert.equal(await js(`document.activeElement===document.querySelector('${selector}')`),true,'Fallback lost copy-button focus');
-   await js(`document.querySelector('[data-lang=ja]').click()`);
-   await pause(30);assert.match(await js(`document.querySelector('${selector}').textContent`),/コピー/);
+   await js(`document.querySelector('[data-lang=zh]').click()`);
+   await pause(30);assert.match(await js(`document.querySelector('${selector}').textContent`),/复制/);
    const m=(await win.webContents.debugger.sendCommand('Performance.getMetrics')).metrics;
    const start=Object.fromEntries(m.map(x=>[x.name,x.value]));
-   const repeat=await js(`(()=>{const mutations=new MutationObserver(()=>{});mutations.observe(document.body,{subtree:true,childList:true,attributes:true});const t=performance.now();for(let i=0;i<120;i++)document.querySelector('[data-lang=ja]').click();const ms=performance.now()-t,count=mutations.takeRecords().length;mutations.disconnect();return {ms,mutations:count};})()`);
+   const repeat=await js(`(()=>{const mutations=new MutationObserver(()=>{});mutations.observe(document.body,{subtree:true,childList:true,attributes:true});const t=performance.now();for(let i=0;i<120;i++)document.querySelector('[data-lang=zh]').click();const ms=performance.now()-t,count=mutations.takeRecords().length;mutations.disconnect();return {ms,mutations:count};})()`);
    const end=Object.fromEntries((await win.webContents.debugger.sendCommand('Performance.getMetrics')).metrics.map(x=>[x.name,x.value]));
    metrics[page]={repeatLocaleMs:repeat.ms,repeatLocaleMutations:repeat.mutations,recalcStyle:end.RecalcStyleCount-start.RecalcStyleCount,layout:end.LayoutCount-start.LayoutCount,
     resources:await js(`performance.getEntriesByType('resource').filter(r=>new URL(r.name).origin===location.origin).map(r=>({path:new URL(r.name).pathname,bytes:r.decodedBodySize}))`)};
@@ -104,7 +104,7 @@ void app.whenReady().then(async()=>{
     assert.equal(repeat.mutations,0,'Selecting the current locale must not rewrite the page');
     if(page==='getting-started')assert.equal(metrics[page].resources.some(r=>/\/(style\.css|translations\.mjs)$/.test(r.path)),false,'Guide loaded home-only assets');
    }
-   await win.loadURL(base+page+'.html');await pause(80);assert.equal(await js('document.documentElement.lang'),'ja');
+   await win.loadURL(base+page+'.html');await pause(80);assert.equal(await js('document.documentElement.lang'),'zh-CN');
   }
   if(!baseline){
    // Slow modern clipboard, double-click, locale change and denied fallback.
@@ -131,8 +131,8 @@ void app.whenReady().then(async()=>{
    for(const page of ['index','getting-started']){
     await win.loadURL(base+page+'.html?lang=zh');await pause(80);
     assert.equal(await js('document.documentElement.lang'),'zh-CN');
-    await js(`document.querySelector('[data-lang=ja]').click()`);
-    assert.equal(await js('document.documentElement.lang'),'ja');
+    await js(`document.querySelector('[data-lang=en]').click()`);
+    assert.equal(await js('document.documentElement.lang'),'en');
    }
    await win.webContents.debugger.sendCommand('Page.removeScriptToEvaluateOnNewDocument',{identifier:blocked.identifier});
   }
@@ -154,6 +154,6 @@ void app.whenReady().then(async()=>{
   } finally {await new Promise(r=>demo.close(r));}
   win.webContents.debugger.detach();assert.deepEqual(errors,[]);
   await writeFile(join(baseline?before:after,'metrics.json'),JSON.stringify(metrics,null,2)+'\n');
-  console.log(`PASS site ${baseline?'baseline':'regression'}: 18 locale/viewports, three scenes, both outcomes, reduced motion, clipboard fallback, saved language and demo verification branches. ${baseline?'Baseline saved.':compare?'Exact pixels/layout/motion match.':''}`);
+  console.log(`PASS site ${baseline?'baseline':'regression'}: 12 locale/viewports, three scenes, both outcomes, reduced motion, clipboard fallback, saved language and demo verification branches. ${baseline?'Baseline saved.':compare?'Exact pixels/layout/motion match.':''}`);
  }finally{win?.destroy();await new Promise(r=>server.close(r));await rm(profile,{recursive:true,force:true});}
 }).then(()=>app.exit(0),error=>{console.error(error);app.exit(1);});

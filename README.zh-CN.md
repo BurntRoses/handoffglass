@@ -6,13 +6,13 @@
 
 **面向 Agent 的桌面标注与分步引导**
 
-[English](README.md) · [**简体中文**](README.zh-CN.md) · [日本語](README.ja.md)
+[English](README.md) · [**简体中文**](README.zh-CN.md)
 
 </div>
 
 HandoffGlass 在桌面上标注应用控件，并显示需要用户参与的操作步骤。用户完成操作后，Agent 可核对结果并继续任务。
 
-![HandoffGlass 圈出每日提醒开关，旁边显示步骤卡片](assets/desktop-guidance.png)
+![HandoffGlass 圈出每日提醒开关，旁边显示步骤卡片](assets/desktop-guidance-zh-CN.png)
 
 *在示例应用中开启每日提醒。*
 

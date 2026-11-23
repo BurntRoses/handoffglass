@@ -62,10 +62,14 @@ test('decision panel follows the same typographic tokens and supports high contr
   assert.match(tokens,/color-scheme: light/);
   assert.match(tokens,/font-synthesis: none/);
 });
-test('all three README languages show the same desktop guidance screenshot',async()=>{
-  const screenshot=await readFile(new URL('../assets/desktop-guidance.png',import.meta.url));
-  assert.equal(screenshot.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
-  for(const locale of ['README.md','README.zh-CN.md','README.ja.md']){
-    assert.match(await asset(locale),/!\[[^\]]+\]\(assets\/desktop-guidance\.png\)/);
-  }
+test('English and Chinese READMEs each show a localized desktop guidance screenshot',async()=>{
+  const readmes=[['README.md','en'],['README.zh-CN.md','zh-CN']];
+  const screenshots=await Promise.all(readmes.map(async([readme,locale])=>{
+    const path=`assets/desktop-guidance-${locale}.png`;
+    const screenshot=await readFile(new URL(`../${path}`,import.meta.url));
+    assert.equal(screenshot.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+    assert.ok((await asset(readme)).includes(`](${path})`));
+    return screenshot;
+  }));
+  assert.notDeepEqual(...screenshots);
 });

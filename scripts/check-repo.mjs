@@ -15,7 +15,7 @@ async function markdownIn(dir,found=[]){
   return found;
 }
 const markdown=[...await markdownIn(join(root,'docs'))];
-for(const file of ['README.md','README.zh-CN.md','README.ja.md','DESIGN.md'])markdown.push(join(root,file));
+for(const file of ['README.md','README.zh-CN.md','DESIGN.md'])markdown.push(join(root,file));
 for(const path of markdown){
   const source=await readFile(path,'utf8');
   // No network access: check the file part of local Markdown links only.

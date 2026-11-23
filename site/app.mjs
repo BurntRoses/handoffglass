@@ -12,8 +12,7 @@ const sceneButtons = [...document.querySelectorAll('[data-scenario]')];
 const translated = [...document.querySelectorAll('[data-i18n]')].map(node => [node, node.dataset.i18n]);
 const pageTitles = {
   en: 'HandoffGlass — Desktop guidance, step by step.',
-  zh: 'HandoffGlass — 桌面操作，逐步引导。',
-  ja: 'HandoffGlass — 画面操作を、一歩ずつ案内。'
+  zh: 'HandoffGlass — 桌面操作，逐步引导。'
 };
 const copyButton = document.getElementById('copy-command');
 const command = document.getElementById('install-command');

@@ -1,10 +1,10 @@
 /** Shared page behavior; no polling, global listeners or work at import time. */
-export const LANGUAGES = Object.freeze(['en', 'zh', 'ja']);
+export const LANGUAGES = Object.freeze(['en', 'zh']);
 const fallbackAreas = new WeakSet();
 const storageKey = 'handoffglass-site-lang';
 
 export function resolveLanguage({search = '', saved, browser = 'en'} = {}) {
-  const preferred = browser.startsWith('zh') ? 'zh' : browser.startsWith('ja') ? 'ja' : 'en';
+  const preferred = browser.startsWith('zh') ? 'zh' : 'en';
   return [new URLSearchParams(search).get('lang'), saved, preferred].find(lang => LANGUAGES.includes(lang));
 }
 

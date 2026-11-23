@@ -6,13 +6,13 @@
 
 **Desktop annotations and step-by-step guidance for agents**
 
-[**English**](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
+[**English**](README.md) · [简体中文](README.zh-CN.md)
 
 </div>
 
 HandoffGlass marks controls directly on the desktop and presents steps that require user input. Once the user completes a step, the agent can verify the result and continue the task.
 
-![HandoffGlass outlines the Daily reminder switch and shows the confirmation card](assets/desktop-guidance.png)
+![HandoffGlass outlines the Daily reminder switch and shows the confirmation card](assets/desktop-guidance-en.png)
 
 *Desktop demo in a sample app.*
 
