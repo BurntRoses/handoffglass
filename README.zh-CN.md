@@ -4,13 +4,13 @@
 
 # HandoffGlass
 
-**让 Agent 直接在屏幕上指给你看。**
+**面向 Agent 的桌面标注与分步引导**
 
 [English](README.md) · [**简体中文**](README.zh-CN.md) · [日本語](README.ja.md)
 
 </div>
 
-遇到需要你亲手操作的步骤，HandoffGlass 让 Agent 在你的桌面上圈出按钮，或画个箭头指给你看。你决定点不点、自己动手。Agent 可以等你操作完，确认结果，再继续任务。
+HandoffGlass 在桌面上标注应用控件，并显示需要用户参与的操作步骤。用户完成操作后，Agent 可核对结果并继续任务。
 
 ## 一句话安装
 
@@ -22,20 +22,24 @@
 
 插件在本机运行。装好后，新开一个聊天加载工具。也可以查看 [Codex 手动安装步骤](docs/CODEX_PLUGIN.md)或[其他 Agent 的接入方式](docs/HARNESS_PLUGINS.md)。
 
-## 能做什么
+## 主要功能
 
-- **直接标在原位置。** 按钮、菜单、输入框都可以用圈、箭头或聚光框指出来。
-- **标记在复杂背景上也看得清。** 能获取目标周围的颜色时，标记会自动挑选对比更明显的颜色。深浅两层描边也能让轮廓更清楚。
-- **一步一步带你做。** 每次只提示当前动作，可以等你点击、核对结果，再给下一步。需要离开时，可以暂停，之后回到原聊天继续。
-- **从截图找位置。** 在 macOS 14 及以上，授予屏幕录制权限后，你可以确认分享一张指定应用的截图。Agent 可以据此在桌面原处标出按钮。截图只包含该应用在一块显示器上允许捕获的窗口。
+- **原位标注** 在按钮、菜单或输入框上叠加圆圈、箭头或高亮。
+- **自适应配色** 根据可用的背景颜色选择对比度较高的标记颜色，使用深浅双描边提高辨识度。
+- **分步引导** 支持暂停引导，并在返回原会话后继续当前任务。
+- **截图定位** 在 macOS 14 及以上，经用户确认后可分享指定应用在单个显示器上的可捕获窗口。Agent 可将截图中的目标标注到桌面原位置。此功能需要屏幕录制权限。
 
-<img src="assets/interaction-flow.svg" alt="Agent 标出按钮，你决定并点击，Agent 继续任务" width="100%" />
+<img src="assets/interaction-flow.svg" alt="桌面标注、用户操作和任务继续" width="100%" />
 
-装好后可以试一句：「用 HandoffGlass 指给我看这个应用的设置在哪。等我点完，再告诉我下一步。」
+**示例指令**
 
-## 欢迎一起试试
+> 用 HandoffGlass 标出当前应用的设置入口。我完成操作后再继续下一步。
 
-我平时主要在 Apple 芯片的 Mac 上用 Codex，HandoffGlass 也是在这套环境里边做边试的。Windows 和其他 Agent 我用得少。如果你试了，哪一步顺手、哪一步卡住，都欢迎来 [Issues](https://github.com/BurntRoses/handoffglass/issues) 聊聊。想一起改，也欢迎[提 PR](https://github.com/BurntRoses/handoffglass/pulls)。
+## 开发环境与反馈
+
+主要开发和测试环境为 Apple 芯片 Mac 上的 Codex。欢迎提交在 Windows 或其他 Agent 环境中的使用反馈。
+
+通过 [Issues](https://github.com/BurntRoses/handoffglass/issues) 报告问题或提出建议，也欢迎提交 [Pull Request](https://github.com/BurntRoses/handoffglass/pulls)。报告问题时，请注明操作系统、Agent 和复现步骤。
 
 [使用文档](docs/INDEX.md) · [构建与升级](docs/COMMUNITY_RELEASE.md) · [许可证](LICENSE)
 

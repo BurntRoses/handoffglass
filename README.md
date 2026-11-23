@@ -4,13 +4,13 @@
 
 # HandoffGlass
 
-**Your agent can show you where to click.**
+**Desktop annotations and step-by-step guidance for agents**
 
 [**English**](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 </div>
 
-When a task needs your input, HandoffGlass lets your agent circle the exact button or point to it on your desktop. You make the decision and click. The agent can check what happened and continue with the next step.
+HandoffGlass marks controls directly on the desktop and presents steps that require user input. Once the user completes a step, the agent can verify the result and continue the task.
 
 ## Install in Codex · 一句话安装
 
@@ -28,20 +28,24 @@ Install HandoffGlass as a native plugin in my local Codex. Follow https://github
 
 The plugin runs on your desktop. You can open a new chat after installation to load its tools. See the [Codex setup guide](docs/CODEX_PLUGIN.md) for manual installation or [other supported hosts](docs/HARNESS_PLUGINS.md).
 
-## What it does
+## Features
 
-- **Marks the actual control.** Use a circle, an arrow, or a spotlight directly over the button, menu, or field you need.
-- **Keeps marks visible.** When background colors are available, HandoffGlass picks a contrasting color. Light and dark outlines keep marks legible on busy screens.
-- **Guides you one step at a time.** The agent can wait while you act and check the result before moving on. You can pause and come back to the same chat.
-- **Locates a control from a screenshot.** On macOS 14 or later, you can confirm sharing one screenshot of a specific app on one display. The agent can use it to mark the same spot on your desktop. This requires macOS screen recording permission and an app that allows capture.
+- **On-screen annotations** Place circles, arrows, or highlights over buttons, menus, and fields.
+- **Adaptive colors** Use available background colors to select a contrasting mark. Light and dark outlines improve visibility.
+- **Step-by-step guidance** Pause a guided task and resume it in the original chat.
+- **Screenshot positioning** On macOS 14 or later, the user can confirm sharing the capturable windows of a selected app on one display. The agent can mark the corresponding location on the desktop. Screen recording permission is required.
 
 <img src="assets/interaction-flow.svg" alt="The agent marks a button, you decide and click, and the agent continues" width="100%" />
 
-Try saying: “Use HandoffGlass to show me where to open Settings in this app. Wait for me to click before giving me the next step.”
+**Example prompt**
 
-## Try it on your setup
+> Use HandoffGlass to mark the Settings entry in this app. Continue after I complete the step.
 
-I use Codex on an Apple silicon Mac for most of my work, and that's where I've spent the most time with HandoffGlass. I've used it less on Windows and with other agents. If you try it there, I'd love to hear what worked and where you got stuck. Feel free to [open an issue](https://github.com/BurntRoses/handoffglass/issues) or [send a pull request](https://github.com/BurntRoses/handoffglass/pulls).
+## Development and feedback
+
+HandoffGlass is primarily developed and tested with Codex on Apple silicon Macs. Feedback from Windows and other agent environments is welcome.
+
+Report bugs and request features through [Issues](https://github.com/BurntRoses/handoffglass/issues). When reporting a bug, include the operating system, agent, and steps to reproduce it. Contributions are welcome via [pull requests](https://github.com/BurntRoses/handoffglass/pulls).
 
 [Documentation](docs/INDEX.md) · [Builds and upgrades](docs/COMMUNITY_RELEASE.md) · [License](LICENSE)
 
