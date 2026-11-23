@@ -30,14 +30,16 @@ https://github.com/BurntRoses/handoffglass/blob/main/docs/INSTALL_AGENT.md に�
 
 接続を停止または削除するときは、「HandoffGlass を無効にして」「Codex から HandoffGlass を削除して」と伝えてください。状態を確認してから、HandoffGlass が書き込んだ内容だけを削除します。アプリの「接続」画面からも操作できます。
 
-Codex では [ネイティブプラグイン](docs/CODEX_PLUGIN.md)を利用できます。MCP・Skill・必要時に起動するローカル描画プロセスを同梱し、単独アプリは不要です。Hooks は任意です。インストールとツール検出はテスト済みですが、人の判断・独立検証・作業再開を含むモデル実行は[未検証](docs/HOST_EVIDENCE.md)です。
+Codex では [ネイティブプラグイン](docs/CODEX_PLUGIN.md)を利用できます。MCP・Skill・必要時に起動するローカル描画プロセスを同梱し、単独アプリは不要です。Hooks は任意です。
+
+## 使ってみた感想を聞かせてください
+
+普段の作業では Apple シリコン搭載の Mac で Codex を使っていて、HandoffGlass もその環境で試しながら作っています。Windows やほかのエージェントで使う機会はまだ少ないので、試した方は、うまくいったことや困ったことを [Issues](https://github.com/BurntRoses/handoffglass/issues) で教えてください。[プルリクエスト](https://github.com/BurntRoses/handoffglass/pulls)も歓迎です。
 
 <details>
 <summary>ドキュメント</summary>
 
 [エージェント向けインストール手順](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [その他のホスト](docs/INTEGRATIONS.md) · [開発](docs/DEVELOPMENT.md) · [一覧](docs/INDEX.md)
-
-ローカル macOS / Windows · MCP 対応エージェント · テストプレビュー
 
 [ビルド・更新・公開状況](docs/COMMUNITY_RELEASE.md)。[PolyForm Noncommercial](LICENSE) に基づき、非商用での利用・改変・再配布は無料です。商用利用には別途許諾が必要です。
 

@@ -39,9 +39,9 @@ The plugin runs on your desktop. You can open a new chat after installation to l
 
 Try saying: “Use HandoffGlass to show me where to open Settings in this app. Wait for me to click before giving me the next step.”
 
-## Compatibility
+## Try it on your setup
 
-HandoffGlass is a preview for local macOS and Windows agents. Codex plugin installation and tool discovery have been tested. The complete workflow in which a model guides a person, verifies their action, and resumes is still awaiting real-task validation. See [what has been verified](docs/HOST_EVIDENCE.md).
+I use Codex on an Apple silicon Mac for most of my work, and that's where I've spent the most time with HandoffGlass. I've used it less on Windows and with other agents. If you try it there, I'd love to hear what worked and where you got stuck. Feel free to [open an issue](https://github.com/BurntRoses/handoffglass/issues) or [send a pull request](https://github.com/BurntRoses/handoffglass/pulls).
 
 [Documentation](docs/INDEX.md) · [Builds and upgrades](docs/COMMUNITY_RELEASE.md) · [License](LICENSE)
 

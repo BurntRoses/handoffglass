@@ -33,9 +33,9 @@
 
 装好后可以试一句：「用 HandoffGlass 指给我看这个应用的设置在哪。等我点完，再告诉我下一步。」
 
-## 适用范围
+## 欢迎一起试试
 
-目前是本机 macOS 和 Windows 的试用版。Codex 原生插件的安装和工具发现已测试。由模型在真实任务中完成引导、核对操作并继续的整套流程仍待验证。详见[验证状态](docs/HOST_EVIDENCE.md)。
+我平时主要在 Apple 芯片的 Mac 上用 Codex，HandoffGlass 也是在这套环境里边做边试的。Windows 和其他 Agent 我用得少。如果你试了，哪一步顺手、哪一步卡住，都欢迎来 [Issues](https://github.com/BurntRoses/handoffglass/issues) 聊聊。想一起改，也欢迎[提 PR](https://github.com/BurntRoses/handoffglass/pulls)。
 
 [使用文档](docs/INDEX.md) · [构建与升级](docs/COMMUNITY_RELEASE.md) · [许可证](LICENSE)
 
