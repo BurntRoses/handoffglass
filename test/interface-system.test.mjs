@@ -62,12 +62,10 @@ test('decision panel follows the same typographic tokens and supports high contr
   assert.match(tokens,/color-scheme: light/);
   assert.match(tokens,/font-synthesis: none/);
 });
-test('all three README languages use a single scalable vector illustration',async()=>{
-  const illustration=await asset('assets/interaction-flow.svg');
-  assert.match(illustration,/viewBox="0 0 1440 366"/);
-  assert.match(illustration,/<title[^>]/);
-  assert.doesNotMatch(illustration,/<script|<image|href="https?:/i);
+test('all three README languages show the same desktop guidance screenshot',async()=>{
+  const screenshot=await readFile(new URL('../assets/desktop-guidance.png',import.meta.url));
+  assert.equal(screenshot.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
   for(const locale of ['README.md','README.zh-CN.md','README.ja.md']){
-    assert.match(await asset(locale),/assets\/interaction-flow\.svg/);
+    assert.match(await asset(locale),/!\[[^\]]+\]\(assets\/desktop-guidance\.png\)/);
   }
 });

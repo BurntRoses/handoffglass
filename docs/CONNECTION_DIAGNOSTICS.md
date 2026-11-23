@@ -12,7 +12,7 @@ npm run connection:check
 npm run readiness -- --json
 ```
 
-The check returns `hostVerified:false`, even on success. The connection wizard separately matches successful calls to the installation ID in that host configuration, retaining evidence in memory for fifteen minutes. Host identity remains caller-declared; see [Host activity](HOST_ACTIVITY.md). A working local MCP executable does not prove that Claude, Codex, DeepSeek Harness, WorkBuddy or another host has installed its configuration. In the host, refresh tool discovery and confirm `capability_manifest`, `session_start`, `session_wait`, `integration_status`, `integration_cleanup` and `integration_uninstall` appear; then call `connection_status` once. No sensitive action is needed.
+The check returns `hostVerified:false`, even on success. The connection wizard separately matches successful calls to the installation ID in that host configuration, retaining evidence in memory for fifteen minutes. Host identity remains caller-declared; see [Host activity](HOST_ACTIVITY.md). To confirm a specific host connection, refresh tool discovery there and confirm `capability_manifest`, `session_start`, `session_wait`, `integration_status`, `integration_cleanup` and `integration_uninstall` appear; then call `connection_status` once. No sensitive action is needed.
 
 ## Error recovery
 

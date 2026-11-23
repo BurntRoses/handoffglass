@@ -77,7 +77,7 @@ Keep both layers: MCP tools provide the capability; initialization instructions 
 
 - When asked to teach a desktop task, guide the user through the actions yourself.
 - During Computer Use, hand over a step when the user needs to act, log in, authorize, or handle a blocked interaction. Continue ordinary authorized automation where appropriate.
-- Observe the current app, request one action with `session_start(execution:"parked")` and return to chat. On return, attach and inspect the original app before continuing. Ground marks in fresh UI evidence; omit marks if the target is unseen. A user's completion report is not proof of the outcome.
+- Observe the current app and request one action with `session_start(execution:"parked")`. Ground marks in fresh UI evidence. Use text guidance when the target is unseen. When the user returns to the chat, attach and verify the outcome in the original app before continuing.
 - Keep each on-screen instruction brief and in the user's language. The user supplies the goal; the agent chooses the tools and steps.
 
 The installed skill contains the full workflow. Do not paste it into the user's installation prompt or completion message.
@@ -88,7 +88,7 @@ Run `npm run connection:check` for an isolated MCP initialization and tool-disco
 
 Reload tools through the host's supported mechanism when available. Otherwise tell the user to restart the host once; for an older running HandoffGlass instance, also request its restart. Do not kill a Broker holding another agent's session.
 
-An isolated check proves the service starts; it does not prove the current host has loaded it or that a model will choose it. After a host reload, use an available read-only HandoffGlass tool to confirm the connection. If that must wait for restart, say so.
+After reloading, call a read-only HandoffGlass tool in the host to confirm the connection. If a restart is required, include it in the installation summary.
 
 Finish with a brief status and only a necessary user action, for example: “已安装。重启 Codex 后生效。” Report an unresolved failure plainly instead of claiming success. Leave logs, paths, configuration and troubleshooting details in the project unless requested.
 

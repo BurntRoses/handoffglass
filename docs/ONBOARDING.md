@@ -29,15 +29,15 @@ npm run dist:desktop
 
 ## Connect an agent
 
-Choose an app card. For Codex, “Connect” merges its MCP configuration and installs the Skill with a rollback record. For WorkBuddy, “Prepare connector” generates the local MCP + Skill folder; “Show folder” reveals it for import. Other hosts offer a generated configuration to copy. A configuration write does not prove that the host loaded it. The packaged configuration uses the installed Electron binary in Node mode; moving a portable application invalidates an absolute path saved earlier. The source-mode desktop setup uses Electron in Node mode (`ELECTRON_RUN_AS_NODE=1`); the separate CLI generator uses Node.js 22+.
+Choose an app card. For Codex, “Connect” merges its MCP configuration and installs the Skill with a rollback record. For WorkBuddy, “Prepare connector” generates the local MCP + Skill folder; “Show folder” reveals it for import. Other hosts offer a generated configuration to copy. The packaged configuration uses the installed Electron binary in Node mode; moving a portable application invalidates an absolute path saved earlier. The source-mode desktop setup uses Electron in Node mode (`ELECTRON_RUN_AS_NODE=1`); the separate CLI generator uses Node.js 22+.
 
-Different hosts require different configuration structures. The setup uses the same `hostConfig()` function as the CLI generator, including TOML for Codex, `servers` for VS Code, `context_servers` for Zed, and OpenCode's local-command array. The app matches a successful tool call to the installation ID written in its MCP configuration. Host application identity remains caller-declared; unknown trust/binding state is shown as unknown. The isolated connection check verifies a temporary MCP process, not the installed host. Verify the host through its active tool list and a real tool call after reloading.
+Different hosts require different configuration structures. The setup uses the same `hostConfig()` function as the CLI generator, including TOML for Codex, `servers` for VS Code, `context_servers` for Zed, and OpenCode's local-command array. The app matches a successful tool call to the installation ID written in its MCP configuration. Host application identity remains caller-declared; unknown trust/binding state is shown as unknown. Run the connection check to verify the local MCP process. After reloading, confirm HandoffGlass appears in the host’s active tool list and call a read-only tool.
 
 For WorkBuddy, the generated package is MCP + Skill only and contains one local stdio MCP server. The user must install or import the connector, trust and enable it in WorkBuddy, then reconnect or reload tools. A cloud-hosted WorkBuddy agent cannot see the local desktop without a separately authorized bridge.
 
 ## Multiple displays
 
-For multiple monitors, open **Help → Displays**. It explains extended desktop setup, opens the system display settings and shows the detected layout with refresh and display identification. Choose whether the card follows the target, current work screen or a fixed display. See [multi-display setup](CONTROL_CENTER.md#set-up-multiple-displays). This setup help does not replace physical tracking/DPI acceptance.
+For multiple monitors, open **Help → Displays**. It explains extended desktop setup, opens the system display settings and shows the detected layout with refresh and display identification. Choose whether the card follows the target, current work screen or a fixed display. See [multi-display setup](CONTROL_CENTER.md#set-up-multiple-displays).
 
 ## Privacy defaults
 

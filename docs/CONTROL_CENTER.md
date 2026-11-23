@@ -25,7 +25,7 @@ Official setup instructions: [Apple — extend or mirror the desktop](https://su
 
 ## Correct reading of connection status
 
-“Ready” means the desktop is responding. A recent request means a valid owner-scoped call reached the broker within the preceding two minutes. This **does not prove** that a particular Claude, Codex, Trae, WorkBuddy or other MCP client has loaded the server. Ask the host to list MCP tools to verify that.
+“Ready” means the desktop is responding. A recent request means a valid owner-scoped call reached the broker within the preceding two minutes. Check the host’s active MCP tool list to confirm its connection.
 
 The interface never displays or exports broker bearer tokens, owner IDs, screen content, account names, window titles or task instructions. The diagnostics API is authenticated using the **desktop-only secret**, inaccessible using the Agent secret.
 

@@ -1,8 +1,8 @@
 # 宿主验收
 
-所有宿主的真实模型任务闭环目前均为**未验证**。Codex 原生插件已完成隔离配置下的安装、工具发现、首次 MCP 调用和卸载；这项测试不调用模型，也不代替人类决策验收。
+Codex 原生插件已在隔离配置中完成安装、工具发现、首次 MCP 调用和卸载检查。下表按宿主记录自动检查和真实任务的进度。
 
-接入顺序为 Codex、Claude Code、DeepSeek Harness、WorkBuddy、Cursor、Trae、OpenCode。统一接口在 `src/hosts/adapter.mjs`：`observe`、`present`、`await_user`、`verify`、`resume`。观察和恢复能力由宿主注入；缺少接口时返回明确的交接动作，不切换到未授权的屏幕读取，也不假装唤醒模型。
+接入顺序为 Codex、Claude Code、DeepSeek Harness、WorkBuddy、Cursor、Trae、OpenCode。统一接口在 `src/hosts/adapter.mjs`：`observe`、`present`、`await_user`、`verify`、`resume`。宿主提供已授权的观察和恢复能力。缺少接口时，适配器返回下一步交接动作。
 
 | 宿主 | 自动检查范围 | 模型闭环 |
 | --- | --- | --- |

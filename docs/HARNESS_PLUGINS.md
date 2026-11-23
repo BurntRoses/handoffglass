@@ -41,14 +41,14 @@ npm run plugin:harness -- cleanup claude-code --apply
 - **Claude Code**：要求已有 `claude` 命令，可用 `--claude-command=/absolute/path` 指定。默认 MCP + Skill；增强 Hooks 另加 `--lifecycle=enhanced`。不修改 Claude Desktop 配置。
 - **DeepSeek Harness**：要求已有 Harness，默认启动命令为 `dsh web`。当前入口固定 Cordis `4.1.0`、DSH agent/tools/llm `0.2.2-rc.2`；使用官方消息构造和 `Agent.followup`，仅向绑定的附着 Agent 交付决策事件。安装后按返回的 `launchCommand` 和 `launchEnv` 使用自有启动器，加载绝对路径 Cordis patch；App 会显示可复制命令，不修改 Harness 安装。源码环境可用既有 `npm run harness:deepseek -- /absolute/path/to/deepseek-harness` 生成开发入口。
 - **OpenCode v2**：当前包固定 `@opencode/plugin` peer 为 `2.2.7`，通过 `session.prompt` 的 `queue` 交付模式向原附着会话传递决策事件。安装器保留 JSONC 注释、其他字段及其他插件，向 `plugins` 数组加入本地包路径；旧版 v1 API 不适用。勿同时开启同名 MCP。
-- **Cursor**：默认合并 `~/.cursor/mcp.json` 的自有项；配套 Skill 位于生成包中，初始化同时提供工作流，不宣称宿主已自动发现 Skill。
+- **Cursor**：默认合并 `~/.cursor/mcp.json` 的自有项；生成包包含配套 Skill，MCP 初始化时也会提供工作流。
 - **Trae**：不猜测全局配置位置。使用 `--config=/absolute/path/to/mcp.json` 指定宿主实际配置，或 `--workspace=/absolute/path/to/project` 写入项目 `.trae/mcp.json`。安装后在 Trae 中启用并重载。
 
 只生成独立包时使用 `build <host>`；只删除该包用 `remove <host>`。这两个低层命令不管理宿主配置；日常接入优先使用上面的 `install` / `cleanup`。
 
 ## WorkBuddy
 
-App「连接」页生成本地连接器；CLI 使用 `npm run connector:workbuddy`。包内只有一个 MCP Server，包含 Skill、图标和版本要求。用户在 WorkBuddy 内导入、信任并启用；本地文件生成成功不等于宿主已经导入或绑定。
+App「连接」页生成本地连接器；CLI 使用 `npm run connector:workbuddy`。包内只有一个 MCP Server，包含 Skill、图标和版本要求。生成后，在 WorkBuddy 中导入、信任并启用连接器。
 
 ## 停用与清理
 

@@ -6,15 +6,15 @@
 
 **エージェント向けのデスクトップ注釈と操作ガイド**
 
-HandoffGlass は、デスクトップ上で操作対象を示し、ユーザーによる操作が必要な手順を表示します。操作の完了後、エージェントは結果を確認してタスクを続行できます。
-
 [English](README.md) · [简体中文](README.zh-CN.md) · [**日本語**](README.ja.md)
-
-<img src="assets/interaction-flow.svg" alt="エージェントが案内し、人が操作して、作業を続ける" width="100%" />
 
 </div>
 
-ソース公開 · 非商用利用は無料 · [ライセンス](LICENSE)
+HandoffGlass は、デスクトップ上で操作対象を示し、ユーザーによる操作が必要な手順を表示します。操作の完了後、エージェントは結果を確認してタスクを続行できます。
+
+![毎日のリマインダーのスイッチを囲むマークと、操作を案内するカード](assets/desktop-guidance.png)
+
+*サンプルアプリで毎日のリマインダーをオンにするデモ。*
 
 ## インストール
 
@@ -24,13 +24,18 @@ HandoffGlass は、デスクトップ上で操作対象を示し、ユーザー�
 https://github.com/BurntRoses/handoffglass/blob/main/docs/INSTALL_AGENT.md に沿って、この PC の Codex に HandoffGlass をネイティブプラグインとしてインストールしてください。インストールを確認し、新しいチャットで接続を確認する方法を教えてください。
 ```
 
-## 使い方
+インストール後は新しいチャットを開くとツールが読み込まれます。[Codex への手動インストール](docs/CODEX_PLUGIN.md)や[ほかのエージェントとの接続](docs/HARNESS_PLUGINS.md)も参照できます。
 
-「ゴミ箱を空にする方法を教えて」と伝えるだけです。他の作業中も、人の操作が必要になれば画面上で案内できます。
+## 主な機能
 
-接続を停止または削除するときは、「HandoffGlass を無効にして」「Codex から HandoffGlass を削除して」と伝えてください。状態を確認してから、HandoffGlass が書き込んだ内容だけを削除します。アプリの「接続」画面からも操作できます。
+- **画面上の注釈** ボタンやメニュー、入力欄を円、矢印、ハイライトで示します。
+- **背景に合わせた配色** 背景色とのコントラストを確保し、明暗の縁取りでマークを見やすくします。
+- **操作ガイド** 案内を一時停止し、元のチャットから再開できます。
+- **スクリーンショットによる位置指定** macOS 14 以降では、画面収録の許可とユーザーの確認を経て、選択したアプリの撮影可能なウィンドウを 1 台のディスプレイから共有できます。エージェントはスクリーンショット上の対象をデスクトップに表示します。
 
-Codex では [ネイティブプラグイン](docs/CODEX_PLUGIN.md)を利用できます。MCP・Skill・必要時に起動するローカル描画プロセスを同梱し、単独アプリは不要です。Hooks は任意です。
+**プロンプト例**
+
+> HandoffGlass を使って毎日のリマインダーをオンにする手順を案内してください。操作を完了したら、設定を確認してください。
 
 ## 開発環境とフィードバック
 
@@ -38,11 +43,8 @@ Codex では [ネイティブプラグイン](docs/CODEX_PLUGIN.md)を利用で�
 
 バグ報告や機能提案は [Issues](https://github.com/BurntRoses/handoffglass/issues) へお願いします。バグ報告には OS、エージェント、再現手順を記載してください。[プルリクエスト](https://github.com/BurntRoses/handoffglass/pulls)も受け付けています。
 
-<details>
-<summary>ドキュメント</summary>
+[ドキュメント](docs/INDEX.md) · [ビルドと更新](docs/COMMUNITY_RELEASE.md)
 
-[エージェント向けインストール手順](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [その他のホスト](docs/INTEGRATIONS.md) · [開発](docs/DEVELOPMENT.md) · [一覧](docs/INDEX.md)
+## ライセンス
 
-[ビルド・更新・公開状況](docs/COMMUNITY_RELEASE.md)。[PolyForm Noncommercial](LICENSE) に基づき、非商用での利用・改変・再配布は無料です。商用利用には別途許諾が必要です。
-
-</details>
+HandoffGlass は [PolyForm Noncommercial 1.0.0](LICENSE) を採用しています。ライセンスの条件に従い、非商用での利用、改変、再配布が無償で可能です。再配布時はライセンスと著作権表示を保持してください。商用利用には権利者の別途許諾が必要です。

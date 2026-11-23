@@ -12,6 +12,10 @@
 
 HandoffGlass 在桌面上标注应用控件，并显示需要用户参与的操作步骤。用户完成操作后，Agent 可核对结果并继续任务。
 
+![HandoffGlass 圈出每日提醒开关，旁边显示步骤卡片](assets/desktop-guidance.png)
+
+*在示例应用中开启每日提醒。*
+
 ## 一句话安装
 
 把这句话发给本机 Codex：
@@ -29,11 +33,9 @@ HandoffGlass 在桌面上标注应用控件，并显示需要用户参与的操�
 - **分步引导** 支持暂停引导，并在返回原会话后继续当前任务。
 - **截图定位** 在 macOS 14 及以上，经用户确认后可分享指定应用在单个显示器上的可捕获窗口。Agent 可将截图中的目标标注到桌面原位置。此功能需要屏幕录制权限。
 
-<img src="assets/interaction-flow.svg" alt="桌面标注、用户操作和任务继续" width="100%" />
-
 **示例指令**
 
-> 用 HandoffGlass 标出当前应用的设置入口。我完成操作后再继续下一步。
+> 用 HandoffGlass 指引我打开每日提醒。我确认完成后，请检查开关状态。
 
 ## 开发环境与反馈
 
@@ -41,6 +43,8 @@ HandoffGlass 在桌面上标注应用控件，并显示需要用户参与的操�
 
 通过 [Issues](https://github.com/BurntRoses/handoffglass/issues) 报告问题或提出建议，也欢迎提交 [Pull Request](https://github.com/BurntRoses/handoffglass/pulls)。报告问题时，请注明操作系统、Agent 和复现步骤。
 
-[使用文档](docs/INDEX.md) · [构建与升级](docs/COMMUNITY_RELEASE.md) · [许可证](LICENSE)
+[使用文档](docs/INDEX.md) · [构建与升级](docs/COMMUNITY_RELEASE.md)
 
-源码可用，非商业用途免费。[商业用途需另行取得许可。](LICENSING.md)
+## 许可
+
+HandoffGlass 采用 [PolyForm Noncommercial 1.0.0](LICENSE)。可以按许可证免费进行非商业使用、修改和再分发。再分发须保留许可证及版权声明。商业使用需要权利人另行许可。

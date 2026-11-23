@@ -12,6 +12,10 @@
 
 HandoffGlass marks controls directly on the desktop and presents steps that require user input. Once the user completes a step, the agent can verify the result and continue the task.
 
+![HandoffGlass outlines the Daily reminder switch and shows the confirmation card](assets/desktop-guidance.png)
+
+*Desktop demo in a sample app.*
+
 ## Install in Codex · 一句话安装
 
 Copy this into a chat with your local Codex agent:
@@ -35,11 +39,9 @@ The plugin runs on your desktop. You can open a new chat after installation to l
 - **Step-by-step guidance** Pause a guided task and resume it in the original chat.
 - **Screenshot positioning** On macOS 14 or later, the user can confirm sharing the capturable windows of a selected app on one display. The agent can mark the corresponding location on the desktop. Screen recording permission is required.
 
-<img src="assets/interaction-flow.svg" alt="The agent marks a button, you decide and click, and the agent continues" width="100%" />
-
 **Example prompt**
 
-> Use HandoffGlass to mark the Settings entry in this app. Continue after I complete the step.
+> Use HandoffGlass to show me how to turn on Daily reminder. Check the setting after I confirm.
 
 ## Development and feedback
 
@@ -47,6 +49,8 @@ HandoffGlass is primarily developed and tested with Codex on Apple silicon Macs.
 
 Report bugs and request features through [Issues](https://github.com/BurntRoses/handoffglass/issues). When reporting a bug, include the operating system, agent, and steps to reproduce it. Contributions are welcome via [pull requests](https://github.com/BurntRoses/handoffglass/pulls).
 
-[Documentation](docs/INDEX.md) · [Builds and upgrades](docs/COMMUNITY_RELEASE.md) · [License](LICENSE)
+[Documentation](docs/INDEX.md) · [Builds and upgrades](docs/COMMUNITY_RELEASE.md)
 
-Source available. Free for noncommercial use. [Commercial use requires separate permission.](LICENSING.md)
+## License
+
+HandoffGlass uses [PolyForm Noncommercial 1.0.0](LICENSE). Noncommercial use, modification, and redistribution are free under the license. Redistribution requires retaining the license and copyright notice. Commercial use requires separate permission from the rights holders.
