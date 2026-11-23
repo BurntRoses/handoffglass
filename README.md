@@ -4,17 +4,17 @@
 
 # HandoffGlass
 
-**Desktop annotations and step-by-step guidance for agents**
+**On-screen annotations and guidance for agents**
 
 [**English**](README.md) · [简体中文](README.zh-CN.md)
 
 </div>
 
-HandoffGlass marks controls directly on the desktop and presents steps that require user input. Once the user completes a step, the agent can verify the result and continue the task.
+Once your agent finds a control with Computer Use, it can call HandoffGlass to circle a button, point to a menu, or highlight a field in the app you’re using. When it needs you to take an action, a card beside the mark shows the next step.
 
 ![HandoffGlass outlines the Daily reminder switch and shows the confirmation card](assets/desktop-guidance-en.png)
 
-*Desktop demo in a sample app.*
+*In a sample app, the agent circles the Daily reminder switch and asks you to turn it on.*
 
 ## Install in Codex · 一句话安装
 
@@ -34,14 +34,13 @@ The plugin runs on your desktop. You can open a new chat after installation to l
 
 ## Features
 
-- **On-screen annotations** Place circles, arrows, or highlights over buttons, menus, and fields.
-- **Adaptive colors** Use available background colors to select a contrasting mark. Light and dark outlines improve visibility.
-- **Step-by-step guidance** Pause a guided task and resume it in the original chat.
-- **Screenshot positioning** On macOS 14 or later, the user can confirm sharing the capturable windows of a selected app on one display. The agent can mark the corresponding location on the desktop. Screen recording permission is required.
+- **Quick annotations** When a mark is enough, the agent can draw it while you keep using the app.
+- **Follow-through** Select “I completed this” so the agent can check the result in the app and continue. Select “I couldn’t find it” so it can look again and update the mark.
+- **Adaptive colors** HandoffGlass uses available background colors to choose a contrasting mark. Light and dark outlines keep its edges clear.
 
 **Example prompt**
 
-> Use HandoffGlass to show me how to turn on Daily reminder. Check the setting after I confirm.
+> Find Daily reminder in the current app and use HandoffGlass to circle the switch. After I turn it on, check that it’s enabled.
 
 ## Development and feedback
 

@@ -13,13 +13,12 @@ Object.assign(UI['zh-CN'],{
  attachedReceipt:'操作已记录。Agent 将检查原应用的结果。',
  observed:'检测到目标变化',observedNote:'需要检查原应用，确认界面变化是否符合预期。',
  locationRequested:'已请求重新定位',textRequested:'已请求文字引导',fallback:'文字引导',
- correctionRequested:'已报告位置错误',correctTarget:'指错位置了',peek:'按住查看原界面',
+ correctTarget:'我没有找到',peek:'按住查看原界面',
  verifiedReceipt:'已核实',verifiedPrevious:detail=>`上一步已核实 · ${detail}`,scrollToTarget:'先滚动到目标',
  recoverHere:'正在等待原会话提供更新后的步骤。',
  recoverInChat:'回到原会话说“继续”，获取更新后的步骤。',
  expiredTarget:'标记已过期。可重新定位，或改用文字提示。',
- screenshot:'已根据截图标出位置。',
- screenshotFallback:'当前界面无法直接读取，已根据截图标出位置。',
+ screenshotFallback:'当前界面无法直接读取。本步骤使用截图定位。',
  displayChanged:'显示布局已变化，可用新的位置重新标记。',
  permissionNote:'查看当前应用的定位权限，或改用文字提示。'
 });
@@ -28,13 +27,12 @@ Object.assign(UI['en-US'],{
  attachedReceipt:'Action recorded. The agent will check the result in the original app.',
  observed:'Target change detected',observedNote:'Check the original app to confirm what changed.',
  locationRequested:'New location requested',textRequested:'Text guidance requested',fallback:'Text guidance',
- correctionRequested:'Wrong location reported',correctTarget:'Wrong location',peek:'Hold to see the original screen',
+ correctTarget:'I couldn’t find it',peek:'Hold to see the original screen',
  verifiedReceipt:'Verified',verifiedPrevious:detail=>`Previous step verified · ${detail}`,scrollToTarget:'Scroll to the target',
  recoverHere:'Waiting for an updated step from your chat.',
  recoverInChat:'Say “continue” in your original chat for the updated step.',
  expiredTarget:'The mark expired. Locate it again or use text guidance.',
- screenshot:'Marked using the screenshot.',
- screenshotFallback:'Direct access to this interface is unavailable. The mark is based on the screenshot.',
+ screenshotFallback:'Direct observation is unavailable. This step uses a screenshot.',
  displayChanged:'The display layout changed. Locate the target again to update its mark.',
  permissionNote:'Check control lookup access or use text guidance.'
 });
@@ -125,7 +123,7 @@ function render(session){
    (returnToChat?c.returnToChat:c.observedNote):(returnToChat?c.returnToChat:c.attachedReceipt);
  else if(review)note=c.reviewNote;
  else if(hasMarks){
-   const screenshotNote=session.observationMethod==='screenshot_fallback'?c.screenshotFallback:session.observationMethod==='screenshot'?c.screenshot:'';
+   const screenshotNote=session.observationMethod==='screenshot_fallback'?c.screenshotFallback:'';
    note=[screenshotNote,scrollMark?.label].filter(Boolean).join(' ');
  }
  $('note').hidden=!note;$('note').dataset.tone=(blocked&&!recovering)||offline||inconclusive||mismatch?'warning':'info';

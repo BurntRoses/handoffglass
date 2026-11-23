@@ -4,7 +4,7 @@ const terminal=new Set(['completed','declined','cancelled','expired','superseded
 const decisions=new Set(['user_action','verification_required','target_lost','display_changed','desktop_unavailable','permission_required','connection_changed','recovery_requested']);
 export function continuationMessage(notice){
   if(notice.nextAction==='reobserve_target'&&notice.reason==='target_incorrect')
-    return `HandoffGlass event ${JSON.stringify(notice)}. The user reported a wrong location. Observe the original application again and use session_present on this same step with a new requestId and fresh evidence.`;
+    return `HandoffGlass event ${JSON.stringify(notice)}. The user couldn’t find the target. Observe the original application again and use session_present on this same step with a new requestId and fresh evidence.`;
   return `HandoffGlass event ${JSON.stringify(notice)}. Continue only this owned session. Independently observe the original application before session_verify; a user report is not proof. Never replay a user action or reopen a refusal. If observation is unavailable use result:inconclusive. Do not repeat the desktop card in chat.`;
 }
 export function createContinuation({broker,deliver,onError=()=>{},waitSeconds=25}){

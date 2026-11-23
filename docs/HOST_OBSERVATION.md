@@ -64,7 +64,7 @@ npm run plugin:codex:install -- --lifecycle=enhanced
 
 一张已获授权的截图可以覆盖整块显示器。宿主提供截图和显示器映射，或用户在会话中主动分享截图。Agent 在图中找到图标或按钮，将区域和映射交给 HandoffGlass，由桌面在原位置画圈或指向目标。用户分享的图片缺少可靠映射时，可以在图里指出位置，或给出文字引导。
 
-直接读取不可用且已有可用截图时，在步骤的 `frame` 中设置 `directReadUnavailable: true`。桌面卡片显示“当前界面无法直接读取，已根据截图标出位置。”普通截图定位显示“已根据截图标出位置。”窗口或显示布局变化后，使用新的画面重新定位。操作结果需要另行核验。
+直接读取不可用且已有可用截图时，在步骤的 `frame` 中设置 `directReadUnavailable: true`。桌面卡片显示“当前界面无法直接读取。本步骤使用截图定位。”窗口或显示布局变化后，使用新的画面重新定位。操作结果需要另行核验。
 
 Codex 官方说明：[Computer Use](https://learn.chatgpt.com/docs/computer-use)、[插件构成](https://developers.openai.com/plugins/build/plugins)、[Hooks](https://learn.chatgpt.com/docs/hooks)。宿主的观察权限与本插件原生定位权限分别管理；后台 Hook 无法唤醒空闲模型回合。
 

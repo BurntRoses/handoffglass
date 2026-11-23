@@ -12,7 +12,7 @@ This is an implementation contract for an Agent-friendly overlay, not a roadmap 
 
 - The current target keeps its full cue until the pointer rests inside its bounds. The scrim then clears and thin corners remain for that step. A new step or a substantially relocated target brings back the full cue.
 - Hold the eye button to reveal the original app. Space or Enter works when the button has focus. Release the hold or move focus away to restore the active mark.
-- 「指错位置了」 clears the marks and requests another observation for the same step. The owner receives a `recovery_requested` event with reason `target_incorrect`.
+- “I couldn’t find it” (「我没有找到」) clears the marks and asks the Agent to locate the target again for the same step. The owner receives a `recovery_requested` event with reason `target_incorrect`.
 - A verified `session_verify` result can include a short observed `summary`. The card carries that line into the next step briefly or shows it in a temporary receipt when the task ends.
 
 ## Agent decision table

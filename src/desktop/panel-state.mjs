@@ -15,7 +15,7 @@ export function panelState(s,now=Date.now()) {
     (!['verifying','next_step','blocked'].includes(s.phase)||s.agentState.at>=s.updatedAt);
   const working=s.execution!=='parked'&&fresh&&['thinking','observing','locating','presenting','verifying'].includes(phase);
   if(working)return {key:phase,tone:'active',working:true};
-  if(s.phase==='blocked'&&s.recoveryRequired)return {key:s.recoveryReason==='target_incorrect'?'correctionRequested':s.nextAction==='present_text_step'?'textRequested':'locationRequested',tone:'quiet',working:false};
+  if(s.phase==='blocked'&&s.recoveryRequired)return {key:s.nextAction==='present_text_step'?'textRequested':'locationRequested',tone:'quiet',working:false};
   if(s.phase==='reconnecting')return {key:'review',tone:'quiet',working:false};
   if(s.verification?.result==='mismatch')return {key:'mismatch',tone:'warning',working:false};
   if(s.phase==='verifying')return {key:s.execution==='parked'?'parkedSubmitted':'submitted',tone:'recorded',working:false};

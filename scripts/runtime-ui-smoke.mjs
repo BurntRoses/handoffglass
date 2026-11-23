@@ -76,7 +76,7 @@ void app.whenReady().then(async()=>{
     });
     const fixturePressed=()=>fixture.webContents.executeJavaScript('document.querySelector("button").getAttribute("aria-pressed")==="true"');
     await until(()=>panel.webContents.executeJavaScript('document.querySelector("#title").textContent==="打开测试设置"'),'Grounded guide did not appear');
-    assert.equal(await panel.webContents.executeJavaScript('document.querySelector("#note:not([hidden])")?.textContent'),'当前界面无法直接读取，已根据截图标出位置。');
+    assert.equal(await panel.webContents.executeJavaScript('document.querySelector("#note:not([hidden])")?.textContent'),'当前界面无法直接读取。本步骤使用截图定位。');
     await writeFile(join(output,'screenshot-guidance.png'),(await panel.webContents.capturePage()).toPNG());
     assert.equal(await fixturePressed(),false);
     await fixture.webContents.executeJavaScript('document.querySelector("button").click()');
@@ -124,8 +124,10 @@ void app.whenReady().then(async()=>{
     assert.equal(revealed.session.annotations[0].autoShape,true);
     await until(()=>hostOverlay.webContents.executeJavaScript('!!document.querySelector(".hg-mark") && !document.querySelector("[data-scroll-direction]")'),'Scroll cue did not become a grounded mark');
     await until(()=>panelJS("!document.querySelector('#correctTarget').hidden"),'Target correction action missing');
+    assert.equal(await panelJS("document.querySelector('#correctTarget').textContent"),'我没有找到');
+    assert.equal(await panelJS("document.querySelector('#note').hidden"),true);
     await panelJS("document.querySelector('#correctTarget').click()");
-    await until(()=>panelJS("document.querySelector('#phase').textContent==='已报告位置错误'"),'Correction feedback absent');
+    await until(()=>panelJS("document.querySelector('#phase').textContent==='已请求重新定位'"),'Correction feedback absent');
     assert.equal(m.get(scrolling.session.id).nextAction,'reobserve_target');
     assert.equal(b.journal.read(scrolling.session.id).events.filter(event=>event.reason==='target_incorrect').length,1);
     await until(()=>!hostOverlay.isVisible(),'Incorrect mark remained visible');
