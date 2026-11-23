@@ -4,45 +4,45 @@
 
 # HandoffGlass
 
-**The next step, on your screen.**
-
-When your agent needs you to act, it points out where, waits, and continues the task.
+**Your agent can show you where to click.**
 
 [**English**](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-<img src="assets/interaction-flow.svg" alt="The agent guides, you act, the task continues" width="100%" />
-
 </div>
 
-Source available · Free for noncommercial use · [License](LICENSE)
+When a task needs your input, HandoffGlass lets your agent circle the exact button or point to it on your desktop. You make the decision and click. The agent can check what happened and continue with the next step.
 
-## Install
+## Install in Codex · 一句话安装
 
-Send this to your agent:
+Copy this into a chat with your local Codex agent:
 
 ```text
-Please install https://github.com/BurntRoses/handoffglass
+Install HandoffGlass as a native plugin in my local Codex. Follow https://github.com/BurntRoses/handoffglass/blob/main/docs/INSTALL_AGENT.md, check the installation, and tell me how to verify the connection in a new chat.
 ```
 
-## Use
+也可以直接发给本机 Codex：
 
-Tell your agent what you need: “Show me how to empty the Trash.” During other tasks, it can also guide you when a step needs your input.
+```text
+请按 https://github.com/BurntRoses/handoffglass/blob/main/docs/INSTALL_AGENT.md 在我的本机 Codex 安装 HandoffGlass 原生插件，检查安装是否成功，并告诉我怎么在新聊天里确认连接。
+```
 
-To disable or remove a connection, tell the agent to “disable HandoffGlass” or “clean HandoffGlass from Codex.” It checks the integration first and removes only HandoffGlass-owned content. The same actions are available from the app’s Connections page.
+The plugin runs on your desktop. You can open a new chat after installation to load its tools. See the [Codex setup guide](docs/CODEX_PLUGIN.md) for manual installation or [other supported hosts](docs/HARNESS_PLUGINS.md).
 
-For Codex, use the [native plugin trial](docs/CODEX_PLUGIN.md) for MCP + Skills and an on-demand local renderer. Command hooks are optional; only enhanced mode needs hook review.
+## What it does
 
-This is a plugin preview. Native Codex installation and tool discovery are tested; model tasks with a human decision, independent verification and continuation remain unverified. See [host setup](docs/HARNESS_PLUGINS.md) and the [host evidence matrix](docs/HOST_EVIDENCE.md) before trying an adapter.
+- **Marks the actual control.** Use a circle, an arrow, or a spotlight directly over the button, menu, or field you need.
+- **Keeps marks visible.** When background colors are available, HandoffGlass picks a contrasting color. Light and dark outlines keep marks legible on busy screens.
+- **Guides you one step at a time.** The agent can wait while you act and check the result before moving on. You can pause and come back to the same chat.
+- **Locates a control from a screenshot.** On macOS 14 or later, you can confirm sharing one screenshot of a specific app on one display. The agent can use it to mark the same spot on your desktop. This requires macOS screen recording permission and an app that allows capture.
 
-<details>
-<summary>Documentation</summary>
+<img src="assets/interaction-flow.svg" alt="The agent marks a button, you decide and click, and the agent continues" width="100%" />
 
-[Agent installation instructions](docs/INSTALL_AGENT.md) · [Codex](docs/USE_WITH_CODEX.zh-CN.md) · [Other hosts](docs/INTEGRATIONS.md) · [Development](docs/DEVELOPMENT.md) · [All docs](docs/INDEX.md)
+Try saying: “Use HandoffGlass to show me where to open Settings in this app. Wait for me to click before giving me the next step.”
 
-Before a device trial, run `npm run test:preacceptance` in a prepared checkout. This checks source and isolated protocols without installing a host or calling a model. [Plugin release checks](docs/COMMUNITY_RELEASE.md#prepare-the-plugin-trial) do not require signing a separate App.
+## Compatibility
 
-Local macOS / Windows · MCP-capable agent · Engineering preview
+HandoffGlass is a preview for local macOS and Windows agents. Codex plugin installation and tool discovery have been tested. The complete workflow in which a model guides a person, verifies their action, and resumes is still awaiting real-task validation. See [what has been verified](docs/HOST_EVIDENCE.md).
 
-[Builds, upgrades and release status](docs/COMMUNITY_RELEASE.md). Free for noncommercial use, modification and redistribution under the [PolyForm Noncommercial License](LICENSE). Commercial use requires separate permission; see [usage terms](LICENSING.md).
+[Documentation](docs/INDEX.md) · [Builds and upgrades](docs/COMMUNITY_RELEASE.md) · [License](LICENSE)
 
-</details>
+Source available. Free for noncommercial use. [Commercial use requires separate permission.](LICENSING.md)

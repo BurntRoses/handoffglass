@@ -18,10 +18,10 @@
 
 ## インストール
 
-エージェントに送ってください。
+ローカルの Codex に送ってください。
 
 ```text
-https://github.com/BurntRoses/handoffglass をインストールしてください。
+https://github.com/BurntRoses/handoffglass/blob/main/docs/INSTALL_AGENT.md に沿って、この PC の Codex に HandoffGlass をネイティブプラグインとしてインストールしてください。インストールを確認し、新しいチャットで接続を確認する方法を教えてください。
 ```
 
 ## 使い方
